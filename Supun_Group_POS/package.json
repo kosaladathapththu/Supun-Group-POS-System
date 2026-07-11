@@ -1,0 +1,25 @@
+{
+  "name": "la_zogan_pos",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kosaladathapththu/La_Zogan_POS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kosaladathapththu/La_Zogan_POS/issues"
+  },
+  "homepage": "https://github.com/kosaladathapththu/La_Zogan_POS#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "serialport": "^13.0.0"
+  }
+}
