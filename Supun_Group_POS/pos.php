@@ -195,17 +195,17 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
     ];
 
     $order_check = $conn->query("
-        SELECT * FROM orders 
-        WHERE order_id=$current_order_id 
-        AND order_status='open' 
+        SELECT * FROM orders
+        WHERE order_id=$current_order_id
+        AND order_status='open'
         LIMIT 1
     ");
 
     if ($order_check && $order_check->num_rows > 0) {
         $q = $conn->query("
-            SELECT * FROM products 
-            WHERE product_id=$product_id 
-            AND status=1 
+            SELECT * FROM products
+            WHERE product_id=$product_id
+            AND status=1
             LIMIT 1
         ");
 
@@ -217,8 +217,8 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
 
             $item_check = $conn->query("
                 SELECT * FROM order_items
-                WHERE order_id=$current_order_id 
-                AND product_id=$product_id 
+                WHERE order_id=$current_order_id
+                AND product_id=$product_id
                 AND item_type='product'
                 LIMIT 1
             ");
@@ -229,24 +229,24 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
                 $new_lt = $price * $new_qty;
 
                 $conn->query("
-                    UPDATE order_items 
-                    SET quantity=$new_qty, price=$price, line_total=$new_lt 
+                    UPDATE order_items
+                    SET quantity=$new_qty, price=$price, line_total=$new_lt
                     WHERE order_item_id=" . (int)$item["order_item_id"]
                 );
             } else {
                 $conn->query("
-                    INSERT INTO order_items 
-                    (order_id, product_id, custom_item_name, quantity, price, item_type, line_total) 
-                    VALUES 
+                    INSERT INTO order_items
+                    (order_id, product_id, custom_item_name, quantity, price, item_type, line_total)
+                    VALUES
                     ($current_order_id, $product_id, NULL, 1, $price, 'product', $price)
                 ");
             }
 
             $sum_q = $conn->query("
-                SELECT 
+                SELECT
                     COALESCE(SUM(line_total), 0) AS grand_total,
                     COALESCE(SUM(quantity), 0) AS cart_count
-                FROM order_items 
+                FROM order_items
                 WHERE order_id=$current_order_id
             ");
 

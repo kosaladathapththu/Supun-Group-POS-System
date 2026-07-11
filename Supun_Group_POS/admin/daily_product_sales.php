@@ -6,7 +6,7 @@ $from_date = $_GET['from_date'] ?? date('Y-m-d');
 $to_date   = $_GET['to_date'] ?? date('Y-m-d');
 
 $sql = "
-    SELECT 
+    SELECT
         DATE(o.created_at) AS sale_date,
         p.product_name,
         SUM(oi.quantity) AS total_qty,

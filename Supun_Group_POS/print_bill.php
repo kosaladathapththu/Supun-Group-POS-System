@@ -1,4 +1,4 @@
-<?php 
+<?php
 include 'db.php';
 
 $order_id = isset($_GET["order_id"]) ? (int) $_GET["order_id"] : 0;
@@ -24,7 +24,7 @@ if (!$order) {
 }
 
 $item_stmt = $conn->prepare("
-    SELECT 
+    SELECT
         oi.*,
         COALESCE(p.product_name, oi.custom_item_name, 'Item') AS item_name
     FROM order_items oi

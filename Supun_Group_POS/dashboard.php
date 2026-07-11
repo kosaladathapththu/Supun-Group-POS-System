@@ -129,7 +129,7 @@ while ($r = $ot_q->fetch_assoc()) {
    TOP PRODUCTS
 =============================== */
 $top_q = $conn->query("
-    SELECT 
+    SELECT
         p.product_name,
         SUM(oi.quantity) AS qty_sold,
         SUM(oi.line_total) AS revenue

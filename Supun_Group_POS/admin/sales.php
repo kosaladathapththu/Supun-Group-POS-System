@@ -53,20 +53,20 @@ $ot_sum = $conn->query("
 
 /* ── TOP PRODUCTS ── */
 $top_prods = $conn->query("
-    SELECT 
+    SELECT
         COALESCE(MIN(p.product_name), MIN(oi.custom_item_name), 'Unknown') AS item_name,
         SUM(oi.quantity) AS qty,
         SUM(oi.line_total) AS revenue,
-        CASE 
-            WHEN MAX(CASE WHEN oi.custom_item_name IS NOT NULL AND oi.product_id IS NULL THEN 1 ELSE 0 END) = 1 
-            THEN 1 
-            ELSE 0 
+        CASE
+            WHEN MAX(CASE WHEN oi.custom_item_name IS NOT NULL AND oi.product_id IS NULL THEN 1 ELSE 0 END) = 1
+            THEN 1
+            ELSE 0
         END AS is_custom
     FROM order_items oi
     LEFT JOIN products p ON oi.product_id = p.product_id
     JOIN orders o ON oi.order_id = o.order_id
     WHERE $ws
-    GROUP BY 
+    GROUP BY
         COALESCE(oi.product_id, 0),
         COALESCE(oi.custom_item_name, '')
     ORDER BY qty DESC
