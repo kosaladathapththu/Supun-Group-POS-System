@@ -15,23 +15,6 @@ function esc($conn, $value) {
     return $conn->real_escape_string(trim($value));
 }
 
-function ensureOrderFeeColumns($conn) {
-    $columns = [
-        "service_charge" => "ALTER TABLE orders ADD COLUMN service_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount",
-        "packaging_fee" => "ALTER TABLE orders ADD COLUMN packaging_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER service_charge"
-    ];
-
-    foreach ($columns as $column => $sql) {
-        $safe_column = $conn->real_escape_string($column);
-        $exists = $conn->query("SHOW COLUMNS FROM orders LIKE '$safe_column'");
-        if ($exists && $exists->num_rows === 0) {
-            $conn->query($sql);
-        }
-    }
-}
-
-ensureOrderFeeColumns($conn);
-
 /* =========================================================
    ADMIN LOGIN
 ========================================================= */
