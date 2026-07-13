@@ -121,6 +121,50 @@ body {
     page-break-inside: auto;
 }
 
+.paid-seal-wrap {
+    display: flex;
+    justify-content: flex-end;
+    padding: 7px 12px 3px;
+}
+
+.paid-seal {
+    width: 76px;
+    height: 76px;
+    border: 4px double #c62828;
+    border-radius: 50%;
+    color: #c62828;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-12deg);
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    opacity: .9;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.paid-seal::before,
+.paid-seal::after {
+    content: "★ ★ ★";
+    font-size: 8px;
+    letter-spacing: 1px;
+}
+
+.paid-seal strong {
+    font-size: 20px;
+    letter-spacing: 2px;
+    margin: 4px 0;
+}
+
+.paid-seal small {
+    font-size: 7px;
+    letter-spacing: .5px;
+}
+
 .hdr {
     text-align: center;
     padding-bottom: 8px;
@@ -729,8 +773,15 @@ body {
 .format-picker select { border:1.5px solid #c8ccd8;border-radius:7px;padding:7px 10px;font:700 13px 'Nunito',sans-serif;color:#1c2038;background:#fff; }
 body.format-58 .receipt { width:220px;padding:12px 9px;font-size:11px; }
 body.format-58 .logo { width:165px; }
+body.format-58 .paid-seal { width:54px;height:54px;border-width:3px; }
+body.format-58 .paid-seal strong { font-size:14px; }
+body.format-58 .paid-seal small { font-size:5px; }
+body.format-58 .paid-seal::before,body.format-58 .paid-seal::after { font-size:6px; }
 body.format-a4 .receipt { width:190mm;min-height:267mm;padding:16mm 18mm; }
 body.format-a4 .logo { width:260px; }
+body.format-a4 .paid-seal { width:105px;height:105px;border-width:5px; }
+body.format-a4 .paid-seal strong { font-size:28px; }
+body.format-a4 .paid-seal small { font-size:9px; }
 
 @media print {
     @page thermal80 { size:80mm auto;margin:0; }
@@ -748,6 +799,11 @@ body.format-a4 .logo { width:260px; }
     body.format-58 .itbl th { font-size:7px !important; }
     body.format-58 .iname { font-size:8.5px !important; }
     body.format-58 .g-row td { font-size:13px !important; }
+    body.format-58 .paid-seal-wrap { padding:3mm 2mm 1mm !important; }
+    body.format-58 .paid-seal { width:14mm !important;height:14mm !important;border-width:1mm !important; }
+    body.format-58 .paid-seal strong { font-size:10px !important;margin:1px 0 !important; }
+    body.format-58 .paid-seal small { font-size:4px !important; }
+    body.format-58 .paid-seal::before,body.format-58 .paid-seal::after { font-size:4px !important; }
     html:has(body.format-a4),body.format-a4 { width:210mm !important;min-width:210mm !important;max-width:210mm !important; }
     body.format-a4 .receipt { page:invoiceA4;width:190mm !important;max-width:190mm !important;min-height:267mm !important;padding:14mm 16mm !important;font-size:14px !important; }
     body.format-a4 .logo { width:70mm !important; }
@@ -758,6 +814,7 @@ body.format-a4 .logo { width:260px; }
     body.format-a4 .itbl th { font-size:11px !important; }
     body.format-a4 .iname { font-size:13px !important; }
     body.format-a4 .g-row td { font-size:21px !important; }
+    body.format-a4 .paid-seal { width:28mm !important;height:28mm !important;border-width:1.2mm !important; }
 }
 </style>
 </head>
@@ -930,6 +987,16 @@ body.format-a4 .logo { width:260px; }
             </td>
         </tr>
     </table>
+
+    <?php if (strtolower($order['payment_status'] ?? '') === 'paid'): ?>
+    <div class="paid-seal-wrap" aria-label="Paid">
+        <div class="paid-seal">
+            <small>Payment</small>
+            <strong>PAID</strong>
+            <small>Confirmed</small>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div class="sep-eq">================================</div>
 
