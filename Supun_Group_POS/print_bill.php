@@ -149,7 +149,7 @@ body {
 
 .paid-seal::before,
 .paid-seal::after {
-    content: "★ ★ ★";
+    content: "\2605  \2605  \2605";
     font-size: 8px;
     letter-spacing: 1px;
 }
