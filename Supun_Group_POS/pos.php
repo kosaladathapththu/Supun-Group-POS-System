@@ -625,7 +625,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .ci-name{font-size:13px;font-weight:800;}
 .ci-price{font-size:12px;font-weight:700;color:var(--primary);margin-top:1px;}
 .ci-price-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.price-edit{border:0;background:var(--primary-lt);color:var(--primary);width:23px;height:23px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:10px;}
+.price-edit{position:relative;z-index:2;flex:0 0 30px;border:1px solid #99f6e4;background:var(--primary-lt);color:var(--primary);width:30px;height:30px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
 .price-edit:hover{background:var(--primary);color:#fff;}
 .override-chip{font-size:9px;font-weight:900;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 5px;}
 .restore-price{font-size:9px;font-weight:900;color:var(--primary);text-decoration:none;}
@@ -969,8 +969,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             </div>
 
                             <?php if ($current_order["order_status"] === "open"): ?>
-                                <button type="button" class="price-edit" title="Edit unit price"
-                                    onclick="openPriceModal(<?php echo (int)$item['order_item_id']; ?>, <?php echo htmlspecialchars(json_encode($item_name), ENT_QUOTES, 'UTF-8'); ?>, <?php echo json_encode(number_format((float)$item['price'], 2, '.', '')); ?>)">
+                                <button type="button" class="price-edit" title="Edit unit price" aria-label="Edit unit price"
+                                    data-price-edit="1"
+                                    data-item-id="<?php echo (int)$item['order_item_id']; ?>"
+                                    data-item-name="<?php echo htmlspecialchars($item_name, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-current-price="<?php echo htmlspecialchars(number_format((float)$item['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                                 <div class="qc">
@@ -1270,6 +1273,19 @@ function openPriceModal(itemId, itemName, currentPrice) {
 function closePriceModal() {
     document.getElementById('priceOverlay').classList.remove('show');
 }
+
+// Cart contents are replaced after AJAX actions, so handle price buttons at document level.
+document.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-price-edit]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openPriceModal(
+        button.dataset.itemId,
+        button.dataset.itemName || 'Selected cart item',
+        button.dataset.currentPrice || '0.00'
+    );
+});
 const CURRENT_ORDER_ID = <?php echo (int)$current_order_id; ?>;
 let displayCashTimer = null;
 
