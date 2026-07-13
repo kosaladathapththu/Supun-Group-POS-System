@@ -238,7 +238,9 @@ $total_all      = $total_active + $total_inactive;
 .advanced-fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:13px;}
 .advanced-fields .field{margin:0;}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;}
+.stock-manager{margin-bottom:18px;overflow:hidden}.stock-form{display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end}.stock-form .field{margin:0}.stock-history{border-top:1px solid var(--border);padding:10px 18px;background:#fafcfd}.stock-history-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:7px}.history-list{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}.history-chip{min-width:190px;background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:10px;color:var(--text-mid)}.history-chip strong{display:block;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-chip .plus{color:var(--green);font-weight:900}.history-chip .minus{color:var(--red);font-weight:900}
 @media(max-width:1100px){.simple-fields{grid-template-columns:repeat(2,1fr)}.advanced-fields{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1000px){.stock-form{grid-template-columns:1fr 1fr}.stock-form .product-choice,.stock-form .stock-note{grid-column:span 2}}
 @media(max-width:650px){.simple-fields,.advanced-fields{grid-template-columns:1fr}.span-2{grid-column:span 1}.form-actions{flex-direction:column}.form-actions>*{width:100%!important;justify-content:center}}
 </style>
 </head>
@@ -282,6 +284,20 @@ $total_all      = $total_active + $total_inactive;
             <div><div class="st-val"><?php echo $total_inactive; ?></div><div class="st-lbl">Inactive</div></div>
         </div>
     </div>
+
+    <section class="card stock-manager">
+        <div class="card-head"><h4><i class="fa-solid fa-warehouse"></i> Quick Stock Management</h4><span class="count-badge">Add, remove or correct stock</span></div>
+        <div class="card-body">
+            <form method="POST" class="stock-form">
+                <div class="field product-choice"><label>Product</label><select name="stock_product_id" class="inp" required><option value="">Select product</option><?php while($sp=$stock_products->fetch_assoc()): ?><option value="<?php echo (int)$sp['product_id']; ?>"><?php echo htmlspecialchars($sp['product_name']); ?> — <?php echo number_format($sp['stock_qty'],0).' '.htmlspecialchars($sp['unit']); ?></option><?php endwhile; ?></select></div>
+                <div class="field"><label>Action</label><select name="stock_action" class="inp"><option value="stock_in">Stock In (+)</option><option value="stock_out">Stock Out (-)</option><option value="set">Set Exact Stock</option></select></div>
+                <div class="field"><label>Quantity</label><input type="number" name="stock_quantity" class="inp" min="0" step="1" placeholder="0" required></div>
+                <div class="field stock-note"><label>Note / Reference</label><input type="text" name="stock_note" class="inp" maxlength="255" placeholder="e.g. Supplier delivery INV-1002"></div>
+                <button type="submit" name="adjust_stock" class="btn-primary"><i class="fa-solid fa-check"></i> Update Stock</button>
+            </form>
+        </div>
+        <?php if($stock_history && $stock_history->num_rows): ?><div class="stock-history"><div class="stock-history-title">Recent stock adjustments</div><div class="history-list"><?php while($sh=$stock_history->fetch_assoc()): $delta=(float)$sh['stock_after']-(float)$sh['stock_before']; ?><div class="history-chip"><strong><?php echo htmlspecialchars($sh['product_name']); ?></strong><span class="<?php echo $delta>=0?'plus':'minus'; ?>"><?php echo $delta>=0?'+':''; ?><?php echo number_format($delta,0); ?></span> · now <?php echo number_format($sh['stock_after'],0); ?><br><?php echo date('d M, h:i A',strtotime($sh['created_at'])); ?><?php if($sh['note']): ?> · <?php echo htmlspecialchars($sh['note']); ?><?php endif; ?></div><?php endwhile; ?></div></div><?php endif; ?>
+    </section>
 
     <!-- Main 2-col layout -->
     <div class="inventory-stack">
