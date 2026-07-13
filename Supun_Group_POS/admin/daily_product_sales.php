@@ -166,7 +166,10 @@ while ($row = $result->fetch_assoc()) {
                 padding: 0;
                 margin: 0;
                 font-size: 12px;
+                display: block;
             }
+
+            .main, .content { display:block !important; margin:0 !important; padding:0 !important; }
 
             .container {
                 width: 72mm;

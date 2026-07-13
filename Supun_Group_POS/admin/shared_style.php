@@ -154,6 +154,60 @@ tr:hover td { background: #fafbfd; }
 .inp:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(217,92,43,.1); }
 select.inp { padding-left: 12px; }
 
+/* Report and listing filter controls */
+.filter-form,
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+}
+.filter-bar {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 16px;
+}
+.ff {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 150px;
+    flex: 1 1 150px;
+}
+.ff label {
+    display: block;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-muted);
+}
+.ff input,
+.ff select {
+    width: 100%;
+    height: 40px;
+    padding: 0 11px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font: 700 13px 'Nunito', sans-serif;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.ff input:hover,
+.ff select:hover { border-color: var(--border-dk); background: var(--white); }
+.ff input:focus,
+.ff select:focus {
+    border-color: var(--primary);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(15,118,110,.1);
+}
+.filter-actions { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+
 .two-col { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
 .two-field { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -230,6 +284,11 @@ select.inp { padding-left: 12px; }
     .page-header { align-items:stretch; }
     .page-header > div:last-child { width:100%;flex-wrap:wrap; }
     th,td { padding:9px 10px; }
+    .ff { flex-basis:100%;min-width:100%; }
+    .filter-form > .btn-primary,
+    .filter-form > .btn-secondary,
+    .filter-bar > .btn-primary,
+    .filter-bar > .btn-secondary { flex:1;justify-content:center; }
 }
 @media print {
     .sidebar, .topbar, .filter-bar, .no-print, .pagination { display: none !important; }

@@ -165,21 +165,14 @@ $pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer
         </div>
     </div>
 
-<a href="daily_product_sales.php" style="
-    display:inline-block;
-    padding:10px 15px;
-    background:#0a7cff;
-    color:#fff;
-    border-radius:6px;
-    text-decoration:none;
-">
-    View Daily Sales Report
+<a href="daily_product_sales.php" class="btn-secondary no-print" style="margin-bottom:18px;">
+    <i class="fa-solid fa-chart-column"></i> View Daily Product Sales
 </a>
 
     <!-- ══ FILTER BAR ══ -->
     <div class="card no-print" style="margin-bottom:18px;">
         <div style="padding:14px 18px;">
-            <form method="GET" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <form method="GET" class="filter-form">
                 <div class="ff">
                     <label>From Date</label>
                     <input type="date" name="from" value="<?php echo $filter_from; ?>">

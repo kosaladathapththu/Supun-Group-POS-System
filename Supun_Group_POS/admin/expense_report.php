@@ -177,7 +177,7 @@ while ($r = $all_cats_q->fetch_assoc()) $all_cats[] = $r['category'];
     <!-- ── FILTER BAR ── -->
     <div class="card no-print" style="margin-bottom:18px;">
         <div style="padding:13px 18px;">
-            <form method="GET" style="display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end;">
+            <form method="GET" class="filter-form">
                 <div class="ff">
                     <label>From Date</label>
                     <input type="date" name="from" value="<?php echo $f_from; ?>">

@@ -17,7 +17,7 @@ $current = basename($_SERVER['PHP_SELF']);
         </a>
 
         <div class="nav-group-label">Reports</div>
-        <a class="nav-item <?php echo $current=='sales.php'?'active':''; ?>" href="sales.php">
+        <a class="nav-item <?php echo in_array($current,['sales.php','daily_product_sales.php','view_sale.php'])?'active':''; ?>" href="sales.php">
             <i class="fa-solid fa-file-invoice-dollar"></i> Sales Report
         </a>
         <a class="nav-item <?php echo $current=='orders.php'?'active':''; ?>" href="orders.php">
