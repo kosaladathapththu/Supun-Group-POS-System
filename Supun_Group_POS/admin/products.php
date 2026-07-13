@@ -129,6 +129,8 @@ $products = $conn->query("
 ");
 
 $categories = $conn->query("SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC");
+$stock_products = $conn->query("SELECT product_id,product_name,stock_qty,unit FROM products ORDER BY product_name ASC");
+$stock_history = $conn->query("SELECT sa.*,p.product_name,u.full_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id ORDER BY sa.adjustment_id DESC LIMIT 8");
 
 /* Counts */
 $total_active   = $conn->query("SELECT COUNT(*) AS v FROM products WHERE status=1")->fetch_assoc()['v'];
