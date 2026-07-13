@@ -89,6 +89,7 @@ CREATE TABLE order_items (
   unit_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   line_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   item_type ENUM('product','manual') NOT NULL DEFAULT 'product',
+  price_overridden TINYINT(1) NOT NULL DEFAULT 0,
   CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
   CONSTRAINT fk_items_product FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;

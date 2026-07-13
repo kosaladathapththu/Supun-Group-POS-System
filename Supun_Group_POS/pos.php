@@ -146,6 +146,7 @@ if (isset($_GET["set_order_type"]) && $current_order_id > 0) {
                 oi.line_total = oi.quantity * ($price_expression)
             WHERE oi.order_id = $current_order_id
               AND oi.item_type = 'product'
+              AND oi.price_overridden = 0
         ");
     }
 
@@ -285,6 +286,57 @@ if (isset($_POST["add_manual_item"])) {
 }
 
 /* =========================================================
+   EDIT / RESTORE ORDER-LINE PRICE
+========================================================= */
+if (isset($_POST["update_line_price"]) && $current_order_id > 0) {
+    $order_item_id = (int)($_POST["order_item_id"] ?? 0);
+    $new_price = round((float)($_POST["new_unit_price"] ?? 0), 2);
+
+    if ($order_item_id > 0 && $new_price > 0) {
+        $stmt = $conn->prepare("
+            UPDATE order_items oi
+            INNER JOIN orders o ON o.order_id = oi.order_id
+            SET oi.price = ?, oi.unit_price = ?,
+                oi.line_total = oi.quantity * ?, oi.price_overridden = 1
+            WHERE oi.order_item_id = ? AND oi.order_id = ? AND o.order_status = 'open'
+        ");
+        $stmt->bind_param("dddii", $new_price, $new_price, $new_price, $order_item_id, $current_order_id);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    header("Location: pos.php?order_id=" . $current_order_id);
+    exit;
+}
+
+if (isset($_GET["restore_price"]) && $current_order_id > 0) {
+    $order_item_id = (int)$_GET["restore_price"];
+    $conn->query("
+        UPDATE order_items oi
+        INNER JOIN orders o ON o.order_id = oi.order_id
+        INNER JOIN products p ON p.product_id = oi.product_id
+        SET oi.price = CASE
+                WHEN o.order_type = 'wholesale' AND p.wholesale_price > 0 THEN p.wholesale_price
+                ELSE p.price
+            END,
+            oi.unit_price = CASE
+                WHEN o.order_type = 'wholesale' AND p.wholesale_price > 0 THEN p.wholesale_price
+                ELSE p.price
+            END,
+            oi.line_total = oi.quantity * CASE
+                WHEN o.order_type = 'wholesale' AND p.wholesale_price > 0 THEN p.wholesale_price
+                ELSE p.price
+            END,
+            oi.price_overridden = 0
+        WHERE oi.order_item_id = $order_item_id
+          AND oi.order_id = $current_order_id
+          AND o.order_status = 'open'
+    ");
+    header("Location: pos.php?order_id=" . $current_order_id);
+    exit;
+}
+
+/* =========================================================
    INCREASE / DECREASE / REMOVE / CLEAR
 ========================================================= */
 if (isset($_GET["inc"]) && $current_order_id > 0) {
@@ -345,6 +397,22 @@ if (isset($_POST["pay_order"])) {
 
     if (!in_array($order_type, $allowed_order_types))         $order_type     = "retail";
     if (!in_array($payment_method, $allowed_payment_methods)) $payment_method = "Cash";
+
+    // Re-apply the authoritative product price before calculating payment.
+    // Manual/custom items are intentionally excluded because their price is typed by the cashier.
+    $checkout_price_expression = $order_type === "wholesale"
+        ? "CASE WHEN p.wholesale_price > 0 THEN p.wholesale_price ELSE p.price END"
+        : "p.price";
+    $conn->query("
+        UPDATE order_items oi
+        INNER JOIN products p ON p.product_id = oi.product_id
+        SET oi.price = $checkout_price_expression,
+            oi.unit_price = $checkout_price_expression,
+            oi.line_total = oi.quantity * ($checkout_price_expression)
+        WHERE oi.order_id = $order_id
+          AND oi.product_id IS NOT NULL
+          AND oi.price_overridden = 0
+    ");
 
     $sum_q    = $conn->query("SELECT SUM(line_total) AS subtotal FROM order_items WHERE order_id=$order_id");
     $subtotal = 0;
@@ -552,6 +620,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .ci-info{flex:1;}
 .ci-name{font-size:13px;font-weight:800;}
 .ci-price{font-size:12px;font-weight:700;color:var(--primary);margin-top:1px;}
+.ci-price-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.price-edit{border:0;background:var(--primary-lt);color:var(--primary);width:23px;height:23px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:10px;}
+.price-edit:hover{background:var(--primary);color:#fff;}
+.override-chip{font-size:9px;font-weight:900;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:20px;padding:1px 5px;}
+.restore-price{font-size:9px;font-weight:900;color:var(--primary);text-decoration:none;}
 .mchip{display:inline-block;font-size:9px;background:var(--yellow-lt);color:var(--yellow);border:1px solid #fde68a;padding:1px 5px;border-radius:40px;margin-left:3px;font-weight:900;}
 .qc{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
 .qcb{width:28px;height:28px;background:var(--bg);border:none;color:var(--text-mid);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;text-decoration:none;}
@@ -880,10 +953,22 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                                         <span class="mchip">Custom</span>
                                     <?php endif; ?>
                                 </div>
-                                <div class="ci-price">Rs. <?php echo number_format($lt, 2); ?></div>
+                                <div class="ci-price-line">
+                                    <div class="ci-price">Rs. <?php echo number_format((float)$item["price"], 2); ?> each · Rs. <?php echo number_format($lt, 2); ?></div>
+                                    <?php if ((int)($item["price_overridden"] ?? 0) === 1): ?>
+                                        <span class="override-chip">Edited</span>
+                                        <?php if ($item["product_id"]): ?>
+                                            <a class="restore-price" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&restore_price=<?php echo (int)$item["order_item_id"]; ?>">Restore</a>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
                             <?php if ($current_order["order_status"] === "open"): ?>
+                                <button type="button" class="price-edit" title="Edit unit price"
+                                    onclick="openPriceModal(<?php echo (int)$item['order_item_id']; ?>, <?php echo htmlspecialchars(json_encode($item_name), ENT_QUOTES, 'UTF-8'); ?>, <?php echo json_encode(number_format((float)$item['price'], 2, '.', '')); ?>)">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
                                 <div class="qc">
                                     <a class="qcb" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&dec=<?php echo (int)$item["order_item_id"]; ?>">
                                         <i class="fa-solid fa-minus"></i>
@@ -1043,6 +1128,31 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
     </div>
 </div>
 
+<div class="overlay" id="priceOverlay">
+    <div class="modal">
+        <button class="mcl" type="button" onclick="closePriceModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="m-head">
+            <div class="m-icon"><i class="fa-solid fa-tag"></i></div>
+            <h2>Edit Sale Price</h2>
+            <p id="priceItemName">Selected cart item</p>
+        </div>
+        <form method="POST" id="priceEditForm">
+            <input type="hidden" name="order_item_id" id="priceOrderItemId">
+            <div class="mf">
+                <label>New Unit Price (Rs.)</label>
+                <div class="miw">
+                    <i class="fa-solid fa-coins"></i>
+                    <input type="number" name="new_unit_price" id="newUnitPrice" class="minp" step="0.01" min="0.01" required>
+                </div>
+            </div>
+            <button type="submit" name="update_line_price" class="m-sub green">
+                <i class="fa-solid fa-check"></i> Apply to This Order
+            </button>
+        </form>
+        <p class="m-note">This changes only this cart line. The product's saved retail and wholesale prices stay unchanged.</p>
+    </div>
+</div>
+
 <div class="overlay" id="orderOverlay">
     <div class="modal">
         <button class="mcl" type="button" onclick="closeOrderModal()"><i class="fa-solid fa-xmark"></i></button>
@@ -1143,6 +1253,19 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 <script>
 let CART_SUBTOTAL = parseFloat("<?php echo number_format($grand_total, 2, '.', ''); ?>") || 0;
 let GT = CART_SUBTOTAL;
+
+function openPriceModal(itemId, itemName, currentPrice) {
+    document.getElementById('priceOrderItemId').value = itemId;
+    document.getElementById('priceItemName').textContent = itemName;
+    const input = document.getElementById('newUnitPrice');
+    input.value = currentPrice;
+    document.getElementById('priceOverlay').classList.add('show');
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+}
+
+function closePriceModal() {
+    document.getElementById('priceOverlay').classList.remove('show');
+}
 const CURRENT_ORDER_ID = <?php echo (int)$current_order_id; ?>;
 let displayCashTimer = null;
 
@@ -1646,6 +1769,13 @@ if (orderOverlay) {
     });
 }
 
+const priceOverlay = document.getElementById('priceOverlay');
+if (priceOverlay) {
+    priceOverlay.addEventListener('click', function(e) {
+        if (e.target === this) closePriceModal();
+    });
+}
+
 const adminOverlay = document.getElementById('adminOverlay');
 if (adminOverlay) {
     adminOverlay.addEventListener('click', function(e) {
@@ -1655,6 +1785,7 @@ if (adminOverlay) {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        closePriceModal();
         closeOrderModal();
         closeAdminModal();
     }

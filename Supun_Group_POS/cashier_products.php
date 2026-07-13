@@ -16,14 +16,16 @@ if (!in_array($user_role, ["cashier", "admin"])) {
 if (isset($_POST["add_product"])) {
     $name = trim($_POST["product_name"]);
     $price = (float)$_POST["price"];
+    $wholesale_price = (float)($_POST["wholesale_price"] ?? 0);
+    $wholesale_min_qty = max(1, (int)($_POST["wholesale_min_qty"] ?? 1));
     $category_id = (int)$_POST["category_id"];
 
-    if ($name !== "" && $price > 0 && $category_id > 0) {
+    if ($name !== "" && $price > 0 && $wholesale_price > 0 && $category_id > 0) {
         $stmt = $conn->prepare("
-            INSERT INTO products (product_name, price, category_id, status)
-            VALUES (?, ?, ?, 1)
+            INSERT INTO products (product_name, price, wholesale_price, wholesale_min_qty, category_id, status)
+            VALUES (?, ?, ?, ?, ?, 1)
         ");
-        $stmt->bind_param("sdi", $name, $price, $category_id);
+        $stmt->bind_param("sddii", $name, $price, $wholesale_price, $wholesale_min_qty, $category_id);
         $stmt->execute();
         $stmt->close();
     }
@@ -37,16 +39,18 @@ if (isset($_POST["update_product"])) {
     $product_id = (int)$_POST["product_id"];
     $name = trim($_POST["product_name"]);
     $price = (float)$_POST["price"];
+    $wholesale_price = (float)($_POST["wholesale_price"] ?? 0);
+    $wholesale_min_qty = max(1, (int)($_POST["wholesale_min_qty"] ?? 1));
     $category_id = (int)$_POST["category_id"];
     $status = (int)$_POST["status"];
 
-    if ($product_id > 0 && $name !== "" && $price > 0 && $category_id > 0) {
+    if ($product_id > 0 && $name !== "" && $price > 0 && $wholesale_price > 0 && $category_id > 0) {
         $stmt = $conn->prepare("
             UPDATE products
-            SET product_name = ?, price = ?, category_id = ?, status = ?
+            SET product_name = ?, price = ?, wholesale_price = ?, wholesale_min_qty = ?, category_id = ?, status = ?
             WHERE product_id = ?
         ");
-        $stmt->bind_param("sdiii", $name, $price, $category_id, $status, $product_id);
+        $stmt->bind_param("sddiiii", $name, $price, $wholesale_price, $wholesale_min_qty, $category_id, $status, $product_id);
         $stmt->execute();
         $stmt->close();
     }
@@ -141,7 +145,11 @@ $products = $conn->query("
     <form method="POST">
         <input type="text" name="product_name" placeholder="Product name" required>
 
-        <input type="number" name="price" step="0.01" min="1" placeholder="Price" required>
+        <input type="number" name="price" step="0.01" min="0.01" placeholder="Retail price (Rs.)" required>
+
+        <input type="number" name="wholesale_price" step="0.01" min="0.01" placeholder="Wholesale price (Rs.)" required>
+
+        <input type="number" name="wholesale_min_qty" min="1" value="1" title="Minimum quantity for a wholesale sale" placeholder="Wholesale minimum quantity" required>
 
         <select name="category_id" required>
             <option value="">Select category</option>
@@ -166,7 +174,9 @@ $products = $conn->query("
         <tr>
             <th>ID</th>
             <th>Product</th>
-            <th>Price</th>
+            <th>Retail Price</th>
+            <th>Wholesale Price</th>
+            <th>Wholesale Min Qty</th>
             <th>Category</th>
             <th>Status</th>
             <th>Action</th>
@@ -186,8 +196,18 @@ $products = $conn->query("
                 </td>
 
                 <td>
-                    <input type="number" name="price" step="0.01" min="1"
+                    <input type="number" name="price" step="0.01" min="0.01"
                            value="<?php echo $p['price']; ?>" required>
+                </td>
+
+                <td>
+                    <input type="number" name="wholesale_price" step="0.01" min="0.01"
+                           value="<?php echo $p['wholesale_price']; ?>" required>
+                </td>
+
+                <td>
+                    <input type="number" name="wholesale_min_qty" min="1"
+                           value="<?php echo max(1, (int)$p['wholesale_min_qty']); ?>" required>
                 </td>
 
                 <td>
