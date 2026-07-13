@@ -250,6 +250,9 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
 @media(max-width:1100px){.simple-fields{grid-template-columns:repeat(2,1fr)}.advanced-fields{grid-template-columns:repeat(3,1fr)}.profit-preview{grid-column:span 2}}
 @media(max-width:1000px){.stock-form{grid-template-columns:1fr 1fr}.stock-form .product-choice,.stock-form .stock-note{grid-column:span 2}}
 @media(max-width:650px){.simple-fields,.advanced-fields{grid-template-columns:1fr}.span-2,.profit-preview{grid-column:span 1}.profit-preview{grid-template-columns:1fr}.form-actions{flex-direction:column}.form-actions>*{width:100%!important;justify-content:center}}
+.stock-form{grid-template-columns:2fr 1fr 1fr 1fr 2fr auto;}
+@media(max-width:1000px){.stock-form{grid-template-columns:1fr 1fr}.stock-form .product-choice,.stock-form .stock-note{grid-column:span 2}}
+@media(max-width:600px){.stock-form{grid-template-columns:1fr}.stock-form .product-choice,.stock-form .stock-note{grid-column:span 1}.stock-form .btn-primary{width:100%;justify-content:center}}
 </style>
 </head>
 <body>
@@ -304,6 +307,7 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
                 <div class="field product-choice"><label>Product</label><select name="stock_product_id" class="inp" required><option value="">Select product</option><?php while($sp=$stock_products->fetch_assoc()): ?><option value="<?php echo (int)$sp['product_id']; ?>"><?php echo htmlspecialchars($sp['product_name']); ?> — <?php echo number_format($sp['stock_qty'],0).' '.htmlspecialchars($sp['unit']); ?></option><?php endwhile; ?></select></div>
                 <div class="field"><label>Action</label><select name="stock_action" class="inp"><option value="stock_in">Stock In (+)</option><option value="stock_out">Stock Out (-)</option><option value="set">Set Exact Stock</option></select></div>
                 <div class="field"><label>Quantity</label><input type="number" name="stock_quantity" class="inp" min="0" step="1" placeholder="0" required></div>
+                <div class="field"><label>Purchase Unit Cost</label><input type="number" name="purchase_unit_cost" class="inp" min="0" step="0.01" placeholder="Current cost"></div>
                 <div class="field stock-note"><label>Note / Reference</label><input type="text" name="stock_note" class="inp" maxlength="255" placeholder="e.g. Supplier delivery INV-1002"></div>
                 <button type="submit" name="adjust_stock" class="btn-primary"><i class="fa-solid fa-check"></i> Update Stock</button>
             </form>

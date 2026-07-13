@@ -91,6 +91,14 @@ $kpi = $conn->query("SELECT COALESCE(SUM(amount),0) AS total, COUNT(*) AS cnt FR
 $total_ever = $conn->query("SELECT COALESCE(SUM(amount),0) AS v FROM expenses")->fetch_assoc()['v'];
 $this_month = $conn->query("SELECT COALESCE(SUM(amount),0) AS v FROM expenses WHERE DATE_FORMAT(expense_date,'%Y-%m')='" . date('Y-m') . "'")->fetch_assoc()['v'];
 
+/* STOCK PURCHASES RECORDED FROM INVENTORY */
+$purchase_month_sql = $f_month ? "AND DATE_FORMAT(sa.created_at,'%Y-%m')='".$conn->real_escape_string($f_month)."'" : '';
+$purchase_filtered = (float)$conn->query("SELECT COALESCE(SUM(sa.total_cost),0) AS v FROM stock_adjustments sa WHERE sa.adjustment_type='stock_in' $purchase_month_sql")->fetch_assoc()['v'];
+$purchase_this_month = (float)$conn->query("SELECT COALESCE(SUM(total_cost),0) AS v FROM stock_adjustments WHERE adjustment_type='stock_in' AND DATE_FORMAT(created_at,'%Y-%m')='".date('Y-m')."'")->fetch_assoc()['v'];
+$purchases = $conn->query("SELECT sa.*,p.product_name,p.unit,u.full_name AS added_by_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE sa.adjustment_type='stock_in' $purchase_month_sql ORDER BY sa.created_at DESC,sa.adjustment_id DESC");
+$filtered_outgoing = (float)$kpi['total'] + $purchase_filtered;
+$this_month_outgoing = (float)$this_month + $purchase_this_month;
+
 /* ── EXPENSES LIST ── */
 $expenses = $conn->query("
     SELECT e.*, u.full_name AS added_by_name
@@ -170,6 +178,9 @@ sort($all_cats);
     margin-top: 2px; font-style: italic;
     max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.purchase-total{font-weight:900;color:var(--indigo);white-space:nowrap}.purchase-qty{display:inline-flex;padding:3px 8px;border-radius:20px;background:var(--indigo-lt);color:var(--indigo);font-size:11px;font-weight:900}
+@media(max-width:1000px){.expense-kpis{grid-template-columns:1fr 1fr!important}}
+@media(max-width:560px){.expense-kpis{grid-template-columns:1fr!important}}
 </style>
 </head>
 <body>
@@ -198,26 +209,33 @@ sort($all_cats);
     <?php endif; ?>
 
     <!-- KPI strip -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px;" class="expense-kpis">
         <div class="stat-tile" style="border-left:4px solid var(--red);">
             <div class="st-icon" style="background:var(--red-lt);color:var(--red);"><i class="fa-solid fa-calendar-day"></i></div>
             <div>
-                <div class="st-val" style="color:var(--red);">Rs. <?php echo number_format($this_month, 0); ?></div>
-                <div class="st-lbl">This Month</div>
+                <div class="st-val" style="color:var(--red);">Rs. <?php echo number_format($this_month_outgoing, 0); ?></div>
+                <div class="st-lbl">Total Outgoing This Month</div>
             </div>
         </div>
         <div class="stat-tile" style="border-left:4px solid var(--amber);">
             <div class="st-icon" style="background:var(--amber-lt);color:var(--amber);"><i class="fa-solid fa-filter"></i></div>
             <div>
                 <div class="st-val" style="color:var(--amber);">Rs. <?php echo number_format($kpi['total'], 0); ?></div>
-                <div class="st-lbl">Filtered Total &bull; <?php echo $kpi['cnt']; ?> entries</div>
+                <div class="st-lbl">Operating Expenses &bull; <?php echo $kpi['cnt']; ?> entries</div>
             </div>
         </div>
         <div class="stat-tile" style="border-left:4px solid var(--text-muted);">
-            <div class="st-icon" style="background:var(--bg);color:var(--text-muted);"><i class="fa-solid fa-infinity"></i></div>
+            <div class="st-icon" style="background:var(--indigo-lt);color:var(--indigo);"><i class="fa-solid fa-boxes-stacked"></i></div>
             <div>
-                <div class="st-val">Rs. <?php echo number_format($total_ever, 0); ?></div>
-                <div class="st-lbl">All-Time Expenses</div>
+                <div class="st-val" style="color:var(--indigo);">Rs. <?php echo number_format($purchase_filtered, 0); ?></div>
+                <div class="st-lbl">Stock Purchases</div>
+            </div>
+        </div>
+        <div class="stat-tile" style="border-left:4px solid var(--primary);">
+            <div class="st-icon" style="background:var(--primary-lt);color:var(--primary);"><i class="fa-solid fa-money-bill-transfer"></i></div>
+            <div>
+                <div class="st-val" style="color:var(--primary);">Rs. <?php echo number_format($filtered_outgoing, 0); ?></div>
+                <div class="st-lbl">Filtered Total Outgoing</div>
             </div>
         </div>
     </div>
@@ -489,6 +507,18 @@ sort($all_cats);
 
         </div>
     </div><!-- /two-col -->
+
+    <section class="card table-card-full" style="margin-top:18px;">
+        <div class="card-header">
+            <div><h3><i class="fa-solid fa-truck-ramp-box"></i> Stock Purchases</h3><div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-top:2px;">Automatically recorded from Inventory → Stock In</div></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span class="count-badge"><?php echo $purchases ? $purchases->num_rows : 0; ?> purchases</span><a href="products.php" class="btn-secondary no-print"><i class="fa-solid fa-plus"></i> Record Purchase</a></div>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Quantity</th><th>Unit Cost</th><th>Total Purchase</th><th>Reference / Note</th><th>Recorded By</th></tr></thead><tbody>
+        <?php if($purchases && $purchases->num_rows): while($purchase=$purchases->fetch_assoc()): ?>
+            <tr><td style="white-space:nowrap;"><strong><?php echo date('d M Y',strtotime($purchase['created_at'])); ?></strong><br><small style="color:var(--text-muted);"><?php echo date('h:i A',strtotime($purchase['created_at'])); ?></small></td><td><strong><?php echo htmlspecialchars($purchase['product_name']); ?></strong></td><td><span class="purchase-qty"><?php echo number_format($purchase['quantity'],0).' '.htmlspecialchars($purchase['unit']); ?></span></td><td>Rs. <?php echo number_format($purchase['unit_cost'],2); ?></td><td class="purchase-total">Rs. <?php echo number_format($purchase['total_cost'],2); ?></td><td><?php echo htmlspecialchars($purchase['note'] ?: '—'); ?></td><td><?php echo htmlspecialchars($purchase['added_by_name'] ?: 'System'); ?></td></tr>
+        <?php endwhile; else: ?><tr><td colspan="7" class="empty-row"><i class="fa-solid fa-box-open" style="font-size:22px;display:block;margin-bottom:7px;"></i>No stock purchases recorded for this month. Use Stock In from Inventory.</td></tr><?php endif; ?>
+        </tbody></table></div>
+    </section>
 
 </div><!-- /content -->
 </div><!-- /main -->
