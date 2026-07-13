@@ -10,6 +10,7 @@ if (!isset($_SESSION["user_id"])) {
 $user_id = (int) $_SESSION["user_id"];
 $admin_error = "";
 $pay_error = isset($_GET["pay_error"]) ? 1 : 0;
+$stock_error = isset($_GET["stock_error"]) ? 1 : 0;
 
 function esc($conn, $value) {
     return $conn->real_escape_string(trim($value));
@@ -187,6 +188,8 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
                 LIMIT 1
             ");
 
+            $item_ok = false;
+            try {
             if ($item_check && $item_check->num_rows > 0) {
                 $item = $item_check->fetch_assoc();
                 $new_qty = (int)$item["quantity"] + 1;
@@ -195,28 +198,32 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
                     : $price;
                 $new_lt = $effective_price * $new_qty;
 
-                $conn->query("
+                $item_ok = $conn->query("
                     UPDATE order_items
                     SET quantity=$new_qty, price=$effective_price,
                         unit_price=$effective_price, line_total=$new_lt
                     WHERE order_item_id=" . (int)$item["order_item_id"]
                 );
             } else {
-                $conn->query("
+                $item_ok = $conn->query("
                     INSERT INTO order_items
                     (order_id, product_id, custom_item_name, quantity, price, unit_price, item_type, line_total)
                     VALUES
                     ($current_order_id, $product_id, NULL, 1, $price, $price, 'product', $price)
                 ");
             }
+            } catch (Throwable $e) {
+                $item_ok = false;
+                $response['message'] = 'Not enough stock is available.';
+            }
 
-            $sum_q = $conn->query("
+            $sum_q = $item_ok ? $conn->query("
                 SELECT
                     COALESCE(SUM(line_total), 0) AS grand_total,
                     COALESCE(SUM(quantity), 0) AS cart_count
                 FROM order_items
                 WHERE order_id=$current_order_id
-            ");
+            ") : false;
 
             if ($sum_q && $sum_q->num_rows > 0) {
                 $sum = $sum_q->fetch_assoc();
@@ -1030,6 +1037,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
                 <?php if ($pay_error): ?>
                     <div class="warn-box" style="margin-top:10px;"><i class="fa-solid fa-triangle-exclamation"></i> Cash given is less than the total amount.</div>
+                <?php endif; ?>
+                <?php if ($stock_error): ?>
+                    <div class="warn-box" style="margin-top:10px;"><i class="fa-solid fa-box-open"></i> Not enough stock is available for that product.</div>
                 <?php endif; ?>
 
                 <?php if ($current_order && $current_order["order_status"] === "open" && $cart_count > 0): ?>

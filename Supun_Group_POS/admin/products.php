@@ -49,7 +49,7 @@ if (isset($_POST['edit_product'])) {
             $conn->query("INSERT INTO categories (category_name, status) VALUES ('$cat_name', 1)");
             $category_id = $conn->insert_id;
         }
-        $sku_sql=$sku===''?'NULL':"'$sku'"; $conn->query("UPDATE products SET category_id=$category_id,sku=$sku_sql,product_name='$prod_name',unit='$unit',cost_price=$cost,price=$price,wholesale_price=$wholesale,wholesale_min_qty=$min_qty,stock_qty=$stock,reorder_level=$reorder,status=$status WHERE product_id=$id");
+        $sku_sql=$sku===''?'NULL':"'$sku'"; $conn->query("UPDATE products SET category_id=$category_id,sku=$sku_sql,product_name='$prod_name',unit='$unit',cost_price=$cost,price=$price,wholesale_price=$wholesale,wholesale_min_qty=$min_qty,reorder_level=$reorder,status=$status WHERE product_id=$id");
         $msg = "Product updated."; $msg_type = "success";
     }
 }
