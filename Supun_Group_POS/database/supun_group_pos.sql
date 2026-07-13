@@ -103,6 +103,8 @@ CREATE TABLE stock_adjustments (
   quantity DECIMAL(12,3) NOT NULL,
   stock_before DECIMAL(12,3) NOT NULL,
   stock_after DECIMAL(12,3) NOT NULL,
+  unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   note VARCHAR(255) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_stock_adjustments_product (product_id),

@@ -59,23 +59,26 @@ if (isset($_POST['adjust_stock'])) {
     $product_id = (int)($_POST['stock_product_id'] ?? 0);
     $action = $_POST['stock_action'] ?? 'stock_in';
     $quantity = max(0, (float)($_POST['stock_quantity'] ?? 0));
+    $purchase_unit_cost = max(0, (float)($_POST['purchase_unit_cost'] ?? 0));
     $note = trim($_POST['stock_note'] ?? '');
     $allowed_actions = ['stock_in', 'stock_out', 'set'];
     if ($product_id > 0 && in_array($action, $allowed_actions, true) && ($quantity > 0 || $action === 'set')) {
         $conn->begin_transaction();
         try {
-            $lock = $conn->prepare("SELECT stock_qty FROM products WHERE product_id=? FOR UPDATE");
+            $lock = $conn->prepare("SELECT stock_qty,cost_price FROM products WHERE product_id=? FOR UPDATE");
             $lock->bind_param('i', $product_id); $lock->execute();
             $stock_row = $lock->get_result()->fetch_assoc(); $lock->close();
             if (!$stock_row) throw new Exception('Product not found.');
             $before = (float)$stock_row['stock_qty'];
             $after = $action === 'stock_in' ? $before + $quantity : ($action === 'stock_out' ? $before - $quantity : $quantity);
             if ($after < 0) throw new Exception('Cannot remove more stock than is available.');
-            $update = $conn->prepare("UPDATE products SET stock_qty=? WHERE product_id=?");
-            $update->bind_param('di', $after, $product_id); $update->execute(); $update->close();
+            $unit_cost = $action === 'stock_in' ? ($purchase_unit_cost > 0 ? $purchase_unit_cost : (float)$stock_row['cost_price']) : 0;
+            $total_cost = $action === 'stock_in' ? $unit_cost * $quantity : 0;
+            $update = $conn->prepare("UPDATE products SET stock_qty=?,cost_price=CASE WHEN ?='stock_in' AND ?>0 THEN ? ELSE cost_price END WHERE product_id=?");
+            $update->bind_param('dsddi', $after, $action, $unit_cost, $unit_cost, $product_id); $update->execute(); $update->close();
             $user_id = (int)$_SESSION['user_id'];
-            $log = $conn->prepare("INSERT INTO stock_adjustments (product_id,user_id,adjustment_type,quantity,stock_before,stock_after,note) VALUES (?,?,?,?,?,?,?)");
-            $log->bind_param('iisddds', $product_id, $user_id, $action, $quantity, $before, $after, $note); $log->execute(); $log->close();
+            $log = $conn->prepare("INSERT INTO stock_adjustments (product_id,user_id,adjustment_type,quantity,stock_before,stock_after,unit_cost,total_cost,note) VALUES (?,?,?,?,?,?,?,?,?)");
+            $log->bind_param('iisddddds', $product_id, $user_id, $action, $quantity, $before, $after, $unit_cost, $total_cost, $note); $log->execute(); $log->close();
             $conn->commit();
             $msg = 'Stock updated successfully.'; $msg_type = 'success';
         } catch (Throwable $e) {
