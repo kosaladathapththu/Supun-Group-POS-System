@@ -59,6 +59,8 @@ body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--te
 .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
 .topbar { background: var(--white); border-bottom: 1.5px solid var(--border); height: var(--topbar-h); padding: 0 22px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
 .topbar-left { display: flex; align-items: center; gap: 8px; }
+.mobile-menu-btn { display:none;width:38px;height:38px;border:1.5px solid var(--border);border-radius:9px;background:var(--white);color:var(--text);align-items:center;justify-content:center;cursor:pointer;font-size:15px; }
+.sidebar-overlay { display:none;position:fixed;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);z-index:190; }
 .page-title-tb { font-family: 'Lora', serif; font-size: 16px; color: var(--text); }
 .breadcrumb { font-size: 11px; color: var(--text-muted); font-weight: 700; display: flex; align-items: center; gap: 4px; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
@@ -208,10 +210,26 @@ select.inp { padding-left: 12px; }
 @media (max-width: 1100px) { .stat-strip { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) {
     :root { --sidebar-w: 0px; }
-    .sidebar { transform: translateX(-100%); }
+    .sidebar { width:240px;transform: translateX(-100%);transition:transform .22s ease; }
+    .sidebar.open { transform:translateX(0); }
+    .sidebar-overlay.show { display:block; }
+    body.menu-open { overflow:hidden; }
+    .mobile-menu-btn { display:inline-flex; }
     .main { margin-left: 0; }
+    .topbar { padding:0 14px; }
+    .topbar-right .date-badge { display:none; }
+    .topbar-right .btn-primary { padding:8px 11px;font-size:0; }
+    .topbar-right .btn-primary i { font-size:13px; }
+    .content { padding:16px 14px 26px; }
     .two-col { grid-template-columns: 1fr; }
     .stat-strip { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+    .stat-strip { grid-template-columns:1fr; }
+    .two-field { grid-template-columns:1fr; }
+    .page-header { align-items:stretch; }
+    .page-header > div:last-child { width:100%;flex-wrap:wrap; }
+    th,td { padding:9px 10px; }
 }
 @media print {
     .sidebar, .topbar, .filter-bar, .no-print, .pagination { display: none !important; }

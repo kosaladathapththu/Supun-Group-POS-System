@@ -7,11 +7,18 @@ $titles  = [
     'orders.php'      => 'All Orders',
     'sales.php'       => 'Sales Report',
     'products.php'    => 'Products',
+    'daily_product_sales.php' => 'Daily Product Sales',
+    'view_sale.php'   => 'Sale Details',
+    'expenses.php'    => 'Expenses',
+    'expense_report.php' => 'Expense Report',
 ];
 $page_title = $titles[$current] ?? 'Admin';
 ?>
 <div class="topbar">
     <div class="topbar-left">
+        <button type="button" class="mobile-menu-btn" onclick="toggleAdminMenu()" aria-label="Open navigation">
+            <i class="fa-solid fa-bars"></i>
+        </button>
         <div>
             <div class="page-title-tb"><?php echo $page_title; ?></div>
             <div class="breadcrumb">

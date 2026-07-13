@@ -60,3 +60,15 @@ $current = basename($_SERVER['PHP_SELF']);
         </a>
     </div>
 </nav>
+<div class="sidebar-overlay" onclick="toggleAdminMenu(false)"></div>
+<script>
+function toggleAdminMenu(forceOpen) {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (!sidebar || !overlay) return;
+    const open = typeof forceOpen === 'boolean' ? forceOpen : !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', open);
+    overlay.classList.toggle('show', open);
+    document.body.classList.toggle('menu-open', open);
+}
+</script>
