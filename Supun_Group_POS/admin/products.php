@@ -138,6 +138,8 @@ $total_inactive = $conn->query("SELECT COUNT(*) AS v FROM products WHERE status=
 $total_all      = $total_active + $total_inactive;
 $total_stock    = (float)$conn->query("SELECT COALESCE(SUM(stock_qty),0) AS v FROM products")->fetch_assoc()['v'];
 $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE stock_qty<=reorder_level AND status=1")->fetch_assoc()['v'];
+$inventory_cost = (float)$conn->query("SELECT COALESCE(SUM(cost_price*stock_qty),0) AS v FROM products")->fetch_assoc()['v'];
+$potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*stock_qty),0) AS v FROM products")->fetch_assoc()['v'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -153,7 +155,7 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
 /* ── Page-specific extras ── */
 .stat-strip {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     margin-bottom: 18px;
 }
@@ -223,6 +225,7 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
     font-weight: 800;
 }
 .price-stack{display:flex;flex-direction:column;gap:3px;white-space:nowrap}.price-stack strong{color:var(--primary);font-size:13px}.price-stack small{color:var(--text-muted);font-size:10px;font-weight:800}.stock-value{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:900}.stock-low{color:var(--red)}.stock-ok{color:var(--green)}
+.profit-preview{grid-column:span 4;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:11px;border:1px solid #bbf7d0;background:var(--green-lt);border-radius:var(--radius-sm)}.profit-item{display:flex;align-items:center;justify-content:space-between;gap:10px}.profit-item span{font-size:11px;font-weight:800;color:var(--text-mid)}.profit-item strong{font-family:'Lora',serif;font-size:16px;color:var(--green)}.profit-negative strong{color:var(--red)}
 
 /* Sticky form card */
 .form-sticky { position: sticky; top: calc(var(--topbar-h) + 16px); }
@@ -241,9 +244,9 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
 .advanced-fields .field{margin:0;}
 .form-actions{display:flex;gap:8px;justify-content:flex-end;}
 .stock-manager{margin-bottom:18px;overflow:hidden}.stock-form{display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:10px;align-items:end}.stock-form .field{margin:0}.stock-history{border-top:1px solid var(--border);padding:10px 18px;background:#fafcfd}.stock-history-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:7px}.history-list{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}.history-chip{min-width:190px;background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:10px;color:var(--text-mid)}.history-chip strong{display:block;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-chip .plus{color:var(--green);font-weight:900}.history-chip .minus{color:var(--red);font-weight:900}
-@media(max-width:1100px){.simple-fields{grid-template-columns:repeat(2,1fr)}.advanced-fields{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.simple-fields{grid-template-columns:repeat(2,1fr)}.advanced-fields{grid-template-columns:repeat(3,1fr)}.profit-preview{grid-column:span 2}}
 @media(max-width:1000px){.stock-form{grid-template-columns:1fr 1fr}.stock-form .product-choice,.stock-form .stock-note{grid-column:span 2}}
-@media(max-width:650px){.simple-fields,.advanced-fields{grid-template-columns:1fr}.span-2{grid-column:span 1}.form-actions{flex-direction:column}.form-actions>*{width:100%!important;justify-content:center}}
+@media(max-width:650px){.simple-fields,.advanced-fields{grid-template-columns:1fr}.span-2,.profit-preview{grid-column:span 1}.profit-preview{grid-template-columns:1fr}.form-actions{flex-direction:column}.form-actions>*{width:100%!important;justify-content:center}}
 </style>
 </head>
 <body>
@@ -282,8 +285,12 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
             <div><div class="st-val"><?php echo number_format($total_stock,0); ?></div><div class="st-lbl">Total Units in Stock</div></div>
         </div>
         <div class="stat-tile">
-            <div class="st-icon" style="background:var(--red-lt);color:var(--red);"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div><div class="st-val"><?php echo $low_stock; ?></div><div class="st-lbl">Low / Out of Stock</div></div>
+            <div class="st-icon" style="background:var(--amber-lt);color:var(--amber);"><i class="fa-solid fa-wallet"></i></div>
+            <div><div class="st-val" style="font-size:16px;">Rs. <?php echo number_format($inventory_cost,0); ?></div><div class="st-lbl">Inventory Cost</div></div>
+        </div>
+        <div class="stat-tile">
+            <div class="st-icon" style="background:var(--green-lt);color:var(--green);"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            <div><div class="st-val" style="font-size:16px;color:var(--green);">Rs. <?php echo number_format($potential_profit,0); ?></div><div class="st-lbl">Potential Retail Profit</div></div>
         </div>
     </div>
 
@@ -367,6 +374,8 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
                         </div>
                     </div>
 
+                    <div class="field"><label>Cost / Buying Price (Rs.)</label><input class="inp" id="costPrice" type="number" name="cost_price" step="0.01" min="0" placeholder="0.00" value="<?php echo htmlspecialchars($edit_row['cost_price'] ?? '0.00'); ?>" oninput="calculateProductProfit()"></div>
+
                     <!-- Retail Price -->
                     <div class="field">
                         <label>Retail Price (Rs.)</label>
@@ -375,17 +384,19 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
                             <input
                                 type="number"
                                 name="price"
+                                id="retailPrice"
                                 class="inp"
                                 step="0.01"
                                 min="0.01"
                                 placeholder="0.00"
                                 value="<?php echo $edit_row ? number_format($edit_row['price'], 2, '.', '') : ''; ?>"
                                 required
+                                oninput="calculateProductProfit()"
                             >
                         </div>
                     </div>
 
-                    <div class="field"><label>Wholesale Price (Rs.)</label><input class="inp" type="number" name="wholesale_price" step="0.01" min="0" placeholder="0.00" value="<?php echo htmlspecialchars($edit_row['wholesale_price'] ?? '0.00'); ?>"></div>
+                    <div class="field"><label>Wholesale Price (Rs.)</label><input class="inp" id="wholesalePrice" type="number" name="wholesale_price" step="0.01" min="0" placeholder="0.00" value="<?php echo htmlspecialchars($edit_row['wholesale_price'] ?? '0.00'); ?>" oninput="calculateProductProfit()"></div>
                     <div class="field"><label>Current Stock</label><input class="inp" type="number" name="stock_qty" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['stock_qty'] ?? '0'); ?>" <?php echo $edit_row ? 'readonly title="Use Quick Stock Management to change stock"' : ''; ?>></div>
 
                     <!-- Status -->
@@ -400,6 +411,10 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
                             </option>
                         </select>
                     </div>
+                    <div class="profit-preview" id="profitPreview">
+                        <div class="profit-item" id="retailProfitItem"><span>Profit per Retail Sale</span><strong>Rs. <span id="retailProfit">0.00</span></strong></div>
+                        <div class="profit-item" id="wholesaleProfitItem"><span>Profit per Wholesale Sale</span><strong>Rs. <span id="wholesaleProfit">0.00</span></strong></div>
+                    </div>
                     </div>
 
                     <details class="advanced-box" <?php echo $edit_row ? 'open' : ''; ?>>
@@ -407,7 +422,6 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
                         <div class="advanced-fields">
                             <div class="field"><label>SKU / Barcode</label><input class="inp" name="sku" placeholder="SG-001" value="<?php echo htmlspecialchars($edit_row['sku'] ?? ''); ?>"></div>
                             <div class="field"><label>Unit</label><input class="inp" name="unit" placeholder="pcs" value="<?php echo htmlspecialchars($edit_row['unit'] ?? 'pcs'); ?>"></div>
-                            <div class="field"><label>Cost Price (Rs.)</label><input class="inp" type="number" name="cost_price" step="0.01" min="0" value="<?php echo htmlspecialchars($edit_row['cost_price'] ?? '0.00'); ?>"></div>
                             <div class="field"><label>Wholesale Min Qty</label><input class="inp" type="number" name="wholesale_min_qty" min="1" value="<?php echo htmlspecialchars($edit_row['wholesale_min_qty'] ?? '1'); ?>"></div>
                             <div class="field"><label>Low-stock Alert</label><input class="inp" type="number" name="reorder_level" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['reorder_level'] ?? '5'); ?>"></div>
                         </div>
@@ -502,7 +516,7 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
                                     <strong><?php echo htmlspecialchars($row['product_name']); ?></strong>
                                 </div>
                             </td>
-                            <td><div class="price-stack"><strong>Retail: Rs. <?php echo number_format($row['price'], 2); ?></strong><small>Wholesale: Rs. <?php echo number_format($row['wholesale_price'] > 0 ? $row['wholesale_price'] : $row['price'], 2); ?></small></div></td>
+                            <td><div class="price-stack"><small>Cost: Rs. <?php echo number_format($row['cost_price'], 2); ?></small><strong>Retail: Rs. <?php echo number_format($row['price'], 2); ?></strong><small>Wholesale: Rs. <?php echo number_format($row['wholesale_price'] > 0 ? $row['wholesale_price'] : $row['price'], 2); ?></small><small style="color:var(--green);">Retail profit: Rs. <?php echo number_format($row['price']-$row['cost_price'], 2); ?></small></div></td>
                             <td><span class="stock-value <?php echo $row['stock_qty'] <= $row['reorder_level'] ? 'stock-low' : 'stock-ok'; ?>"><i class="fa-solid <?php echo $row['stock_qty'] <= $row['reorder_level'] ? 'fa-triangle-exclamation' : 'fa-cubes'; ?>"></i><?php echo number_format($row['stock_qty'], 0); ?> <?php echo htmlspecialchars($row['unit']); ?></span></td>
                             <td>
                                 <a href="products.php?toggle=<?php echo $row['product_id']; ?>"
@@ -542,6 +556,22 @@ $low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE st
 
 </div><!-- /content -->
 </div><!-- /main -->
+
+<script>
+function calculateProductProfit(){
+    const cost=parseFloat(document.getElementById('costPrice')?.value)||0;
+    const retail=parseFloat(document.getElementById('retailPrice')?.value)||0;
+    const wholesaleInput=parseFloat(document.getElementById('wholesalePrice')?.value)||0;
+    const wholesale=wholesaleInput>0?wholesaleInput:retail;
+    const retailProfit=retail-cost;
+    const wholesaleProfit=wholesale-cost;
+    document.getElementById('retailProfit').textContent=retailProfit.toLocaleString('en-LK',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('wholesaleProfit').textContent=wholesaleProfit.toLocaleString('en-LK',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('retailProfitItem').classList.toggle('profit-negative',retailProfit<0);
+    document.getElementById('wholesaleProfitItem').classList.toggle('profit-negative',wholesaleProfit<0);
+}
+calculateProductProfit();
+</script>
 
 </body>
 </html>
