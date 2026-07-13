@@ -189,9 +189,26 @@ $total_all      = $total_active + $total_inactive;
     font-size: 11px;
     font-weight: 800;
 }
+.price-stack{display:flex;flex-direction:column;gap:3px;white-space:nowrap}.price-stack strong{color:var(--primary);font-size:13px}.price-stack small{color:var(--text-muted);font-size:10px;font-weight:800}.stock-value{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:900}.stock-low{color:var(--red)}.stock-ok{color:var(--green)}
 
 /* Sticky form card */
 .form-sticky { position: sticky; top: calc(var(--topbar-h) + 16px); }
+.inventory-stack{display:flex;flex-direction:column;gap:16px;}
+.product-form{display:flex;flex-direction:column;gap:14px;}
+.simple-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start;}
+.simple-fields .field{margin:0;}
+.span-2{grid-column:span 2;}
+.advanced-box{border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);overflow:hidden;}
+.advanced-box summary{list-style:none;cursor:pointer;padding:11px 13px;font-size:12px;font-weight:900;color:var(--text-mid);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.advanced-box summary::-webkit-details-marker{display:none;}
+.advanced-box summary::after{content:'+';font-size:18px;color:var(--primary);line-height:1;}
+.advanced-box[open] summary::after{content:'−';}
+.advanced-box[open] summary{border-bottom:1px solid var(--border);background:var(--white);}
+.advanced-fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:13px;}
+.advanced-fields .field{margin:0;}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;}
+@media(max-width:1100px){.simple-fields{grid-template-columns:repeat(2,1fr)}.advanced-fields{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:650px){.simple-fields,.advanced-fields{grid-template-columns:1fr}.span-2{grid-column:span 1}.form-actions{flex-direction:column}.form-actions>*{width:100%!important;justify-content:center}}
 </style>
 </head>
 <body>
@@ -236,10 +253,10 @@ $total_all      = $total_active + $total_inactive;
     </div>
 
     <!-- Main 2-col layout -->
-    <div class="two-col" style="align-items: start;">
+    <div class="inventory-stack">
 
         <!-- ═══ FORM PANEL ═══ -->
-        <div class="card form-card form-sticky">
+        <div class="card form-card">
             <div class="card-head">
                 <h4>
                     <i class="fa-solid <?php echo $edit_row ? 'fa-pen' : 'fa-plus-circle'; ?>"></i>
@@ -247,13 +264,14 @@ $total_all      = $total_active + $total_inactive;
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" class="product-form">
                     <?php if ($edit_row): ?>
                         <input type="hidden" name="edit_id" value="<?php echo $edit_row['product_id']; ?>">
                     <?php endif; ?>
 
+                    <div class="simple-fields">
                     <!-- Category -->
-                    <div class="field">
+                    <div class="field span-2">
                         <label>Category</label>
                         <div class="inp-wrap">
                             <i class="fa-solid fa-tag"></i>
@@ -279,13 +297,13 @@ $total_all      = $total_active + $total_inactive;
                             ?>
                         </datalist>
                         <div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:4px;">
-                            <i class="fa-solid fa-circle-info"></i> Select an existing category or type a new one; it will be created automatically with the product.
+                            <i class="fa-solid fa-circle-info"></i> Pick an existing category or type a new one.
                             <a href="categories.php" style="color:var(--primary);margin-left:5px;font-weight:900;">Manage Categories</a>
                         </div>
                     </div>
 
                     <!-- Product Name -->
-                    <div class="field">
+                    <div class="field span-2">
                         <label>Product Name</label>
                         <div class="inp-wrap">
                             <i class="fa-solid fa-box"></i>
@@ -293,22 +311,16 @@ $total_all      = $total_active + $total_inactive;
                                 type="text"
                                 name="product_name"
                                 class="inp"
-                                placeholder="e.g. White Sugar 1kg"
+                                placeholder="e.g. Inverter Air Conditioner 12000 BTU"
                                 value="<?php echo htmlspecialchars($edit_row['product_name'] ?? ''); ?>"
                                 required
                             >
                         </div>
                     </div>
 
-                    <!-- Price -->
-                    <div class="two-field"><div class="field"><label>SKU</label><input class="inp" name="sku" placeholder="GRO-001" value="<?php echo htmlspecialchars($edit_row['sku'] ?? ''); ?>"></div><div class="field"><label>Unit</label><input class="inp" name="unit" placeholder="pcs / kg / pack" value="<?php echo htmlspecialchars($edit_row['unit'] ?? 'pcs'); ?>"></div></div>
-                    <div class="two-field"><div class="field"><label>Cost Price (Rs.)</label><input class="inp" type="number" name="cost_price" step="0.01" min="0" value="<?php echo htmlspecialchars($edit_row['cost_price'] ?? '0.00'); ?>"></div><div class="field"><label>Wholesale Price (Rs.)</label><input class="inp" type="number" name="wholesale_price" step="0.01" min="0" value="<?php echo htmlspecialchars($edit_row['wholesale_price'] ?? '0.00'); ?>"></div></div>
-                    <div class="two-field"><div class="field"><label>Wholesale Min Qty</label><input class="inp" type="number" name="wholesale_min_qty" min="1" value="<?php echo htmlspecialchars($edit_row['wholesale_min_qty'] ?? '10'); ?>"></div><div class="field"><label>Current Stock</label><input class="inp" type="number" name="stock_qty" step="0.001" min="0" value="<?php echo htmlspecialchars($edit_row['stock_qty'] ?? '0'); ?>"></div></div>
-                    <div class="field"><label>Low-stock Alert Level</label><input class="inp" type="number" name="reorder_level" step="0.001" min="0" value="<?php echo htmlspecialchars($edit_row['reorder_level'] ?? '5'); ?>"></div>
-
-                    <!-- Price -->
+                    <!-- Retail Price -->
                     <div class="field">
-                        <label>Price (Rs.)</label>
+                        <label>Retail Price (Rs.)</label>
                         <div class="inp-wrap">
                             <i class="fa-solid fa-coins"></i>
                             <input
@@ -324,6 +336,9 @@ $total_all      = $total_active + $total_inactive;
                         </div>
                     </div>
 
+                    <div class="field"><label>Wholesale Price (Rs.)</label><input class="inp" type="number" name="wholesale_price" step="0.01" min="0" placeholder="0.00" value="<?php echo htmlspecialchars($edit_row['wholesale_price'] ?? '0.00'); ?>"></div>
+                    <div class="field"><label>Current Stock</label><input class="inp" type="number" name="stock_qty" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['stock_qty'] ?? '0'); ?>"></div>
+
                     <!-- Status -->
                     <div class="field">
                         <label>Status</label>
@@ -336,20 +351,34 @@ $total_all      = $total_active + $total_inactive;
                             </option>
                         </select>
                     </div>
+                    </div>
+
+                    <details class="advanced-box" <?php echo $edit_row ? 'open' : ''; ?>>
+                        <summary><span><i class="fa-solid fa-sliders"></i> Advanced options</span><small style="color:var(--text-muted);font-weight:700;">Optional</small></summary>
+                        <div class="advanced-fields">
+                            <div class="field"><label>SKU / Barcode</label><input class="inp" name="sku" placeholder="SG-001" value="<?php echo htmlspecialchars($edit_row['sku'] ?? ''); ?>"></div>
+                            <div class="field"><label>Unit</label><input class="inp" name="unit" placeholder="pcs" value="<?php echo htmlspecialchars($edit_row['unit'] ?? 'pcs'); ?>"></div>
+                            <div class="field"><label>Cost Price (Rs.)</label><input class="inp" type="number" name="cost_price" step="0.01" min="0" value="<?php echo htmlspecialchars($edit_row['cost_price'] ?? '0.00'); ?>"></div>
+                            <div class="field"><label>Wholesale Min Qty</label><input class="inp" type="number" name="wholesale_min_qty" min="1" value="<?php echo htmlspecialchars($edit_row['wholesale_min_qty'] ?? '1'); ?>"></div>
+                            <div class="field"><label>Low-stock Alert</label><input class="inp" type="number" name="reorder_level" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['reorder_level'] ?? '5'); ?>"></div>
+                        </div>
+                    </details>
 
                     <!-- Buttons -->
+                    <div class="form-actions">
                     <?php if ($edit_row): ?>
-                        <button type="submit" name="edit_product" class="btn-primary" style="width:100%;">
+                        <button type="submit" name="edit_product" class="btn-primary">
                             <i class="fa-solid fa-save"></i> Update Product
                         </button>
-                        <a href="products.php" class="btn-secondary" style="width:100%;justify-content:center;margin-top:8px;">
+                        <a href="products.php" class="btn-secondary">
                             <i class="fa-solid fa-xmark"></i> Cancel Edit
                         </a>
                     <?php else: ?>
-                        <button type="submit" name="add_product" class="btn-primary" style="width:100%;">
+                        <button type="submit" name="add_product" class="btn-primary">
                             <i class="fa-solid fa-plus"></i> Add Product
                         </button>
                     <?php endif; ?>
+                    </div>
                 </form>
             </div>
         </div>
@@ -404,7 +433,8 @@ $total_all      = $total_active + $total_inactive;
                             <th>#</th>
                             <th>Category</th>
                             <th>Product Name</th>
-                            <th>Price</th>
+                            <th>Prices</th>
+                            <th>Stock</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -418,12 +448,13 @@ $total_all      = $total_active + $total_inactive;
                             <td>
                                 <div style="display:flex;align-items:center;gap:8px;">
                                     <div style="width:30px;height:30px;border-radius:8px;background:var(--primary-lt);border:1.5px solid #f9c4a6;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--primary);flex-shrink:0;">
-                                        <i class="fa-solid fa-plate-wheat"></i>
+                                        <i class="fa-solid fa-box"></i>
                                     </div>
                                     <strong><?php echo htmlspecialchars($row['product_name']); ?></strong>
                                 </div>
                             </td>
-                            <td><span class="price-badge">Rs. <?php echo number_format($row['price'], 2); ?></span></td>
+                            <td><div class="price-stack"><strong>Retail: Rs. <?php echo number_format($row['price'], 2); ?></strong><small>Wholesale: Rs. <?php echo number_format($row['wholesale_price'] > 0 ? $row['wholesale_price'] : $row['price'], 2); ?></small></div></td>
+                            <td><span class="stock-value <?php echo $row['stock_qty'] <= $row['reorder_level'] ? 'stock-low' : 'stock-ok'; ?>"><i class="fa-solid <?php echo $row['stock_qty'] <= $row['reorder_level'] ? 'fa-triangle-exclamation' : 'fa-cubes'; ?>"></i><?php echo number_format($row['stock_qty'], 0); ?> <?php echo htmlspecialchars($row['unit']); ?></span></td>
                             <td>
                                 <a href="products.php?toggle=<?php echo $row['product_id']; ?>"
                                    class="status-badge <?php echo $row['status'] ? 'st-active' : 'st-inactive'; ?>">
@@ -447,7 +478,7 @@ $total_all      = $total_active + $total_inactive;
                         </tr>
                         <?php endwhile; else: ?>
                         <tr>
-                            <td colspan="6" class="empty-row">
+                            <td colspan="7" class="empty-row">
                                 <i class="fa-solid fa-box-open" style="font-size:22px;color:var(--border-dk);display:block;margin-bottom:8px;"></i>
                                 No products found. Try adjusting your filters.
                             </td>
@@ -458,7 +489,7 @@ $total_all      = $total_active + $total_inactive;
             </div>
 
         </div>
-    </div><!-- /two-col -->
+    </div><!-- /inventory-stack -->
 
 </div><!-- /content -->
 </div><!-- /main -->
