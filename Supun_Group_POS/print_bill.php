@@ -108,6 +108,7 @@ body {
 }
 
 .receipt {
+    position: relative;
     width: 302px;
     background: #fff;
     color: #111;
@@ -122,9 +123,12 @@ body {
 }
 
 .paid-seal-wrap {
-    display: flex;
-    justify-content: flex-end;
-    padding: 7px 12px 3px;
+    position: absolute;
+    z-index: 2;
+    top: 61%;
+    right: 8%;
+    padding: 0;
+    pointer-events: none;
 }
 
 .paid-seal {
@@ -142,7 +146,7 @@ body {
     font-weight: 900;
     line-height: 1;
     text-transform: uppercase;
-    opacity: .9;
+    opacity: .2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
@@ -773,12 +777,14 @@ body {
 .format-picker select { border:1.5px solid #c8ccd8;border-radius:7px;padding:7px 10px;font:700 13px 'Nunito',sans-serif;color:#1c2038;background:#fff; }
 body.format-58 .receipt { width:220px;padding:12px 9px;font-size:11px; }
 body.format-58 .logo { width:165px; }
+body.format-58 .paid-seal-wrap { top:62%;right:5%; }
 body.format-58 .paid-seal { width:54px;height:54px;border-width:3px; }
 body.format-58 .paid-seal strong { font-size:14px; }
 body.format-58 .paid-seal small { font-size:5px; }
 body.format-58 .paid-seal::before,body.format-58 .paid-seal::after { font-size:6px; }
 body.format-a4 .receipt { width:190mm;min-height:267mm;padding:16mm 18mm; }
 body.format-a4 .logo { width:260px; }
+body.format-a4 .paid-seal-wrap { top:57%;right:10%; }
 body.format-a4 .paid-seal { width:105px;height:105px;border-width:5px; }
 body.format-a4 .paid-seal strong { font-size:28px; }
 body.format-a4 .paid-seal small { font-size:9px; }
@@ -799,7 +805,7 @@ body.format-a4 .paid-seal small { font-size:9px; }
     body.format-58 .itbl th { font-size:7px !important; }
     body.format-58 .iname { font-size:8.5px !important; }
     body.format-58 .g-row td { font-size:13px !important; }
-    body.format-58 .paid-seal-wrap { padding:3mm 2mm 1mm !important; }
+    body.format-58 .paid-seal-wrap { top:62% !important;right:4% !important;padding:0 !important; }
     body.format-58 .paid-seal { width:14mm !important;height:14mm !important;border-width:1mm !important; }
     body.format-58 .paid-seal strong { font-size:10px !important;margin:1px 0 !important; }
     body.format-58 .paid-seal small { font-size:4px !important; }
@@ -814,7 +820,8 @@ body.format-a4 .paid-seal small { font-size:9px; }
     body.format-a4 .itbl th { font-size:11px !important; }
     body.format-a4 .iname { font-size:13px !important; }
     body.format-a4 .g-row td { font-size:21px !important; }
-    body.format-a4 .paid-seal { width:28mm !important;height:28mm !important;border-width:1.2mm !important; }
+    body.format-a4 .paid-seal-wrap { top:57% !important;right:10% !important; }
+    body.format-a4 .paid-seal { width:34mm !important;height:34mm !important;border-width:1.2mm !important; }
 }
 </style>
 </head>

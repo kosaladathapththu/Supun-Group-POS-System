@@ -114,47 +114,16 @@ if (isset($_POST["create_order"])) {
 $current_order_id = isset($_GET["order_id"]) ? (int)$_GET["order_id"] : 0;
 
 /* =========================================================
-   UPDATE ORDER TYPE - AJAX FRIENDLY
+   ORDER TYPE IS LOCKED AFTER CREATION
 ========================================================= */
 if (isset($_GET["set_order_type"]) && $current_order_id > 0) {
-    $order_type = trim($_GET["set_order_type"] ?? "retail");
     $is_ajax = isset($_GET["ajax"]) && $_GET["ajax"] == "1";
-    $allowed_order_types = ["retail", "wholesale"];
-
-    if (!in_array($order_type, $allowed_order_types)) {
-        $order_type = "retail";
-    }
-
-    $table_sql = ", table_id=NULL";
-    $ok = $conn->query("
-        UPDATE orders
-        SET order_type='$order_type' $table_sql
-        WHERE order_id=$current_order_id
-        AND order_status='open'
-    ");
-
-    /* Keep every existing cart line in sync when the sale type changes. */
-    if ($ok) {
-        $price_expression = $order_type === 'wholesale'
-            ? "CASE WHEN p.wholesale_price > 0 THEN p.wholesale_price ELSE p.price END"
-            : "p.price";
-        $conn->query("
-            UPDATE order_items oi
-            JOIN products p ON p.product_id = oi.product_id
-            SET oi.price = $price_expression,
-                oi.unit_price = $price_expression,
-                oi.line_total = oi.quantity * ($price_expression)
-            WHERE oi.order_id = $current_order_id
-              AND oi.item_type = 'product'
-              AND oi.price_overridden = 0
-        ");
-    }
 
     if ($is_ajax) {
         header("Content-Type: application/json");
         echo json_encode([
-            "success" => (bool)$ok,
-            "order_type" => $order_type
+            "success" => false,
+            "message" => "Sale type is locked after the order is created."
         ]);
         exit;
     }
@@ -387,7 +356,7 @@ if (isset($_GET["clear"]) && $current_order_id > 0) {
 ========================================================= */
 if (isset($_POST["pay_order"])) {
     $order_id       = (int)($_POST["order_id"] ?? 0);
-    $order_type     = trim($_POST["order_type"] ?? "retail");
+    $order_type     = "retail";
     $payment_method = trim($_POST["payment_method"] ?? "Cash");
     $cash_given     = (float)($_POST["cash_given"] ?? 0);
     $discount_type  = trim($_POST["discount_type"] ?? "fixed");
@@ -396,10 +365,13 @@ if (isset($_POST["pay_order"])) {
     $apply_packaging_fee = isset($_POST["apply_packaging_fee"]) && $_POST["apply_packaging_fee"] === "1";
     $packaging_fee = $apply_packaging_fee ? max(0, round((float)($_POST["packaging_fee"] ?? 0), 2)) : 0;
 
-    $allowed_order_types     = ["retail", "wholesale"];
     $allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer"];
 
-    if (!in_array($order_type, $allowed_order_types))         $order_type     = "retail";
+    $type_q = $conn->query("SELECT order_type FROM orders WHERE order_id=$order_id AND order_status='open' LIMIT 1");
+    if ($type_q && $type_q->num_rows > 0) {
+        $saved_type = $type_q->fetch_assoc()["order_type"] ?? "retail";
+        $order_type = $saved_type === "wholesale" ? "wholesale" : "retail";
+    }
     if (!in_array($payment_method, $allowed_payment_methods)) $payment_method = "Cash";
 
     // Re-apply the authoritative product price before calculating payment.
@@ -618,6 +590,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .ot-row{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
 .otb{padding:7px;font-size:13px;font-weight:800;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Nunito',sans-serif;}
 .otb.active{background:var(--primary);color:#fff;}
+.ot-selected{height:42px;border:1.5px solid #99f6e4;border-radius:var(--radius-sm);background:#f0fdfa;color:var(--primary);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:900;}
+.ot-selected small{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);background:#fff;border:1px solid var(--border);border-radius:20px;padding:3px 7px;}
 .cart-scroll{flex:1;overflow-y:auto;padding:2px 16px;min-height:0;}
 .empty-cart{display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;gap:7px;color:var(--text-muted);text-align:center;}
 .ci{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);}
@@ -929,13 +903,12 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <?php if ($current_order): ?>
             <div class="ot-wrap">
                 <div class="ot-lbl">Sale Type</div>
-                <div class="ot-row">
-                    <button type="button" class="otb <?php echo (!$current_order || $current_order["order_type"] === "retail") ? 'active' : ''; ?>" data-type="retail" onclick="setOT('retail')">
-                        <i class="fa-solid fa-basket-shopping"></i> Retail
-                    </button>
-                    <button type="button" class="otb <?php echo ($current_order && $current_order["order_type"] === "wholesale") ? 'active' : ''; ?>" data-type="wholesale" onclick="setOT('wholesale')">
-                        <i class="fa-solid fa-boxes-stacked"></i> Wholesale
-                    </button>
+                <div class="ot-selected">
+                    <span>
+                        <i class="fa-solid <?php echo $current_order["order_type"] === "wholesale" ? 'fa-boxes-stacked' : 'fa-basket-shopping'; ?>"></i>
+                        <?php echo $current_order["order_type"] === "wholesale" ? 'Wholesale Sale' : 'Retail Sale'; ?>
+                    </span>
+                    <small>Selected</small>
                 </div>
                 <input type="hidden" name="order_type" id="ot_val" value="<?php echo htmlspecialchars($current_order["order_type"] ?? 'retail'); ?>">
             </div>
