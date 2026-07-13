@@ -210,19 +210,23 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
             if ($item_check && $item_check->num_rows > 0) {
                 $item = $item_check->fetch_assoc();
                 $new_qty = (int)$item["quantity"] + 1;
-                $new_lt = $price * $new_qty;
+                $effective_price = (int)($item["price_overridden"] ?? 0) === 1
+                    ? (float)$item["price"]
+                    : $price;
+                $new_lt = $effective_price * $new_qty;
 
                 $conn->query("
                     UPDATE order_items
-                    SET quantity=$new_qty, price=$price, line_total=$new_lt
+                    SET quantity=$new_qty, price=$effective_price,
+                        unit_price=$effective_price, line_total=$new_lt
                     WHERE order_item_id=" . (int)$item["order_item_id"]
                 );
             } else {
                 $conn->query("
                     INSERT INTO order_items
-                    (order_id, product_id, custom_item_name, quantity, price, item_type, line_total)
+                    (order_id, product_id, custom_item_name, quantity, price, unit_price, item_type, line_total)
                     VALUES
-                    ($current_order_id, $product_id, NULL, 1, $price, 'product', $price)
+                    ($current_order_id, $product_id, NULL, 1, $price, $price, 'product', $price)
                 ");
             }
 
