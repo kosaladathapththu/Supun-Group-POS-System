@@ -55,6 +55,35 @@ if (isset($_POST['edit_product'])) {
 }
 
 /* ── DELETE ── */
+if (isset($_POST['adjust_stock'])) {
+    $product_id = (int)($_POST['stock_product_id'] ?? 0);
+    $action = $_POST['stock_action'] ?? 'stock_in';
+    $quantity = max(0, (float)($_POST['stock_quantity'] ?? 0));
+    $note = trim($_POST['stock_note'] ?? '');
+    $allowed_actions = ['stock_in', 'stock_out', 'set'];
+    if ($product_id > 0 && in_array($action, $allowed_actions, true) && ($quantity > 0 || $action === 'set')) {
+        $conn->begin_transaction();
+        try {
+            $lock = $conn->prepare("SELECT stock_qty FROM products WHERE product_id=? FOR UPDATE");
+            $lock->bind_param('i', $product_id); $lock->execute();
+            $stock_row = $lock->get_result()->fetch_assoc(); $lock->close();
+            if (!$stock_row) throw new Exception('Product not found.');
+            $before = (float)$stock_row['stock_qty'];
+            $after = $action === 'stock_in' ? $before + $quantity : ($action === 'stock_out' ? $before - $quantity : $quantity);
+            if ($after < 0) throw new Exception('Cannot remove more stock than is available.');
+            $update = $conn->prepare("UPDATE products SET stock_qty=? WHERE product_id=?");
+            $update->bind_param('di', $after, $product_id); $update->execute(); $update->close();
+            $user_id = (int)$_SESSION['user_id'];
+            $log = $conn->prepare("INSERT INTO stock_adjustments (product_id,user_id,adjustment_type,quantity,stock_before,stock_after,note) VALUES (?,?,?,?,?,?,?)");
+            $log->bind_param('iisddds', $product_id, $user_id, $action, $quantity, $before, $after, $note); $log->execute(); $log->close();
+            $conn->commit();
+            $msg = 'Stock updated successfully.'; $msg_type = 'success';
+        } catch (Throwable $e) {
+            $conn->rollback(); $msg = $e->getMessage(); $msg_type = 'error';
+        }
+    } else { $msg = 'Select a product and enter a valid quantity.'; $msg_type = 'error'; }
+}
+
 if (isset($_GET['delete'])) {
     $id = (int)$_GET['delete'];
     $conn->query("DELETE FROM products WHERE product_id=$id");
