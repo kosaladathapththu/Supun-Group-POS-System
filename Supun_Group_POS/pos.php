@@ -165,6 +165,17 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
         if ($q && $q->num_rows > 0) {
             $p = $q->fetch_assoc();
 
+            if ((float)$p['stock_qty'] < 1) {
+                $response['message'] = 'This product is out of stock.';
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode($response);
+                    exit;
+                }
+                header('Location: pos.php?order_id=' . $current_order_id . '&stock_error=1');
+                exit;
+            }
+
             $price = ($current_order_id > 0 && ($order_check->fetch_assoc()['order_type'] ?? 'retail') === 'wholesale' && (float)$p['wholesale_price'] > 0) ? (float)$p['wholesale_price'] : (float)$p["price"];
             $item_name = $p["product_name"];
 
@@ -314,9 +325,12 @@ if (isset($_GET["restore_price"]) && $current_order_id > 0) {
 ========================================================= */
 if (isset($_GET["inc"]) && $current_order_id > 0) {
     $oid = (int)$_GET["inc"];
-    $r   = $conn->query("SELECT oi.quantity,oi.price FROM order_items oi JOIN orders o ON oi.order_id=o.order_id WHERE oi.order_item_id=$oid AND oi.order_id=$current_order_id AND o.order_status='open' LIMIT 1");
+    $r   = $conn->query("SELECT oi.quantity,oi.price,p.stock_qty FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON p.product_id=oi.product_id WHERE oi.order_item_id=$oid AND oi.order_id=$current_order_id AND o.order_status='open' LIMIT 1");
     if ($r && $r->num_rows > 0) {
         $row   = $r->fetch_assoc();
+        if ($row['stock_qty'] !== null && (float)$row['stock_qty'] < 1) {
+            header("Location: pos.php?order_id=" . $current_order_id . "&stock_error=1"); exit;
+        }
         $nq    = (int)$row["quantity"] + 1;
         $price = (float)$row["price"];
         $conn->query("UPDATE order_items SET quantity=$nq, line_total=" . ($price * $nq) . " WHERE order_item_id=$oid");
@@ -572,6 +586,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .pcard-name{font-size:13px;font-weight:800;line-height:1.3;}
 .pcard-price{font-size:13px;font-weight:900;color:var(--primary);}
 .pcard-sub{font-size:11px;font-weight:700;color:var(--text-muted);}
+.pcard-stock{font-size:10px;font-weight:900;color:var(--green);margin-top:2px}.pcard-stock.low{color:var(--red)}
 .pcard-badge{position:absolute;top:6px;right:7px;background:var(--primary);color:#fff;font-size:10px;font-weight:900;padding:1px 6px;border-radius:30px;display:none;}
 .pcard:hover .pcard-badge{display:inline-block;}
 .no-prods{grid-column:1/-1;text-align:center;padding:32px 18px;color:var(--text-muted);font-size:14px;font-weight:700;}
@@ -849,24 +864,33 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             : (float)$row['price'];
                         $price_label = $is_wholesale_sale ? 'Wholesale price' : 'Retail price';
                         ?>
-                        <?php if ($current_order && $current_order["order_status"] === "open"): ?>
+                        <?php if ($current_order && $current_order["order_status"] === "open" && (float)$row['stock_qty'] >= 1): ?>
                             <div class="pcard"
                                  onclick="addItem(<?php echo (int)$current_order_id; ?>, <?php echo (int)$row['product_id']; ?>, this)"
                                  title="Click to add to order">
-                                <div class="pcard-icon"><i class="fa-solid fa-plate-wheat"></i></div>
+                                <div class="pcard-icon"><i class="fa-solid fa-box"></i></div>
                                 <div class="pcard-name"><?php echo htmlspecialchars($row["product_name"]); ?></div>
                                 <div class="pcard-price">Rs. <?php echo number_format($display_price, 2); ?></div>
                                 <div class="pcard-sub"><?php echo $price_label; ?> · Tap to add</div>
+                                <div class="pcard-stock <?php echo (float)$row['stock_qty'] <= (float)$row['reorder_level'] ? 'low' : ''; ?>"><?php echo number_format($row['stock_qty'],0); ?> <?php echo htmlspecialchars($row['unit']); ?> available</div>
                                 <span class="pcard-badge">+ Add</span>
+                            </div>
+                        <?php elseif ($current_order && $current_order["order_status"] === "open"): ?>
+                            <div class="pcard disabled" title="Out of stock">
+                                <div class="pcard-icon"><i class="fa-solid fa-box-open"></i></div>
+                                <div class="pcard-name"><?php echo htmlspecialchars($row["product_name"]); ?></div>
+                                <div class="pcard-price">Rs. <?php echo number_format($display_price, 2); ?></div>
+                                <div class="pcard-stock low">Out of stock</div>
                             </div>
                         <?php else: ?>
                             <div class="pcard disabled"
                                  onclick="noOrderAlert()"
                                  title="Create an order first">
-                                <div class="pcard-icon"><i class="fa-solid fa-plate-wheat"></i></div>
+                                <div class="pcard-icon"><i class="fa-solid fa-box"></i></div>
                                 <div class="pcard-name"><?php echo htmlspecialchars($row["product_name"]); ?></div>
                                 <div class="pcard-price">Rs. <?php echo number_format($row["price"], 2); ?></div>
                                 <div class="pcard-sub">Retail price · Select sale first</div>
+                                <div class="pcard-stock <?php echo (float)$row['stock_qty'] <= (float)$row['reorder_level'] ? 'low' : ''; ?>"><?php echo number_format($row['stock_qty'],0); ?> <?php echo htmlspecialchars($row['unit']); ?> available</div>
                             </div>
                         <?php endif; ?>
                     <?php endwhile; ?>

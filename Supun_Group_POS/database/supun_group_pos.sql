@@ -144,6 +144,33 @@ INSERT INTO products (category_id,sku,barcode,product_name,unit,cost_price,price
 (6,'APP-BLEND-15L','4791000000102','Multi-function Blender 1.5L','unit',9800,12450,11200,6,15,4);
 
 DELIMITER $$
+CREATE TRIGGER trg_order_item_stock_before_insert BEFORE INSERT ON order_items
+FOR EACH ROW
+BEGIN
+  DECLARE available_qty DECIMAL(12,3);
+  IF NEW.product_id IS NOT NULL THEN
+    SELECT stock_qty INTO available_qty FROM products WHERE product_id=NEW.product_id FOR UPDATE;
+    IF available_qty < NEW.quantity THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Insufficient stock for this product';
+    END IF;
+  END IF;
+END$$
+CREATE TRIGGER trg_order_item_stock_before_update BEFORE UPDATE ON order_items
+FOR EACH ROW
+BEGIN
+  DECLARE available_qty DECIMAL(12,3);
+  IF NEW.product_id IS NOT NULL AND NEW.product_id=OLD.product_id AND NEW.quantity>OLD.quantity THEN
+    SELECT stock_qty INTO available_qty FROM products WHERE product_id=NEW.product_id FOR UPDATE;
+    IF available_qty < (NEW.quantity-OLD.quantity) THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Insufficient stock for this product';
+    END IF;
+  ELSEIF NEW.product_id IS NOT NULL AND (OLD.product_id IS NULL OR NEW.product_id<>OLD.product_id) THEN
+    SELECT stock_qty INTO available_qty FROM products WHERE product_id=NEW.product_id FOR UPDATE;
+    IF available_qty < NEW.quantity THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Insufficient stock for this product';
+    END IF;
+  END IF;
+END$$
 CREATE TRIGGER trg_order_item_stock_after_insert AFTER INSERT ON order_items
 FOR EACH ROW BEGIN
   IF NEW.product_id IS NOT NULL THEN

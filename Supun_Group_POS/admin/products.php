@@ -136,6 +136,8 @@ $stock_history = $conn->query("SELECT sa.*,p.product_name,u.full_name FROM stock
 $total_active   = $conn->query("SELECT COUNT(*) AS v FROM products WHERE status=1")->fetch_assoc()['v'];
 $total_inactive = $conn->query("SELECT COUNT(*) AS v FROM products WHERE status=0")->fetch_assoc()['v'];
 $total_all      = $total_active + $total_inactive;
+$total_stock    = (float)$conn->query("SELECT COALESCE(SUM(stock_qty),0) AS v FROM products")->fetch_assoc()['v'];
+$low_stock      = (int)$conn->query("SELECT COUNT(*) AS v FROM products WHERE stock_qty<=reorder_level AND status=1")->fetch_assoc()['v'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -276,12 +278,12 @@ $total_all      = $total_active + $total_inactive;
             <div><div class="st-val"><?php echo $total_all; ?></div><div class="st-lbl">Total Products</div></div>
         </div>
         <div class="stat-tile">
-            <div class="st-icon" style="background:var(--green-lt);color:var(--green);"><i class="fa-solid fa-circle-check"></i></div>
-            <div><div class="st-val"><?php echo $total_active; ?></div><div class="st-lbl">Active</div></div>
+            <div class="st-icon" style="background:var(--green-lt);color:var(--green);"><i class="fa-solid fa-cubes"></i></div>
+            <div><div class="st-val"><?php echo number_format($total_stock,0); ?></div><div class="st-lbl">Total Units in Stock</div></div>
         </div>
         <div class="stat-tile">
-            <div class="st-icon" style="background:var(--bg);color:var(--text-muted);"><i class="fa-solid fa-circle-xmark"></i></div>
-            <div><div class="st-val"><?php echo $total_inactive; ?></div><div class="st-lbl">Inactive</div></div>
+            <div class="st-icon" style="background:var(--red-lt);color:var(--red);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div><div class="st-val"><?php echo $low_stock; ?></div><div class="st-lbl">Low / Out of Stock</div></div>
         </div>
     </div>
 
@@ -384,7 +386,7 @@ $total_all      = $total_active + $total_inactive;
                     </div>
 
                     <div class="field"><label>Wholesale Price (Rs.)</label><input class="inp" type="number" name="wholesale_price" step="0.01" min="0" placeholder="0.00" value="<?php echo htmlspecialchars($edit_row['wholesale_price'] ?? '0.00'); ?>"></div>
-                    <div class="field"><label>Current Stock</label><input class="inp" type="number" name="stock_qty" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['stock_qty'] ?? '0'); ?>"></div>
+                    <div class="field"><label>Current Stock</label><input class="inp" type="number" name="stock_qty" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['stock_qty'] ?? '0'); ?>" <?php echo $edit_row ? 'readonly title="Use Quick Stock Management to change stock"' : ''; ?>></div>
 
                     <!-- Status -->
                     <div class="field">
