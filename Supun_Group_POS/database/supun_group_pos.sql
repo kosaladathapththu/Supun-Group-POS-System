@@ -87,6 +87,7 @@ CREATE TABLE order_items (
   quantity DECIMAL(12,3) NOT NULL DEFAULT 1.000,
   price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   unit_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  cost_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   line_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   item_type ENUM('product','manual') NOT NULL DEFAULT 'product',
   price_overridden TINYINT(1) NOT NULL DEFAULT 0,

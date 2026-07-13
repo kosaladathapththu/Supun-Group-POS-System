@@ -114,9 +114,12 @@ try {
                     product_id,
                     custom_item_name,
                     quantity,
+                    price,
                     unit_price,
+                    cost_price,
+                    item_type,
                     line_total
-                 ) VALUES (?, ?, ?, ?, ?, ?)";
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $item_stmt = $conn->prepare($item_sql);
     if (!$item_stmt) {
@@ -134,15 +137,28 @@ try {
 
         $qty = (int) $item["quantity"];
         $price = (float) $item["price"];
+        $cost_price = 0.0;
+        $item_type = $product_id === null ? 'manual' : 'product';
+        if ($product_id !== null) {
+            $cost_q = $conn->prepare("SELECT cost_price FROM products WHERE product_id=? LIMIT 1");
+            $cost_q->bind_param('i', $product_id);
+            $cost_q->execute();
+            $cost_row = $cost_q->get_result()->fetch_assoc();
+            $cost_price = (float)($cost_row['cost_price'] ?? 0);
+            $cost_q->close();
+        }
         $line_total = $qty * $price;
 
         $item_stmt->bind_param(
-            "iisidd",
+            "iisidddsd",
             $order_id,
             $product_id,
             $custom_item_name,
             $qty,
             $price,
+            $price,
+            $cost_price,
+            $item_type,
             $line_total
         );
 

@@ -12,7 +12,7 @@ $filter_to   = trim($_GET["to"]   ?? date('Y-m-d'));
 $filter_pm   = trim($_GET["payment_method"] ?? "");
 $filter_type = trim($_GET["order_type"] ?? "");
 
-$where = ["DATE(o.created_at) BETWEEN '" . $conn->real_escape_string($filter_from) . "' AND '" . $conn->real_escape_string($filter_to) . "'"];
+$where = ["o.payment_status='paid'", "DATE(o.created_at) BETWEEN '" . $conn->real_escape_string($filter_from) . "' AND '" . $conn->real_escape_string($filter_to) . "'"];
 if ($filter_pm   !== "") $where[] = "o.payment_method='" . $conn->real_escape_string($filter_pm) . "'";
 if ($filter_type !== "") $where[] = "o.order_type='"     . $conn->real_escape_string($filter_type) . "'";
 $ws = implode(" AND ", $where);
@@ -73,6 +73,34 @@ $top_prods = $conn->query("
     LIMIT 10
 ");
 
+/* PRODUCT SALES & PROFITABILITY */
+$product_profit = $conn->query("
+    SELECT
+        COALESCE(p.product_name, oi.custom_item_name, 'Custom Item') AS item_name,
+        CASE WHEN oi.product_id IS NULL THEN 1 ELSE 0 END AS is_custom,
+        COUNT(DISTINCT o.order_id) AS order_count,
+        SUM(oi.quantity) AS qty_sold,
+        SUM(oi.line_total) AS gross_sales,
+        SUM(CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END) AS allocated_discount,
+        SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END) AS net_sales,
+        SUM(oi.cost_price*oi.quantity) AS product_cost,
+        SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END-(oi.cost_price*oi.quantity)) AS gross_profit
+    FROM order_items oi
+    JOIN orders o ON o.order_id=oi.order_id
+    LEFT JOIN products p ON p.product_id=oi.product_id
+    WHERE $ws
+    GROUP BY oi.product_id,oi.custom_item_name,p.product_name
+    ORDER BY is_custom ASC,gross_profit DESC,qty_sold DESC
+");
+
+$profit_kpi = $conn->query("
+    SELECT
+      COALESCE(SUM(oi.cost_price*oi.quantity),0) AS cogs,
+      COALESCE(SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END),0) AS net_product_sales,
+      COALESCE(SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END-(oi.cost_price*oi.quantity)),0) AS gross_profit
+    FROM order_items oi JOIN orders o ON o.order_id=oi.order_id WHERE $ws AND oi.product_id IS NOT NULL
+")->fetch_assoc();
+
 /* ── CASHIER PERFORMANCE ── */
 $cashiers = $conn->query("
     SELECT u.full_name, COUNT(*) AS orders, COALESCE(SUM(o.total_amount),0) AS revenue
@@ -128,6 +156,8 @@ $pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer
 
 .three-col { display: grid; grid-template-columns: 1.5fr 1fr 1.3fr; gap: 16px; margin-bottom: 20px; }
 .two-col-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.profit-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}.profit-kpi{padding:13px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg)}.profit-kpi span{display:block;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}.profit-kpi strong{display:block;margin-top:3px;font-family:'Lora',serif;font-size:18px}.profit-positive{color:var(--green)!important}.profit-negative{color:var(--red)!important}.profit-table td,.profit-table th{white-space:nowrap}.profit-table td:first-child,.profit-table th:first-child{white-space:normal;min-width:190px}.margin-pill{display:inline-flex;padding:3px 8px;border-radius:20px;background:var(--green-lt);color:var(--green);font-size:11px;font-weight:900}.na-pill{display:inline-flex;padding:3px 8px;border-radius:20px;background:var(--amber-lt);color:var(--amber);font-size:10px;font-weight:900}
+@media(max-width:800px){.profit-kpis{grid-template-columns:1fr}.three-col,.two-col-equal{grid-template-columns:1fr}}
 
 .mini-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; border-bottom: 1px solid var(--border); }
 .mini-row:last-child { border-bottom: none; }
@@ -365,6 +395,30 @@ $pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer
         </div>
 
     </div><!-- /three-col -->
+
+    <section class="card table-card-full" style="margin-bottom:20px;">
+        <div class="card-header">
+            <div><h3><i class="fa-solid fa-chart-line"></i> Product Sales &amp; Profit</h3><div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-top:2px;">Discounts are allocated proportionally to each sold item</div></div>
+            <span class="count-badge"><?php echo $product_profit ? $product_profit->num_rows : 0; ?> products</span>
+        </div>
+        <div class="card-body" style="padding-bottom:12px;">
+            <div class="profit-kpis">
+                <div class="profit-kpi"><span>Net Product Sales</span><strong>Rs. <?php echo number_format($profit_kpi['net_product_sales'],2); ?></strong></div>
+                <div class="profit-kpi"><span>Cost of Goods Sold</span><strong style="color:var(--amber);">Rs. <?php echo number_format($profit_kpi['cogs'],2); ?></strong></div>
+                <div class="profit-kpi"><span>Gross Product Profit</span><strong class="<?php echo $profit_kpi['gross_profit']>=0?'profit-positive':'profit-negative'; ?>">Rs. <?php echo number_format($profit_kpi['gross_profit'],2); ?></strong></div>
+            </div>
+        </div>
+        <div class="tbl-wrap"><table class="profit-table"><thead><tr><th>Product</th><th>Orders</th><th>Qty Sold</th><th>Gross Sales</th><th>Discount</th><th>Net Sales</th><th>Product Cost</th><th>Gross Profit</th><th>Margin</th></tr></thead><tbody>
+        <?php if($product_profit && $product_profit->num_rows): while($pp=$product_profit->fetch_assoc()): $margin=(float)$pp['net_sales']!=0?((float)$pp['gross_profit']/(float)$pp['net_sales']*100):0; ?>
+            <tr>
+                <td><strong><?php echo htmlspecialchars($pp['item_name']); ?></strong><?php if($pp['is_custom']): ?> <span class="na-pill">Custom · cost unknown</span><?php endif; ?></td>
+                <td><?php echo number_format($pp['order_count']); ?></td><td><?php echo number_format($pp['qty_sold'],3); ?></td>
+                <td>Rs. <?php echo number_format($pp['gross_sales'],2); ?></td><td style="color:var(--red);">- Rs. <?php echo number_format($pp['allocated_discount'],2); ?></td><td><strong>Rs. <?php echo number_format($pp['net_sales'],2); ?></strong></td>
+                <?php if($pp['is_custom']): ?><td>—</td><td>—</td><td><span class="na-pill">N/A</span></td><?php else: ?><td>Rs. <?php echo number_format($pp['product_cost'],2); ?></td><td class="<?php echo $pp['gross_profit']>=0?'profit-positive':'profit-negative'; ?>"><strong>Rs. <?php echo number_format($pp['gross_profit'],2); ?></strong></td><td><span class="margin-pill"><?php echo number_format($margin,1); ?>%</span></td><?php endif; ?>
+            </tr>
+        <?php endwhile; else: ?><tr><td colspan="9" class="empty-row">No paid product sales found for this period.</td></tr><?php endif; ?>
+        </tbody></table></div>
+    </section>
 
     <!-- ══ CASHIER PERFORMANCE ══ -->
     <div class="card table-card-full" style="margin-bottom:20px;">

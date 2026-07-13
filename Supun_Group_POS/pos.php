@@ -178,6 +178,7 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
             }
 
             $price = ($current_order_id > 0 && ($order_check->fetch_assoc()['order_type'] ?? 'retail') === 'wholesale' && (float)$p['wholesale_price'] > 0) ? (float)$p['wholesale_price'] : (float)$p["price"];
+            $cost_price = (float)($p['cost_price'] ?? 0);
             $item_name = $p["product_name"];
 
             $item_check = $conn->query("
@@ -207,9 +208,9 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
             } else {
                 $item_ok = $conn->query("
                     INSERT INTO order_items
-                    (order_id, product_id, custom_item_name, quantity, price, unit_price, item_type, line_total)
+                    (order_id, product_id, custom_item_name, quantity, price, unit_price, cost_price, item_type, line_total)
                     VALUES
-                    ($current_order_id, $product_id, NULL, 1, $price, $price, 'product', $price)
+                    ($current_order_id, $product_id, NULL, 1, $price, $price, $cost_price, 'product', $price)
                 ");
             }
             } catch (Throwable $e) {
