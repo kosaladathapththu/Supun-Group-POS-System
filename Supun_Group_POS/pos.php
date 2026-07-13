@@ -334,7 +334,8 @@ if (isset($_POST["pay_order"])) {
     $order_type     = trim($_POST["order_type"] ?? "retail");
     $payment_method = trim($_POST["payment_method"] ?? "Cash");
     $cash_given     = (float)($_POST["cash_given"] ?? 0);
-    $discount       = (float)($_POST["discount"] ?? 0);
+    $discount_type  = trim($_POST["discount_type"] ?? "fixed");
+    $discount_value = max(0, (float)($_POST["discount_value"] ?? 0));
     $apply_service_charge = isset($_POST["apply_service_charge"]) && $_POST["apply_service_charge"] === "1";
     $apply_packaging_fee = isset($_POST["apply_packaging_fee"]) && $_POST["apply_packaging_fee"] === "1";
     $packaging_fee = $apply_packaging_fee ? max(0, round((float)($_POST["packaging_fee"] ?? 0), 2)) : 0;
@@ -350,6 +351,14 @@ if (isset($_POST["pay_order"])) {
     if ($sum_q && $sum_q->num_rows > 0) { $subtotal = (float)($sum_q->fetch_assoc()["subtotal"] ?? 0); }
 
     $service_charge = $apply_service_charge ? round($subtotal * 0.10, 2) : 0;
+    if ($discount_type === "percentage") {
+        $discount_value = min(100, $discount_value);
+        $discount = round($subtotal * ($discount_value / 100), 2);
+    } else {
+        $discount_type = "fixed";
+        $discount = round($discount_value, 2);
+    }
+    $discount = min($subtotal + $service_charge + $packaging_fee, $discount);
     $total_amount = max(0, $subtotal + $service_charge + $packaging_fee - $discount);
     if ($payment_method !== "Cash") $cash_given = $total_amount;
     $balance = $cash_given - $total_amount;
@@ -565,6 +574,19 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .fee-input-wrap span{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:900;color:var(--text-muted);}
 .fee-input{width:100%;padding:6px 7px 6px 31px;font-size:12px;font-weight:900;text-align:right;background:var(--white);}
 .fee-input:disabled{background:var(--bg);color:var(--text-muted);cursor:not-allowed;}
+.discount-row{display:block;padding:10px 11px;border-color:#99f6e4;background:#f0fdfa;}
+.discount-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.discount-head .service-check{color:var(--primary-dk);}
+.discount-controls{display:flex;flex-direction:column;gap:9px;width:100%;}
+.discount-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;}
+.discount-type-btn{height:38px;border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--text-mid);font:800 11px 'Nunito',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:.15s;}
+.discount-type-btn:hover{border-color:var(--primary);color:var(--primary);}
+.discount-type-btn.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 2px 7px rgba(15,118,110,.2);}
+.discount-value-wrap{position:relative;width:100%;}
+.discount-unit{position:absolute;left:12px;top:50%;transform:translateY(-50%);z-index:1;font-size:12px;font-weight:900;color:var(--primary);pointer-events:none;}
+.discount-input{width:100%;height:42px;border:1.5px solid var(--border-dk);border-radius:7px;background:#fff;color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;outline:none;padding:0 12px 0 50px;text-align:right;}
+.discount-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,118,110,.12);}
+.discount-summary{background:#ecfdf5;border:1px solid #99f6e4;border-radius:7px;padding:7px 10px;margin:-2px 0 10px;}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
 .pmb{padding:7px 3px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text-mid);font-size:11px;font-weight:800;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Nunito',sans-serif;transition:.14s;}
@@ -932,6 +954,36 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span class="service-amt">Rs. <span id="serviceChargeAmt"><?php echo number_format($service_charge_preview, 2, '.', ''); ?></span></span>
                     </div>
 
+                    <div class="service-row discount-row">
+                        <div class="discount-head">
+                            <label class="service-check" for="discountValue">
+                                <i class="fa-solid fa-tags"></i>
+                                <span>Apply Discount</span>
+                            </label>
+                            <small style="color:var(--text-muted);font-size:10px;font-weight:800;">Optional</small>
+                        </div>
+                        <div class="discount-controls">
+                            <input type="hidden" name="discount_type" id="discountType" value="percentage">
+                            <div class="discount-type-grid" role="group" aria-label="Discount type">
+                                <button type="button" class="discount-type-btn active" data-discount-type="percentage" onclick="setDiscountType('percentage')">
+                                    <i class="fa-solid fa-percent"></i> Percentage
+                                </button>
+                                <button type="button" class="discount-type-btn" data-discount-type="fixed" onclick="setDiscountType('fixed')">
+                                    <i class="fa-solid fa-money-bill"></i> Fixed Amount
+                                </button>
+                            </div>
+                            <div class="discount-value-wrap">
+                                <span class="discount-unit" id="discountUnit">%</span>
+                                <input type="number" name="discount_value" id="discountValue" class="discount-input" aria-label="Discount value" step="0.01" min="0" max="100" value="0.00" placeholder="Enter discount" oninput="updateOrderFees()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="total-row discount-summary" id="discountSummary" style="display:none;">
+                        <span class="total-lbl">Discount</span>
+                        <span class="service-amt">- Rs. <span id="discountAmt">0.00</span></span>
+                    </div>
+
                     <div class="service-row">
                         <label class="service-check" for="packagingFeeToggle">
                             <input type="checkbox" name="apply_packaging_fee" id="packagingFeeToggle" value="1" onchange="updateOrderFees()">
@@ -975,8 +1027,6 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span id="balLbl">Balance / Change</span>
                         <span id="balAmt">Rs. 0.00</span>
                     </div>
-
-                    <input type="hidden" name="discount" value="0.00">
 
                     <button type="submit" name="pay_order" class="pay-btn" id="payBtn">
                         <i class="fa-solid fa-circle-check"></i> Pay &amp; Print Bill
@@ -1096,6 +1146,24 @@ let GT = CART_SUBTOTAL;
 const CURRENT_ORDER_ID = <?php echo (int)$current_order_id; ?>;
 let displayCashTimer = null;
 
+function setDiscountType(type) {
+    const selected = type === 'fixed' ? 'fixed' : 'percentage';
+    const typeInput = document.getElementById('discountType');
+    const valueInput = document.getElementById('discountValue');
+    const unit = document.getElementById('discountUnit');
+
+    if (typeInput) typeInput.value = selected;
+    if (unit) unit.textContent = selected === 'fixed' ? 'Rs.' : '%';
+    if (valueInput) {
+        if (selected === 'percentage') valueInput.max = '100';
+        else valueInput.removeAttribute('max');
+    }
+    document.querySelectorAll('.discount-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.discountType === selected);
+    });
+    updateOrderFees();
+}
+
 function updateOrderFees() {
     const serviceToggle = document.getElementById('serviceChargeToggle');
     const packagingToggle = document.getElementById('packagingFeeToggle');
@@ -1103,6 +1171,10 @@ function updateOrderFees() {
     const chargeEl = document.getElementById('serviceChargeAmt');
     const subtotalEl = document.getElementById('subtotalAmt');
     const totalEl = document.getElementById('gt');
+    const discountType = document.getElementById('discountType')?.value || 'fixed';
+    const discountValue = Math.max(0, parseFloat(document.getElementById('discountValue')?.value) || 0);
+    const discountEl = document.getElementById('discountAmt');
+    const discountSummary = document.getElementById('discountSummary');
     const serviceCharge = serviceToggle && serviceToggle.checked ? CART_SUBTOTAL * 0.10 : 0;
     const packagingFee = packagingToggle && packagingToggle.checked ? Math.max(0, parseFloat(packagingInput?.value) || 0) : 0;
 
@@ -1113,11 +1185,17 @@ function updateOrderFees() {
         }
     }
 
-    GT = CART_SUBTOTAL + serviceCharge + packagingFee;
+    const beforeDiscount = CART_SUBTOTAL + serviceCharge + packagingFee;
+    const discount = discountType === 'percentage'
+        ? Math.min(CART_SUBTOTAL, CART_SUBTOTAL * Math.min(100, discountValue) / 100)
+        : Math.min(beforeDiscount, discountValue);
+    GT = Math.max(0, beforeDiscount - discount);
 
     if (subtotalEl) subtotalEl.textContent = CART_SUBTOTAL.toFixed(2);
     if (chargeEl) chargeEl.textContent = serviceCharge.toFixed(2);
     if (totalEl) totalEl.textContent = GT.toFixed(2);
+    if (discountEl) discountEl.textContent = discount.toFixed(2);
+    if (discountSummary) discountSummary.style.display = discount > 0 ? 'flex' : 'none';
 
     const pm = document.getElementById('pm_val')?.value || 'Cash';
     const ci = document.getElementById('cash_given');
@@ -1341,6 +1419,8 @@ function refreshCart(orderId, oldScrollY) {
             const keepServiceCharge = document.getElementById('serviceChargeToggle')?.checked || false;
             const keepPackagingFee = document.getElementById('packagingFeeToggle')?.checked || false;
             const keepPackagingAmount = document.getElementById('packagingFeeInput')?.value || '0.00';
+            const keepDiscountType = document.getElementById('discountType')?.value || 'fixed';
+            const keepDiscountValue = document.getElementById('discountValue')?.value || '0.00';
 
             if (newScroll && curScroll) curScroll.innerHTML = newScroll.innerHTML;
             if (newBadge && curBadge) curBadge.textContent = newBadge.textContent;
@@ -1365,6 +1445,11 @@ function refreshCart(orderId, oldScrollY) {
                 if (pkg) pkg.checked = keepPackagingFee;
                 const pkgAmt = document.getElementById('packagingFeeInput');
                 if (pkgAmt) pkgAmt.value = keepPackagingAmount;
+                const discountType = document.getElementById('discountType');
+                if (discountType) discountType.value = keepDiscountType;
+                const discountValue = document.getElementById('discountValue');
+                if (discountValue) discountValue.value = keepDiscountValue;
+                setDiscountType(keepDiscountType);
                 bindPaySection();
                 bindOrderForm();
             }
