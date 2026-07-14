@@ -4,6 +4,18 @@ include '../db.php';
 
 $from_date = $_GET['from_date'] ?? date('Y-m-d');
 $to_date   = $_GET['to_date'] ?? date('Y-m-d');
+$report_type = $_GET['report_type'] ?? 'full';
+$allowedReportTypes = ['daily', 'weekly', 'monthly', 'full'];
+if (!in_array($report_type, $allowedReportTypes, true)) {
+    $report_type = 'full';
+}
+$reportNames = [
+    'daily' => 'Daily Sales Report',
+    'weekly' => 'Weekly Sales Report',
+    'monthly' => 'Monthly Sales Report',
+    'full' => 'Full Product Sales Report',
+];
+$reportName = $reportNames[$report_type];
 
 $sql = "
     SELECT
@@ -37,6 +49,44 @@ while ($row = $result->fetch_assoc()) {
     }
 
     $dateTotals[$date] += $row['total_amount'];
+}
+
+/* Build the separately printable daily, weekly and monthly views from the
+   date-level result, keeping each product visible inside its period. */
+$groupedSales = [];
+if ($report_type !== 'full') {
+    foreach ($sales as $date => $items) {
+        $dateObject = new DateTime($date);
+        if ($report_type === 'weekly') {
+            $periodStart = clone $dateObject;
+            $periodStart->modify('monday this week');
+            $periodEnd = clone $periodStart;
+            $periodEnd->modify('+6 days');
+            $groupKey = $periodStart->format('Y-m-d');
+            $groupLabel = 'Week: ' . $periodStart->format('d M Y') . ' - ' . $periodEnd->format('d M Y');
+        } elseif ($report_type === 'monthly') {
+            $groupKey = $dateObject->format('Y-m-01');
+            $groupLabel = $dateObject->format('F Y');
+        } else {
+            $groupKey = $date;
+            $groupLabel = $dateObject->format('d M Y');
+        }
+
+        if (!isset($groupedSales[$groupKey])) {
+            $groupedSales[$groupKey] = ['label' => $groupLabel, 'items' => [], 'total' => 0, 'qty' => 0];
+        }
+        foreach ($items as $item) {
+            $productName = $item['product_name'];
+            if (!isset($groupedSales[$groupKey]['items'][$productName])) {
+                $groupedSales[$groupKey]['items'][$productName] = ['product_name' => $productName, 'total_qty' => 0, 'total_amount' => 0];
+            }
+            $groupedSales[$groupKey]['items'][$productName]['total_qty'] += (float)$item['total_qty'];
+            $groupedSales[$groupKey]['items'][$productName]['total_amount'] += (float)$item['total_amount'];
+            $groupedSales[$groupKey]['qty'] += (float)$item['total_qty'];
+            $groupedSales[$groupKey]['total'] += (float)$item['total_amount'];
+        }
+    }
+    krsort($groupedSales);
 }
 
 /* Full-period product performance. Order discounts are distributed across
@@ -118,7 +168,7 @@ $inventorySummary = $conn->query("
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Full Product Sales Report</title>
+    <title><?php echo htmlspecialchars($reportName); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
@@ -225,7 +275,7 @@ $inventorySummary = $conn->query("
         .report-heading i{color:var(--primary);}
         .filter-field{display:flex;flex-direction:column;gap:5px;}
         .filter-field label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);font-weight:900;}
-        .filter-field input{font-family:'Nunito',sans-serif;background:var(--bg);border:1.5px solid var(--border);}
+        .filter-field input,.filter-field select{font-family:'Nunito',sans-serif;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:9px;min-height:40px;}
         .date-card-title{font-family:'Lora',serif;font-size:16px;display:flex;align-items:center;gap:7px;}
         .summary-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:14px;margin-bottom:20px;}
         .summary-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:17px;box-shadow:var(--shadow-sm);}
@@ -304,7 +354,7 @@ $inventorySummary = $conn->query("
             .summary-grid{grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
             .summary-card{box-shadow:none;border:1px solid #bbb;padding:7px;}
             .summary-card .value{font-size:13px;}.summary-card .label{font-size:8px;}
-            .full-report-table{font-size:8px;}.daily-breakdown{break-before:page;}
+            .full-report-table{font-size:8px;}
         }
     </style>
 </head>
@@ -318,13 +368,22 @@ $inventorySummary = $conn->query("
 
     <div class="top-bar no-print">
         <a href="sales.php" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Sales</a>
-        <button onclick="window.print()" class="print-btn"><i class="fa-solid fa-print"></i> Print Full Report</button>
+        <button onclick="window.print()" class="print-btn"><i class="fa-solid fa-print"></i> Print <?php echo htmlspecialchars($reportName); ?></button>
     </div>
 
     <div class="card no-print">
-        <h1 class="report-heading"><i class="fa-solid fa-chart-column"></i> Full Product Sales Report</h1>
+        <h1 class="report-heading"><i class="fa-solid fa-chart-column"></i> Select Sales Report</h1>
 
         <form method="GET">
+            <div class="filter-field">
+                <label>Report Type</label>
+                <select name="report_type">
+                    <option value="daily" <?php echo $report_type === 'daily' ? 'selected' : ''; ?>>Daily Report</option>
+                    <option value="weekly" <?php echo $report_type === 'weekly' ? 'selected' : ''; ?>>Weekly Report</option>
+                    <option value="monthly" <?php echo $report_type === 'monthly' ? 'selected' : ''; ?>>Monthly Report</option>
+                    <option value="full" <?php echo $report_type === 'full' ? 'selected' : ''; ?>>Full Sales Report</option>
+                </select>
+            </div>
             <div class="filter-field">
                 <label>From Date</label>
                 <input type="date" name="from_date" value="<?php echo htmlspecialchars($from_date); ?>">
@@ -335,13 +394,13 @@ $inventorySummary = $conn->query("
                 <input type="date" name="to_date" value="<?php echo htmlspecialchars($to_date); ?>">
             </div>
 
-            <button type="submit">Filter</button>
+            <button type="submit"><i class="fa-solid fa-filter"></i> Generate Report</button>
         </form>
     </div>
 
     <div class="receipt-title">
         <h2>SUPUN GROUP OF COMPANIES</h2>
-        <p>Full Product Sales &amp; Profit Report</p>
+        <p><?php echo htmlspecialchars($reportName); ?></p>
         <p><?php echo htmlspecialchars($from_date); ?> to <?php echo htmlspecialchars($to_date); ?></p>
         <hr>
     </div>
@@ -359,6 +418,7 @@ $inventorySummary = $conn->query("
         <div class="summary-card"><div class="label">Total Units in Stock</div><div class="value"><?php echo number_format((float)$inventorySummary['units_in_stock'], 0); ?></div></div>
     </div>
 
+    <?php if ($report_type === 'full') { ?>
     <div class="card">
         <h2 class="section-title"><i class="fa-solid fa-boxes-stacked"></i> Product Performance — Full Period</h2>
         <p class="section-subtitle">All paid product sales from <?php echo date('d M Y', strtotime($from_date)); ?> to <?php echo date('d M Y', strtotime($to_date)); ?>. Profit is after sale discounts and product cost, before general business expenses.</p>
@@ -391,13 +451,13 @@ $inventorySummary = $conn->query("
         </div>
         <?php } ?>
     </div>
-
-    <div class="daily-breakdown">
-        <h2 class="section-title"><i class="fa-regular fa-calendar-days"></i> Daily Breakdown</h2>
-        <p class="section-subtitle">The same selected period grouped by transaction date.</p>
+    <?php } else { ?>
+    <div>
+        <h2 class="section-title"><i class="fa-regular fa-calendar-days"></i> <?php echo htmlspecialchars($reportName); ?></h2>
+        <p class="section-subtitle">Paid product sales grouped <?php echo $report_type === 'daily' ? 'by day' : ($report_type === 'weekly' ? 'by week' : 'by month'); ?> for the selected date range.</p>
     </div>
 
-    <?php if (empty($sales)) { ?>
+    <?php if (empty($groupedSales)) { ?>
 
         <div class="card">
             <h3>No sales found</h3>
@@ -406,10 +466,10 @@ $inventorySummary = $conn->query("
 
     <?php } else { ?>
 
-        <?php foreach ($sales as $date => $items) { ?>
+        <?php foreach ($groupedSales as $period) { ?>
 
             <div class="card">
-                <h2 class="date-card-title"><i class="fa-regular fa-calendar"></i> <?php echo date('d M Y', strtotime($date)); ?></h2>
+                <h2 class="date-card-title"><i class="fa-regular fa-calendar"></i> <?php echo htmlspecialchars($period['label']); ?></h2>
 
                 <table>
                     <tr>
@@ -418,7 +478,7 @@ $inventorySummary = $conn->query("
                         <th>Total</th>
                     </tr>
 
-                    <?php foreach ($items as $item) { ?>
+                    <?php foreach ($period['items'] as $item) { ?>
                         <tr>
                             <td><?php echo htmlspecialchars($item['product_name']); ?></td>
                             <td><?php echo (int)$item['total_qty']; ?></td>
@@ -427,14 +487,16 @@ $inventorySummary = $conn->query("
                     <?php } ?>
 
                     <tr class="total-row">
-                        <td colspan="2">Date Total</td>
-                        <td>Rs. <?php echo number_format($dateTotals[$date], 2); ?></td>
+                        <td>Period Total</td>
+                        <td><?php echo number_format((float)$period['qty'], 0); ?></td>
+                        <td>Rs. <?php echo number_format((float)$period['total'], 2); ?></td>
                     </tr>
                 </table>
             </div>
 
         <?php } ?>
 
+    <?php } ?>
     <?php } ?>
 
 </div>
