@@ -45,6 +45,8 @@ $productSql = "
     SELECT
         p.product_id,
         p.product_name,
+        p.stock_qty AS current_stock,
+        p.unit,
         COUNT(DISTINCT o.order_id) AS order_count,
         SUM(oi.quantity) AS total_qty,
         SUM(oi.line_total) AS gross_sales,
@@ -62,7 +64,7 @@ $productSql = "
     JOIN products p ON oi.product_id = p.product_id
     WHERE DATE(o.created_at) BETWEEN ? AND ?
       AND o.payment_status = 'paid'
-    GROUP BY p.product_id, p.product_name
+    GROUP BY p.product_id, p.product_name, p.stock_qty, p.unit
     ORDER BY gross_profit DESC, p.product_name ASC
 ";
 $productStmt = $conn->prepare($productSql);
@@ -101,6 +103,14 @@ $summary = $summaryStmt->get_result()->fetch_assoc();
 $profitMargin = (float)$summary['net_sales'] > 0
     ? ((float)$summary['gross_profit'] / (float)$summary['net_sales']) * 100
     : 0;
+
+$inventorySummary = $conn->query("
+    SELECT
+        COUNT(CASE WHEN stock_qty > 0 THEN 1 END) AS products_in_stock,
+        COALESCE(SUM(stock_qty), 0) AS units_in_stock
+    FROM products
+    WHERE status = 1
+")->fetch_assoc();
 ?>
 
 <!DOCTYPE html>
@@ -345,6 +355,8 @@ $profitMargin = (float)$summary['net_sales'] > 0
         <div class="summary-card"><div class="label">Product Cost</div><div class="value">Rs. <?php echo number_format((float)$summary['total_cost'], 2); ?></div></div>
         <div class="summary-card profit"><div class="label">Gross Product Profit</div><div class="value">Rs. <?php echo number_format((float)$summary['gross_profit'], 2); ?></div></div>
         <div class="summary-card profit"><div class="label">Gross Margin</div><div class="value"><?php echo number_format($profitMargin, 2); ?>%</div></div>
+        <div class="summary-card"><div class="label">Product Types in Stock</div><div class="value"><?php echo number_format((int)$inventorySummary['products_in_stock']); ?></div></div>
+        <div class="summary-card"><div class="label">Total Units in Stock</div><div class="value"><?php echo number_format((float)$inventorySummary['units_in_stock'], 0); ?></div></div>
     </div>
 
     <div class="card">
@@ -355,7 +367,7 @@ $profitMargin = (float)$summary['net_sales'] > 0
         <?php } else { ?>
         <div class="table-scroll">
             <table class="full-report-table">
-                <thead><tr><th>Product</th><th class="number">Orders</th><th class="number">Qty</th><th class="number">Gross Sales</th><th class="number">Discount</th><th class="number">Net Sales</th><th class="number">Cost</th><th class="number">Gross Profit</th><th class="number">Margin</th></tr></thead>
+                <thead><tr><th>Product</th><th class="number">In Stock</th><th class="number">Orders</th><th class="number">Qty Sold</th><th class="number">Gross Sales</th><th class="number">Discount</th><th class="number">Net Sales</th><th class="number">Cost</th><th class="number">Gross Profit</th><th class="number">Margin</th></tr></thead>
                 <tbody>
                 <?php foreach ($productRows as $product) {
                     $margin = (float)$product['net_sales'] > 0 ? ((float)$product['gross_profit'] / (float)$product['net_sales']) * 100 : 0;
@@ -363,6 +375,7 @@ $profitMargin = (float)$summary['net_sales'] > 0
                 ?>
                     <tr>
                         <td><strong><?php echo htmlspecialchars($product['product_name']); ?></strong></td>
+                        <td class="number"><strong><?php echo number_format((float)$product['current_stock'], 0); ?></strong> <?php echo htmlspecialchars($product['unit']); ?></td>
                         <td class="number"><?php echo (int)$product['order_count']; ?></td>
                         <td class="number"><?php echo number_format((float)$product['total_qty'], 0); ?></td>
                         <td class="number">Rs. <?php echo number_format((float)$product['gross_sales'], 2); ?></td>

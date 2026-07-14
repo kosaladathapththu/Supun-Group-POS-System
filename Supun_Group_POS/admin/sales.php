@@ -196,7 +196,7 @@ $pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer
     </div>
 
 <a href="daily_product_sales.php" class="btn-secondary no-print" style="margin-bottom:18px;">
-    <i class="fa-solid fa-chart-column"></i> View Daily Product Sales
+    <i class="fa-solid fa-chart-column"></i> View Full Product Report
 </a>
 
     <!-- ══ FILTER BAR ══ -->
