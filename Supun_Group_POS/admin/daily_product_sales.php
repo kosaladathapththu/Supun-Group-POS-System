@@ -270,6 +270,7 @@ $inventorySummary = $conn->query("
             text-align: center;
             display: none;
         }
+        .print-summary,.report-footer{display:none;}
 
         .report-heading{display:flex;align-items:center;gap:9px;font-family:'Lora',serif;font-size:22px;margin-bottom:15px;}
         .report-heading i{color:var(--primary);}
@@ -291,16 +292,20 @@ $inventorySummary = $conn->query("
 
         @media print {
             @page {
-                size: A4 landscape;
-                margin: 8mm;
+                size: <?php echo $report_type === 'full' ? 'A4 landscape' : 'A4 portrait'; ?>;
+                margin: 12mm 10mm 14mm;
             }
 
             body {
                 background: #fff;
                 padding: 0;
                 margin: 0;
-                font-size: 12px;
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+                color:#17233c;
                 display: block;
+                -webkit-print-color-adjust:exact;
+                print-color-adjust:exact;
             }
 
             .main, .content { display:block !important; margin:0 !important; padding:0 !important; }
@@ -317,44 +322,72 @@ $inventorySummary = $conn->query("
 
             .card {
                 box-shadow: none;
-                border-radius: 0;
-                padding: 0;
-                margin-bottom: 10px;
+                border:1px solid #b9c4d3;
+                border-radius:4px;
+                padding:8px 10px;
+                margin-bottom:8px;
+                break-inside:avoid;
+                page-break-inside:avoid;
             }
 
             .receipt-title {
-                display: block;
-                margin-bottom: 10px;
+                display:grid;
+                grid-template-columns:72px 1fr 170px;
+                align-items:center;
+                gap:12px;
+                text-align:left;
+                border-bottom:3px solid #087f72;
+                padding-bottom:9px;
+                margin-bottom:10px;
             }
+            .receipt-title img{width:62px;height:62px;object-fit:contain;}
+            .receipt-title h2{font-family:Arial,sans-serif;font-size:17pt;text-align:left;margin:0;color:#10213b;}
+            .receipt-title .report-name{font-size:11pt;font-weight:700;color:#087f72;margin:3px 0 0;}
+            .receipt-title .report-meta{text-align:right;font-size:8.5pt;line-height:1.55;color:#4b5d75;}
+            .receipt-title .report-meta strong{color:#17233c;}
 
             h1, h2, h3 {
-                font-size: 14px;
-                text-align: center;
-                margin: 6px 0;
+                text-align:left;
+                margin:4px 0;
             }
 
             table {
                 width: 100%;
-                font-size: 9px;
+                font-size:8.5pt;
+                margin-top:6px;
             }
 
             th, td {
-                padding: 4px 2px;
-                border-bottom: 1px dashed #999;
+                padding:5px 6px;
+                border-bottom:1px solid #d7dee8;
             }
 
             th {
-                background: none;
+                background:#e8f4f2 !important;
+                color:#143c4a !important;
+                font-size:7.5pt;
+                text-transform:uppercase;
+                letter-spacing:.03em;
             }
+            thead{display:table-header-group;}
+            tr{break-inside:avoid;page-break-inside:avoid;}
 
             .total-row {
-                background: none;
+                background:#edf2f7 !important;
                 font-weight: bold;
             }
-            .summary-grid{grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
-            .summary-card{box-shadow:none;border:1px solid #bbb;padding:7px;}
-            .summary-card .value{font-size:13px;}.summary-card .label{font-size:8px;}
-            .full-report-table{font-size:8px;}
+            .summary-grid{display:none !important;}
+            .print-summary{display:table;width:100%;border-collapse:collapse;margin:0 0 12px;table-layout:fixed;}
+            .print-summary td{border:1px solid #b9c4d3;padding:7px 8px;vertical-align:top;}
+            .print-summary .ps-label{display:block;font-size:7pt;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;}
+            .print-summary .ps-value{font-size:10.5pt;font-weight:800;color:#10213b;}
+            .print-summary .green{color:#087f47;}.print-summary .orange{color:#c25c00;}
+            .section-title{font-family:Arial,sans-serif;font-size:13pt;margin:8px 0 2px;color:#10213b;}
+            .section-subtitle{font-size:8pt;margin:0 0 7px;color:#52647b;}
+            .date-card-title{font-family:Arial,sans-serif;font-size:10pt;padding-bottom:5px;border-bottom:1px solid #b9c4d3;}
+            .full-report-table{font-size:7pt;}.full-report-table th{font-size:6.5pt;}
+            .full-report-card{break-inside:auto;page-break-inside:auto;}
+            .report-footer{display:flex;justify-content:space-between;border-top:1px solid #9aa8b8;margin-top:10px;padding-top:5px;font-size:7pt;color:#64748b;}
         }
     </style>
 </head>
@@ -399,11 +432,32 @@ $inventorySummary = $conn->query("
     </div>
 
     <div class="receipt-title">
-        <h2>SUPUN GROUP OF COMPANIES</h2>
-        <p><?php echo htmlspecialchars($reportName); ?></p>
-        <p><?php echo htmlspecialchars($from_date); ?> to <?php echo htmlspecialchars($to_date); ?></p>
-        <hr>
+        <img src="../supun-logo.png" alt="Supun Group logo">
+        <div>
+            <h2>SUPUN GROUP OF COMPANIES</h2>
+            <p class="report-name"><?php echo htmlspecialchars($reportName); ?></p>
+        </div>
+        <div class="report-meta">
+            <div><strong>Period:</strong> <?php echo date('d M Y', strtotime($from_date)); ?> - <?php echo date('d M Y', strtotime($to_date)); ?></div>
+            <div><strong>Generated:</strong> <?php echo date('d M Y, h:i A'); ?></div>
+            <div><strong>Status:</strong> Paid sales only</div>
+        </div>
     </div>
+
+    <table class="print-summary" aria-label="Report summary">
+        <tr>
+            <td><span class="ps-label">Paid Orders</span><span class="ps-value"><?php echo (int)$summary['total_orders']; ?></span></td>
+            <td><span class="ps-label">Units Sold</span><span class="ps-value"><?php echo number_format((float)$summary['total_qty'], 0); ?></span></td>
+            <td><span class="ps-label">Gross Sales</span><span class="ps-value">Rs. <?php echo number_format((float)$summary['gross_sales'], 2); ?></span></td>
+            <td><span class="ps-label">Discounts</span><span class="ps-value orange">Rs. <?php echo number_format((float)$summary['allocated_discount'], 2); ?></span></td>
+        </tr>
+        <tr>
+            <td><span class="ps-label">Net Sales</span><span class="ps-value">Rs. <?php echo number_format((float)$summary['net_sales'], 2); ?></span></td>
+            <td><span class="ps-label">Product Cost</span><span class="ps-value">Rs. <?php echo number_format((float)$summary['total_cost'], 2); ?></span></td>
+            <td><span class="ps-label">Gross Product Profit</span><span class="ps-value green">Rs. <?php echo number_format((float)$summary['gross_profit'], 2); ?></span></td>
+            <td><span class="ps-label">Gross Margin</span><span class="ps-value green"><?php echo number_format($profitMargin, 2); ?>%</span></td>
+        </tr>
+    </table>
 
     <div class="summary-grid">
         <div class="summary-card"><div class="label">Paid Orders</div><div class="value"><?php echo (int)$summary['total_orders']; ?></div></div>
@@ -419,7 +473,7 @@ $inventorySummary = $conn->query("
     </div>
 
     <?php if ($report_type === 'full') { ?>
-    <div class="card">
+    <div class="card full-report-card">
         <h2 class="section-title"><i class="fa-solid fa-boxes-stacked"></i> Product Performance — Full Period</h2>
         <p class="section-subtitle">All paid product sales from <?php echo date('d M Y', strtotime($from_date)); ?> to <?php echo date('d M Y', strtotime($to_date)); ?>. Profit is after sale discounts and product cost, before general business expenses.</p>
         <?php if (empty($productRows)) { ?>
@@ -498,6 +552,11 @@ $inventorySummary = $conn->query("
 
     <?php } ?>
     <?php } ?>
+
+    <div class="report-footer">
+        <span>Supun Group of Companies &bull; Retail &amp; Wholesale POS</span>
+        <span>Computer-generated report</span>
+    </div>
 
 </div>
 </div>
