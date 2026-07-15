@@ -1,0 +1,50 @@
+<?php
+
+function productTemplateHeaders(): array {
+    return ['Type','Item Code','Product Name','Barcode','Serial Number','Brand','Unit','Category','Cost Price','Retail Price','Wholesale Price','Wholesale Min Qty','Opening Stock','Reorder Level','Status'];
+}
+
+function xlsxColumnName(int $index): string {
+    $name=''; for($i=$index+1;$i>0;$i=intdiv($i-1,26))$name=chr(65+(($i-1)%26)).$name; return $name;
+}
+
+function outputProductXlsxTemplate(): void {
+    $rows=[productTemplateHeaders(),['STANDARD','AC-INV-12000','Inverter Air Conditioner 12000 BTU','4791000000010','','Supun','PCS','Air Conditioners',135000,159900,149500,2,10,2,'Active'],['STANDARD','REF-240L-001','Double Door Refrigerator 240L','4791000000034','','Supun','PCS','Refrigerators',142000,169900,158000,2,8,2,'Active']];
+    $sheetRows=''; foreach($rows as $ri=>$row){$cells='';foreach($row as $ci=>$value){$ref=xlsxColumnName($ci).($ri+1);$style=$ri===0?' s="1"':'';if(is_numeric($value)&&$ri>0){$cells.='<c r="'.$ref.'"'.$style.'><v>'.$value.'</v></c>';}else{$safe=htmlspecialchars((string)$value,ENT_XML1|ENT_QUOTES,'UTF-8');$cells.='<c r="'.$ref.'" t="inlineStr"'.$style.'><is><t>'.$safe.'</t></is></c>';}}$sheetRows.='<row r="'.($ri+1).'">'.$cells.'</row>';}
+    $sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="2" width="18" customWidth="1"/><col min="3" max="3" width="42" customWidth="1"/><col min="4" max="15" width="18" customWidth="1"/></cols><sheetData>'.$sheetRows.'</sheetData></worksheet>';
+    $tmp=tempnam(sys_get_temp_dir(),'product-template-');$zip=new ZipArchive();$zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE);
+    $zip->addFromString('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+    $zip->addFromString('_rels/.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    $zip->addFromString('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Products" sheetId="1" r:id="rId1"/></sheets></workbook>');
+    $zip->addFromString('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    $zip->addFromString('xl/styles.xml','<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F766E"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs></styleSheet>');
+    $zip->addFromString('xl/worksheets/sheet1.xml',$sheet);$zip->close();
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');header('Content-Disposition: attachment; filename="supun_bulk_product_template.xlsx"');header('Content-Length: '.filesize($tmp));readfile($tmp);unlink($tmp);exit;
+}
+
+function xlsxCellColumn(string $reference): int {
+    preg_match('/^[A-Z]+/i',$reference,$m);$letters=strtoupper($m[0]??'A');$n=0;for($i=0;$i<strlen($letters);$i++)$n=$n*26+(ord($letters[$i])-64);return $n-1;
+}
+
+function readProductXlsx(string $path): array {
+    $zip=new ZipArchive();if($zip->open($path)!==true)throw new RuntimeException('Unable to open the XLSX workbook.');
+    try{$shared=[];$sharedXml=$zip->getFromName('xl/sharedStrings.xml');if($sharedXml!==false){$dom=new DOMDocument();$dom->loadXML($sharedXml);$xp=new DOMXPath($dom);$xp->registerNamespace('x','http://schemas.openxmlformats.org/spreadsheetml/2006/main');foreach($xp->query('//x:si') as $si){$text='';foreach($xp->query('.//x:t',$si) as $t)$text.=$t->textContent;$shared[]=$text;}}
+        $sheetXml=$zip->getFromName('xl/worksheets/sheet1.xml');if($sheetXml===false)throw new RuntimeException('The workbook does not contain a first worksheet.');$dom=new DOMDocument();$dom->loadXML($sheetXml);$xp=new DOMXPath($dom);$xp->registerNamespace('x','http://schemas.openxmlformats.org/spreadsheetml/2006/main');$rows=[];foreach($xp->query('//x:sheetData/x:row') as $rowNode){$row=[];foreach($xp->query('./x:c',$rowNode) as $cell){$index=xlsxCellColumn($cell->getAttribute('r'));$type=$cell->getAttribute('t');$value='';if($type==='inlineStr'){foreach($xp->query('.//x:t',$cell) as $t)$value.=$t->textContent;}else{$v=$xp->query('./x:v',$cell)->item(0);$raw=$v?$v->textContent:'';$value=$type==='s'&&$raw!==''?($shared[(int)$raw]??''):$raw;}$row[$index]=$value;}if($row){$max=max(array_keys($row));$dense=[];for($i=0;$i<=$max;$i++)$dense[]=$row[$i]??'';$rows[]=$dense;}}return $rows;
+    }finally{$zip->close();}
+}
+
+function readProductCsv(string $path): array {$rows=[];$fh=fopen($path,'r');while(($row=fgetcsv($fh))!==false)$rows[]=$row;fclose($fh);return $rows;}
+
+function normalizeProductHeader(string $value): string {return strtolower(trim(preg_replace('/[^a-z0-9]+/i',' ',str_replace('_',' ',$value))));}
+
+function mapProductImportRows(array $rows, mysqli $conn): array {
+    if(!$rows)throw new RuntimeException('The file is empty.');$headers=array_map('normalizeProductHeader',array_shift($rows));$required=['item code','product name','category','cost price','retail price'];foreach($required as $name)if(!in_array($name,$headers,true))throw new RuntimeException('Missing required column: '.ucwords($name));
+    $mapped=[];$seenSku=[];$seenBarcode=[];$skuStmt=$conn->prepare("SELECT product_id FROM products WHERE sku=? LIMIT 1");$barcodeStmt=$conn->prepare("SELECT product_id FROM products WHERE barcode=? LIMIT 1");
+    foreach($rows as $ri=>$values){$data=[];foreach($headers as $i=>$h)$data[$h]=trim((string)($values[$i]??''));if(implode('',$data)==='')continue;$sku=$data['item code']??'';$barcode=$data['barcode']??'';$errors=[];
+        if($sku==='')$errors[]='Item Code is required';if(($data['product name']??'')==='')$errors[]='Product Name is required';if(($data['category']??'')==='')$errors[]='Category is required';if((float)($data['retail price']??0)<=0)$errors[]='Retail Price must be greater than zero';if((float)($data['cost price']??0)<0)$errors[]='Cost Price cannot be negative';if((float)($data['opening stock']??0)<0)$errors[]='Opening Stock cannot be negative';
+        if($sku!==''){if(isset($seenSku[strtolower($sku)]))$errors[]='Duplicate Item Code in file';$seenSku[strtolower($sku)]=1;$skuStmt->bind_param('s',$sku);$skuStmt->execute();if($skuStmt->get_result()->fetch_assoc())$errors[]='Item Code already exists';}
+        if($barcode!==''){if(isset($seenBarcode[$barcode]))$errors[]='Duplicate Barcode in file';$seenBarcode[$barcode]=1;$barcodeStmt->bind_param('s',$barcode);$barcodeStmt->execute();if($barcodeStmt->get_result()->fetch_assoc())$errors[]='Barcode already exists';}
+        $mapped[]=['line'=>$ri+2,'data'=>$data,'errors'=>$errors];
+    }$skuStmt->close();$barcodeStmt->close();return $mapped;
+}
+

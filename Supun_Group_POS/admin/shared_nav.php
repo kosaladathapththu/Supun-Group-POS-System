@@ -42,8 +42,11 @@ $current = basename($_SERVER['PHP_SELF']);
         </a>
 
         <div class="nav-group-label">Inventory &amp; Management</div>
-        <a class="nav-item <?php echo $current=='products.php'?'active':''; ?>" href="products.php">
+        <a class="nav-item <?php echo in_array($current,['products.php','product_import.php'])?'active':''; ?>" href="products.php">
             <i class="fa-solid fa-boxes-stacked"></i> Inventory
+        </a>
+        <a class="nav-item <?php echo $current=='product_import.php'?'active':''; ?>" href="product_import.php">
+            <i class="fa-solid fa-file-arrow-up"></i> Import Products
         </a>
         <a class="nav-item <?php echo $current=='categories.php'?'active':''; ?>" href="categories.php">
             <i class="fa-solid fa-tags"></i> Categories

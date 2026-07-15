@@ -7,6 +7,7 @@ $titles  = [
     'orders.php'      => 'All Orders',
     'sales.php'       => 'Sales Report',
     'products.php'    => 'Products',
+    'product_import.php' => 'Bulk Product Import',
     'daily_product_sales.php' => 'Product Sales Report',
     'view_sale.php'   => 'Sale Details',
     'expenses.php'    => 'Expenses',

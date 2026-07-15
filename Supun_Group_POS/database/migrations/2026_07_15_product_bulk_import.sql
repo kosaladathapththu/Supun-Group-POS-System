@@ -1,0 +1,4 @@
+USE supun_group_pos;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS brand VARCHAR(100) NULL AFTER product_name;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS serial_no VARCHAR(100) NULL AFTER barcode;
+
