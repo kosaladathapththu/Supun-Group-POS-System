@@ -1,5 +1,5 @@
 <?php
-include '../includes/auth.php';include '../db.php';include 'product_import_helpers.php';
+include '../includes/auth.php';include '../db.php';include_once 'product_import_helpers.php';
 if(isset($_GET['template']))outputProductXlsxTemplate();
 $msg='';$msgType='';$preview=$_SESSION['product_import_preview']??[];
 if(isset($_POST['clear_preview'])){unset($_SESSION['product_import_preview']);$preview=[];}
