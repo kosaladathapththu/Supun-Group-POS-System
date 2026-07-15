@@ -1,7 +1,7 @@
 <?php
 
 function productTemplateHeaders(): array {
-    return ['Type','Item Code','Product Name','Barcode','Serial Number','Brand','Unit','Category','Cost Price','Retail Price','Wholesale Price','Wholesale Min Qty','Opening Stock','Reorder Level','Status'];
+    return ['Type','Supplier Code','Supplier Name','Supplier Phone','Supplier Invoice','Purchase Date','Item Code','Product Name','Barcode','Serial Number','Brand','Unit','Category','Cost Price','Retail Price','Wholesale Price','Wholesale Min Qty','Purchase Quantity','Reorder Level','Status'];
 }
 
 function xlsxColumnName(int $index): string {
@@ -9,7 +9,7 @@ function xlsxColumnName(int $index): string {
 }
 
 function outputProductXlsxTemplate(): void {
-    $rows=[productTemplateHeaders(),['STANDARD','AC-INV-12000','Inverter Air Conditioner 12000 BTU','4791000000010','','Supun','PCS','Air Conditioners',135000,159900,149500,2,10,2,'Active'],['STANDARD','REF-240L-001','Double Door Refrigerator 240L','4791000000034','','Supun','PCS','Refrigerators',142000,169900,158000,2,8,2,'Active']];
+    $rows=[productTemplateHeaders(),['STANDARD','SUP-001','Abans','0112345678','INV-1001',date('Y-m-d'),'AC-INV-12000','Inverter Air Conditioner 12000 BTU','4791000000010','','Supun','PCS','Air Conditioners',135000,159900,149500,2,10,2,'Active'],['STANDARD','SUP-001','Abans','0112345678','INV-1001',date('Y-m-d'),'REF-240L-001','Double Door Refrigerator 240L','4791000000034','','Supun','PCS','Refrigerators',142000,169900,158000,2,8,2,'Active']];
     $sheetRows=''; foreach($rows as $ri=>$row){$cells='';foreach($row as $ci=>$value){$ref=xlsxColumnName($ci).($ri+1);$style=$ri===0?' s="1"':'';if(is_numeric($value)&&$ri>0){$cells.='<c r="'.$ref.'"'.$style.'><v>'.$value.'</v></c>';}else{$safe=htmlspecialchars((string)$value,ENT_XML1|ENT_QUOTES,'UTF-8');$cells.='<c r="'.$ref.'" t="inlineStr"'.$style.'><is><t>'.$safe.'</t></is></c>';}}$sheetRows.='<row r="'.($ri+1).'">'.$cells.'</row>';}
     $sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="2" width="18" customWidth="1"/><col min="3" max="3" width="42" customWidth="1"/><col min="4" max="15" width="18" customWidth="1"/></cols><sheetData>'.$sheetRows.'</sheetData></worksheet>';
     $tmp=tempnam(sys_get_temp_dir(),'product-template-');$zip=new ZipArchive();$zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE);
@@ -38,13 +38,12 @@ function readProductCsv(string $path): array {$rows=[];$fh=fopen($path,'r');whil
 function normalizeProductHeader(string $value): string {return strtolower(trim(preg_replace('/[^a-z0-9]+/i',' ',str_replace('_',' ',$value))));}
 
 function mapProductImportRows(array $rows, mysqli $conn): array {
-    if(!$rows)throw new RuntimeException('The file is empty.');$headers=array_map('normalizeProductHeader',array_shift($rows));$required=['item code','product name','category','cost price','retail price'];foreach($required as $name)if(!in_array($name,$headers,true))throw new RuntimeException('Missing required column: '.ucwords($name));
+    if(!$rows)throw new RuntimeException('The file is empty.');$headers=array_map('normalizeProductHeader',array_shift($rows));$required=['supplier name','item code','product name','category','cost price','retail price','purchase quantity'];foreach($required as $name)if(!in_array($name,$headers,true))throw new RuntimeException('Missing required column: '.ucwords($name));
     $mapped=[];$seenSku=[];$seenBarcode=[];$skuStmt=$conn->prepare("SELECT product_id FROM products WHERE sku=? LIMIT 1");$barcodeStmt=$conn->prepare("SELECT product_id FROM products WHERE barcode=? LIMIT 1");
     foreach($rows as $ri=>$values){$data=[];foreach($headers as $i=>$h)$data[$h]=trim((string)($values[$i]??''));if(implode('',$data)==='')continue;$sku=$data['item code']??'';$barcode=$data['barcode']??'';$errors=[];
-        if($sku==='')$errors[]='Item Code is required';if(($data['product name']??'')==='')$errors[]='Product Name is required';if(($data['category']??'')==='')$errors[]='Category is required';if((float)($data['retail price']??0)<=0)$errors[]='Retail Price must be greater than zero';if((float)($data['cost price']??0)<0)$errors[]='Cost Price cannot be negative';if((float)($data['opening stock']??0)<0)$errors[]='Opening Stock cannot be negative';
+        if(($data['supplier name']??'')==='')$errors[]='Supplier Name is required';if($sku==='')$errors[]='Item Code is required';if(($data['product name']??'')==='')$errors[]='Product Name is required';if(($data['category']??'')==='')$errors[]='Category is required';if((float)($data['retail price']??0)<=0)$errors[]='Retail Price must be greater than zero';if((float)($data['cost price']??0)<0)$errors[]='Cost Price cannot be negative';if((float)($data['purchase quantity']??0)<=0)$errors[]='Purchase Quantity must be greater than zero';if(($data['purchase date']??'')!==''&&strtotime($data['purchase date'])===false)$errors[]='Purchase Date is invalid';
         if($sku!==''){if(isset($seenSku[strtolower($sku)]))$errors[]='Duplicate Item Code in file';$seenSku[strtolower($sku)]=1;$skuStmt->bind_param('s',$sku);$skuStmt->execute();if($skuStmt->get_result()->fetch_assoc())$errors[]='Item Code already exists';}
         if($barcode!==''){if(isset($seenBarcode[$barcode]))$errors[]='Duplicate Barcode in file';$seenBarcode[$barcode]=1;$barcodeStmt->bind_param('s',$barcode);$barcodeStmt->execute();if($barcodeStmt->get_result()->fetch_assoc())$errors[]='Barcode already exists';}
         $mapped[]=['line'=>$ri+2,'data'=>$data,'errors'=>$errors];
     }$skuStmt->close();$barcodeStmt->close();return $mapped;
 }
-
