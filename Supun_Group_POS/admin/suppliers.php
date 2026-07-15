@@ -1,6 +1,8 @@
 <?php
 include '../includes/auth.php';
 include '../db.php';
+header('Location: product_import.php');
+exit;
 $msg=''; $msgType='';
 
 if (isset($_POST['save_supplier'])) {

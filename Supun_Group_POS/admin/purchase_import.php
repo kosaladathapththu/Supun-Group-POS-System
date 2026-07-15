@@ -1,5 +1,6 @@
 <?php
 include '../includes/auth.php';include '../db.php';include 'purchase_helpers.php';include 'quick_supplier.php';
+header('Location: product_import.php');exit;
 if(isset($_GET['template'])){header('Content-Type:text/csv; charset=utf-8');header('Content-Disposition:attachment; filename="supun_existing_product_stock_purchase.csv"');$out=fopen('php://output','w');fputcsv($out,['SKU','Quantity','Unit Cost']);fputcsv($out,['REF-240L-001','10','142000.00']);fputcsv($out,['FAN-CEIL-056','25','14500.00']);fclose($out);exit;}
 $msg='';$msgType='';$preview=$_SESSION['purchase_import_preview']??[];$quickSupplier=handleQuickSupplier($conn);$newSupplierId=(int)$quickSupplier['id'];if($quickSupplier['handled']){$msg=$quickSupplier['message'];$msgType=$quickSupplier['type'];}
 if(isset($_POST['clear_preview'])){unset($_SESSION['purchase_import_preview']);$preview=[];}
