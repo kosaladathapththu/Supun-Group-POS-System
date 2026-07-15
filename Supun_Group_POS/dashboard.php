@@ -1050,16 +1050,6 @@ canvas {
             </a>
         </div>
 
-        <button class="nav-grp-btn" type="button" onclick="toggleGrp('purchasing', this)">
-            <span class="grp-left"><i class="fa-solid fa-cart-flatbed grp-icon"></i>Purchasing</span>
-            <i class="fa-solid fa-chevron-right grp-arrow"></i>
-        </button>
-        <div class="nav-grp-body" id="grp-purchasing">
-            <a class="nav-item nav-child" href="admin/purchases.php"><i class="fa-solid fa-file-invoice"></i><span>Purchases</span></a>
-            <a class="nav-item nav-child" href="admin/suppliers.php"><i class="fa-solid fa-truck-field"></i><span>Suppliers</span></a>
-            <a class="nav-item nav-child" href="admin/purchase_import.php"><i class="fa-solid fa-file-excel"></i><span>Import Purchase</span></a>
-        </div>
-
         <button class="nav-grp-btn" type="button" onclick="toggleGrp('finance', this)">
             <span class="grp-left"><i class="fa-solid fa-coins grp-icon"></i>Finance</span>
             <i class="fa-solid fa-chevron-right grp-arrow"></i>
@@ -1186,22 +1176,10 @@ canvas {
             </div>
 
             <div class="quick-grid">
-                <a href="admin/purchases.php?new=1" class="ql-card">
-                    <div class="ql-icon" style="background:var(--primary-lt);color:var(--primary);"><i class="fa-solid fa-cart-flatbed"></i></div>
-                    <div class="ql-label">Bulk Purchase</div>
-                    <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Receive supplier stock</div>
-                </a>
-
-                <a href="admin/purchase_import.php" class="ql-card">
+                <a href="admin/product_import.php" class="ql-card">
                     <div class="ql-icon" style="background:var(--green-lt);color:var(--green);"><i class="fa-solid fa-file-excel"></i></div>
-                    <div class="ql-label">Import Purchase</div>
-                    <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Excel-compatible sheet</div>
-                </a>
-
-                <a href="admin/suppliers.php" class="ql-card">
-                    <div class="ql-icon" style="background:var(--sky-lt);color:var(--sky);"><i class="fa-solid fa-truck-field"></i></div>
-                    <div class="ql-label">Suppliers</div>
-                    <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Contacts and balances</div>
+                    <div class="ql-label">Import Inventory</div>
+                    <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Suppliers, products and stock</div>
                 </a>
 
                 <a href="admin/products.php" class="ql-card">

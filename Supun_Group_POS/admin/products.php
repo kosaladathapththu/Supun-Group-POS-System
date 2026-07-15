@@ -271,7 +271,7 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
             <h2 class="page-title-h"><i class="fa-solid fa-boxes-stacked"></i> Inventory &amp; Products</h2>
             <p class="page-sub">Manage products, stock levels, retail and wholesale pricing</p>
         </div>
-        <a href="product_import.php" class="btn-primary"><i class="fa-solid fa-file-excel"></i> Import Products from Excel</a>
+        <a href="product_import.php" class="btn-primary"><i class="fa-solid fa-file-excel"></i> Import Complete Inventory</a>
     </div>
 
     <!-- Alert -->
