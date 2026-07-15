@@ -11,6 +11,10 @@ $titles  = [
     'view_sale.php'   => 'Sale Details',
     'expenses.php'    => 'Expenses',
     'expense_report.php' => 'Expense Report',
+    'purchases.php' => 'Purchasing',
+    'purchase_view.php' => 'Purchase Details',
+    'purchase_import.php' => 'Purchase Import',
+    'suppliers.php' => 'Suppliers',
 ];
 $page_title = $titles[$current] ?? 'Admin';
 ?>

@@ -28,12 +28,20 @@ $current = basename($_SERVER['PHP_SELF']);
             <i class="fa-solid fa-chart-pie"></i> Expense Report
         </a>
 
+        <div class="nav-group-label">Purchasing</div>
+        <a class="nav-item <?php echo in_array($current,['purchases.php','purchase_view.php','purchase_import.php'])?'active':''; ?>" href="purchases.php">
+            <i class="fa-solid fa-cart-flatbed"></i> Purchases
+        </a>
+        <a class="nav-item <?php echo $current=='suppliers.php'?'active':''; ?>" href="suppliers.php">
+            <i class="fa-solid fa-truck-field"></i> Suppliers
+        </a>
+
         <div class="nav-group-label">Finance</div>
         <a class="nav-item <?php echo $current=='expenses.php'?'active':''; ?>" href="expenses.php">
             <i class="fa-solid fa-money-bill-trend-up"></i> Expenses
         </a>
 
-        <div class="nav-group-label">Management</div>
+        <div class="nav-group-label">Inventory &amp; Management</div>
         <a class="nav-item <?php echo $current=='products.php'?'active':''; ?>" href="products.php">
             <i class="fa-solid fa-boxes-stacked"></i> Inventory
         </a>
