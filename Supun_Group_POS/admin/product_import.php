@@ -1,6 +1,6 @@
 <?php
 include '../includes/auth.php';include '../db.php';include_once 'product_import_helpers.php';
-if(isset($_GET['template']))outputProductXlsxTemplate();
+if(isset($_GET['template']))outputProductXlsxTemplate($conn);
 $msg='';$msgType='';$preview=$_SESSION['product_import_preview']??[];
 if(isset($_POST['clear_preview'])){unset($_SESSION['product_import_preview']);$preview=[];}
 if(isset($_POST['preview_import'])){$preview=[];try{if(!isset($_FILES['product_file'])||$_FILES['product_file']['error']!==UPLOAD_ERR_OK)throw new RuntimeException('Select an XLSX or CSV product file.');if($_FILES['product_file']['size']>5*1024*1024)throw new RuntimeException('The product file must be smaller than 5 MB.');$ext=strtolower(pathinfo($_FILES['product_file']['name'],PATHINFO_EXTENSION));if(!in_array($ext,['xlsx','csv'],true))throw new RuntimeException('Only XLSX and CSV files are supported.');$rows=$ext==='xlsx'?readProductXlsx($_FILES['product_file']['tmp_name']):readProductCsv($_FILES['product_file']['tmp_name']);$preview=mapProductImportRows($rows,$conn);if(!$preview)throw new RuntimeException('No product rows were found.');$_SESSION['product_import_preview']=$preview;$msg='Product file validated. Review every row before importing.';$msgType='success';}catch(Throwable $e){unset($_SESSION['product_import_preview']);$preview=[];$msg=$e->getMessage();$msgType='error';}}
