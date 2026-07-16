@@ -10,7 +10,6 @@ $msg = ""; $msg_type = "";
 
 /* ── PRESET CATEGORIES ── */
 $preset_cats = [
-    'Ingredients & Raw Materials',
     'Staff Salaries',
     'Utilities (Electric / Water / Gas)',
     'Rent & Lease',
@@ -18,7 +17,17 @@ $preset_cats = [
     'Packaging & Supplies',
     'Marketing & Advertising',
     'Cleaning & Sanitation',
-    'Transportation & Delivery',
+    'Transport & Delivery',
+    'Fuel & Vehicle Expenses',
+    'Office Supplies & Printing',
+    'Repairs & Maintenance',
+    'Insurance',
+    'Licences & Government Fees',
+    'Bank Charges',
+    'Internet & Telephone',
+    'Professional Fees',
+    'Staff Welfare',
+    'Security Services',
     'Miscellaneous',
 ];
 
@@ -124,6 +133,7 @@ while ($r = $db_cats->fetch_assoc()) {
     if (!in_array($r['category'], $all_cats)) $all_cats[] = $r['category'];
 }
 sort($all_cats);
+$report_from=$f_month?$f_month.'-01':date('Y-m-01');$report_to=$f_month?date('Y-m-t',strtotime($report_from)):date('Y-m-d');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -195,9 +205,11 @@ sort($all_cats);
             <h2 class="page-title-h"><i class="fa-solid fa-money-bill-trend-up"></i> Expenses</h2>
             <p class="page-sub">Track and manage all business expenses</p>
         </div>
-        <a href="expense_report.php" class="btn-primary">
-            <i class="fa-solid fa-chart-pie"></i> Expense Report
-        </a>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">
+            <a target="_blank" href="print_report.php?type=expenses&amp;scope=purchases&amp;from=<?php echo urlencode($report_from); ?>&amp;to=<?php echo urlencode($report_to); ?>" class="btn-secondary"><i class="fa-solid fa-boxes-stacked"></i> Stock Purchases Report</a>
+            <a target="_blank" href="print_report.php?type=expenses&amp;scope=operating&amp;from=<?php echo urlencode($report_from); ?>&amp;to=<?php echo urlencode($report_to); ?>" class="btn-secondary"><i class="fa-solid fa-receipt"></i> Other Expenses Report</a>
+            <a target="_blank" href="print_report.php?type=expenses&amp;scope=full&amp;from=<?php echo urlencode($report_from); ?>&amp;to=<?php echo urlencode($report_to); ?>" class="btn-primary"><i class="fa-solid fa-chart-pie"></i> Full Outgoing Report</a>
+        </div>
     </div>
 
     <!-- Alert -->
@@ -272,6 +284,7 @@ sort($all_cats);
                             <option value="<?php echo htmlspecialchars($c); ?>">
                             <?php endforeach; ?>
                         </datalist>
+                        <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-top:5px;"><i class="fa-solid fa-circle-info"></i> Select a category such as Transport &amp; Delivery, or type any new expense category.</div>
                     </div>
 
                     <!-- Title -->
