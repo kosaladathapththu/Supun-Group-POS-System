@@ -226,7 +226,7 @@ $inventorySummary = $conn->query("
             border-radius: 6px;
         }
 
-        button, .back-btn {
+        button, .back-btn, .print-btn {
             padding: 10px 14px;
             border: none;
             border-radius: 6px;
@@ -235,11 +235,22 @@ $inventorySummary = $conn->query("
             cursor: pointer;
             text-decoration: none;
             font-size: 14px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            min-height: 44px;
+            line-height: 1.2;
+            transition: transform .15s, box-shadow .15s, background .15s;
         }
 
         .print-btn {
             background: var(--indigo);
+            box-shadow: 0 4px 10px rgba(79,70,229,.18);
         }
+        .print-btn:hover,.back-btn:hover{color:#fff;transform:translateY(-1px);box-shadow:0 6px 14px rgba(15,118,110,.2)}
 
         table {
             width: 100%;
@@ -288,7 +299,7 @@ $inventorySummary = $conn->query("
         .number{text-align:right;white-space:nowrap;}.profit-positive{color:#07883f;font-weight:900;}.profit-negative{color:#dc2626;font-weight:900;}
         .full-report-table{font-size:13px;}.full-report-table th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-mid);}
         @media(max-width:1000px){.summary-grid{grid-template-columns:repeat(2,1fr)}.table-scroll{overflow-x:auto}.full-report-table{min-width:1050px}}
-        @media(max-width:560px){.summary-grid{grid-template-columns:1fr}}
+        @media(max-width:560px){.summary-grid{grid-template-columns:1fr}.top-bar{align-items:stretch;flex-direction:column}.top-bar .back-btn,.top-bar .print-btn{width:100%;text-align:center}}
 
         @media print {
             @page {
