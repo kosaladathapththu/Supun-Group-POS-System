@@ -7,7 +7,7 @@ if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "mana
 }
 
 $msg = ""; $msg_type = "";
-if (isset($_GET['imported'])) { $msg = (int)$_GET['imported'] . ' products imported successfully.'; $msg_type = 'success'; }
+if (isset($_GET['imported'])) { $msg = (int)$_GET['imported'] . ' inventory lines processed successfully. New items were created and existing item stock was increased.'; $msg_type = 'success'; }
 
 /* ── ADD PRODUCT ── */
 if (isset($_POST['add_product'])) {
