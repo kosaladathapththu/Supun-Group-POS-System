@@ -361,7 +361,7 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
                     <div class="form-section-title">1. Supplier &amp; Purchase <small>The supplier is reused if its code or name already exists.</small></div>
                     <div class="field"><label>Type</label><input class="inp" value="STANDARD" readonly><input type="hidden" name="item_type" value="STANDARD"></div>
                     <div class="field"><label>Supplier Code</label><input class="inp" name="supplier_code" placeholder="SUP-001" value="<?php echo htmlspecialchars($_POST['supplier_code'] ?? ''); ?>"></div>
-                    <div class="field span-2"><label>Supplier Name *</label><input class="inp" name="supplier_name" placeholder="e.g. Abans" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
+                    <div class="field span-2"><label>Supplier Name *</label><input class="inp" name="supplier_name" placeholder="e.g. Cammy" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
                     <div class="field"><label>Supplier Phone</label><input class="inp" name="supplier_phone" placeholder="071 234 5678" value="<?php echo htmlspecialchars($_POST['supplier_phone'] ?? ''); ?>"></div>
                     <div class="field"><label>Supplier Invoice</label><input class="inp" name="supplier_invoice" placeholder="INV-1001" value="<?php echo htmlspecialchars($_POST['supplier_invoice'] ?? ''); ?>"></div>
                     <div class="field"><label>Purchase Date *</label><input class="inp" type="date" name="purchase_date" required value="<?php echo htmlspecialchars($_POST['purchase_date'] ?? date('Y-m-d')); ?>"></div>
@@ -465,7 +465,8 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
                             <div class="field"><label>Item Code / SKU</label><input class="inp" name="sku" placeholder="SG-001" value="<?php echo htmlspecialchars($edit_row['sku'] ?? ($_POST['sku'] ?? '')); ?>"></div>
                             <div class="field"><label>Barcode</label><input class="inp" name="barcode" placeholder="Scan or type" value="<?php echo htmlspecialchars($edit_row['barcode'] ?? ($_POST['barcode'] ?? '')); ?>"></div>
                             <div class="field"><label>Serial Number</label><input class="inp" name="serial_no" placeholder="Optional" value="<?php echo htmlspecialchars($edit_row['serial_no'] ?? ($_POST['serial_no'] ?? '')); ?>"></div>
-                            <div class="field"><label>Brand</label><input class="inp" name="brand" placeholder="e.g. Singer" value="<?php echo htmlspecialchars($edit_row['brand'] ?? ($_POST['brand'] ?? '')); ?>"></div>
+                            <div class="field"><label>Brand</label><input class="inp" name="brand" placeholder="e.g. Supun
+                            " value="<?php echo htmlspecialchars($edit_row['brand'] ?? ($_POST['brand'] ?? '')); ?>"></div>
                             <div class="field"><label>Unit</label><input class="inp" name="unit" placeholder="pcs" value="<?php echo htmlspecialchars($edit_row['unit'] ?? 'pcs'); ?>"></div>
                             <div class="field"><label>Wholesale Min Qty</label><input class="inp" type="number" name="wholesale_min_qty" min="1" value="<?php echo htmlspecialchars($edit_row['wholesale_min_qty'] ?? '1'); ?>"></div>
                             <div class="field"><label>Low-stock Alert</label><input class="inp" type="number" name="reorder_level" step="1" min="0" value="<?php echo htmlspecialchars($edit_row['reorder_level'] ?? '5'); ?>"></div>
