@@ -186,9 +186,9 @@ $pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer
             </p>
         </div>
         <div style="display:flex;gap:8px;" class="no-print">
-            <button class="btn-secondary" onclick="window.print()">
-                <i class="fa-solid fa-print"></i> Print Report
-            </button>
+            <a class="btn-secondary" target="_blank" href="print_report.php?type=sales&amp;from=<?php echo urlencode($filter_from); ?>&amp;to=<?php echo urlencode($filter_to); ?>&amp;payment_method=<?php echo urlencode($filter_pm); ?>&amp;order_type=<?php echo urlencode($filter_type); ?>">
+                <i class="fa-solid fa-file-pdf"></i> Open Detailed Report
+            </a>
             <a href="../pos.php" class="btn-primary">
                 <i class="fa-solid fa-cash-register"></i> Go to POS
             </a>

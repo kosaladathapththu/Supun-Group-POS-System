@@ -165,9 +165,9 @@ while ($r = $all_cats_q->fetch_assoc()) $all_cats[] = $r['category'];
             </p>
         </div>
         <div style="display:flex;gap:8px;" class="no-print">
-            <button class="btn-secondary" onclick="window.print()">
-                <i class="fa-solid fa-print"></i> Print
-            </button>
+            <a class="btn-secondary" target="_blank" href="print_report.php?type=expenses&amp;from=<?php echo urlencode($f_from); ?>&amp;to=<?php echo urlencode($f_to); ?>&amp;cat=<?php echo urlencode($f_cat); ?>&amp;pm=<?php echo urlencode($f_pm); ?>">
+                <i class="fa-solid fa-file-pdf"></i> Open Detailed Report
+            </a>
             <a href="expenses.php" class="btn-primary">
                 <i class="fa-solid fa-plus"></i> Add Expense
             </a>

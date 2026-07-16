@@ -280,6 +280,7 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
             <h2 class="page-title-h"><i class="fa-solid fa-boxes-stacked"></i> Inventory &amp; Products</h2>
             <p class="page-sub">Manage products, stock levels, retail and wholesale pricing</p>
         </div>
+        <div class="quick-links"><a class="btn-secondary" target="_blank" href="print_report.php?type=inventory"><i class="fa-solid fa-file-pdf"></i> Inventory Report</a></div>
     </div>
 
     <!-- Alert -->
