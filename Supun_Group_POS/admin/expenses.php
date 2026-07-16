@@ -240,7 +240,7 @@ sort($all_cats);
         </div>
     </div>
 
-    <div class="two-col" style="align-items:start;">
+    <div class="two-col" id="expenseMainGrid" style="align-items:start;">
 
         <!-- ═══ FORM ═══ -->
         <div class="card form-sticky">
@@ -508,7 +508,7 @@ sort($all_cats);
         </div>
     </div><!-- /two-col -->
 
-    <section class="card table-card-full" style="margin-top:18px;">
+    <section class="card table-card-full" id="stockPurchasesSection" style="margin:0 0 18px;">
         <div class="card-header">
             <div><h3><i class="fa-solid fa-truck-ramp-box"></i> Stock Purchases</h3><div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-top:2px;">Automatically recorded from Inventory → Stock In</div></div>
             <div style="display:flex;align-items:center;gap:8px;"><span class="count-badge"><?php echo $purchases ? $purchases->num_rows : 0; ?> purchases</span><a href="products.php" class="btn-secondary no-print"><i class="fa-solid fa-plus"></i> Record Purchase</a></div>
@@ -520,6 +520,7 @@ sort($all_cats);
         </tbody></table></div>
     </section>
 
+<script>document.getElementById('expenseMainGrid')?.before(document.getElementById('stockPurchasesSection'));</script>
 </div><!-- /content -->
 </div><!-- /main -->
 </body>
