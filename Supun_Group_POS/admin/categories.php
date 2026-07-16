@@ -37,9 +37,15 @@ if (isset($_POST["edit_category"])) {
 /* ── DELETE ── */
 if (isset($_GET["delete"])) {
     $id = (int)$_GET["delete"];
-    $count=$conn->prepare("SELECT COUNT(*) total FROM products WHERE category_id=?");$count->bind_param('i',$id);$count->execute();$used=(int)$count->get_result()->fetch_assoc()['total'];$count->close();
-    if($used>0){$disable=$conn->prepare("UPDATE categories SET status=0 WHERE category_id=?");$disable->bind_param('i',$id);$disable->execute();$disable->close();$msg="This category has $used product(s), so it was safely deactivated instead of deleted.";$msg_type="warning";}
-    else{$delete=$conn->prepare("DELETE FROM categories WHERE category_id=?");$delete->bind_param('i',$id);if($delete->execute()&&$delete->affected_rows>0){$msg="Category deleted successfully.";$msg_type="success";}else{$msg="Category was not deleted because it no longer exists or is still in use.";$msg_type="error";}$delete->close();}
+    $conn->begin_transaction();
+    try{
+        $categoryCheck=$conn->prepare("SELECT category_name FROM categories WHERE category_id=? FOR UPDATE");$categoryCheck->bind_param('i',$id);$categoryCheck->execute();$category=$categoryCheck->get_result()->fetch_assoc();$categoryCheck->close();if(!$category)throw new RuntimeException('Category no longer exists.');
+        if(strcasecmp($category['category_name'],'Uncategorized')===0)throw new RuntimeException('The Uncategorized category is required as a safe destination and cannot be deleted.');
+        $count=$conn->prepare("SELECT COUNT(*) total FROM products WHERE category_id=?");$count->bind_param('i',$id);$count->execute();$used=(int)$count->get_result()->fetch_assoc()['total'];$count->close();
+        if($used>0){$findFallback=$conn->query("SELECT category_id FROM categories WHERE LOWER(category_name)='uncategorized' LIMIT 1")->fetch_assoc();if($findFallback){$fallbackId=(int)$findFallback['category_id'];}else{$conn->query("INSERT INTO categories(category_name,status) VALUES('Uncategorized',1)");$fallbackId=$conn->insert_id;}$move=$conn->prepare("UPDATE products SET category_id=? WHERE category_id=?");$move->bind_param('ii',$fallbackId,$id);if(!$move->execute())throw new RuntimeException($move->error);$move->close();}
+        $delete=$conn->prepare("DELETE FROM categories WHERE category_id=?");$delete->bind_param('i',$id);if(!$delete->execute()||$delete->affected_rows===0)throw new RuntimeException($delete->error?:'Category was not deleted.');$delete->close();$conn->commit();
+        $msg=$used>0?"Category deleted successfully. $used product(s) were moved to Uncategorized.":"Category deleted successfully.";$msg_type="success";
+    }catch(Throwable $e){$conn->rollback();$msg="Category was not deleted: ".$e->getMessage();$msg_type="error";}
 }
 
 /* ── TOGGLE STATUS ── */
