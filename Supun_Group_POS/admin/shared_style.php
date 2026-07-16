@@ -141,8 +141,10 @@ tr:hover td { background: #fafbfd; }
 /* ─── FORMS ─── */
 .field { margin-bottom: 13px; }
 .field label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .09em; color: var(--text-mid); margin-bottom: 5px; }
-.inp-wrap { position: relative; }
-.inp-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; pointer-events: none; }
+.inp-wrap { position: relative; width: 100%; }
+.inp-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; pointer-events: none; z-index: 2; width: 14px; text-align: center; }
+.inp-wrap .inp { padding-left: 38px; }
+.inp-wrap:focus-within i { color: var(--primary); }
 .inp {
     background: var(--bg); border: 1.5px solid var(--border);
     border-radius: var(--radius-sm); padding: 10px 12px;
