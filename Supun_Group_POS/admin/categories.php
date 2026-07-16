@@ -10,36 +10,42 @@ $msg = ""; $msg_type = "";
 
 /* ── ADD ── */
 if (isset($_POST["add_category"])) {
-    $name   = trim($conn->real_escape_string($_POST["category_name"]));
+    $name   = trim($_POST["category_name"]);
     $status = (int)($_POST["status"] ?? 1);
     if ($name !== "") {
-        $conn->query("INSERT INTO categories (category_name, status) VALUES ('$name', $status)");
-        $msg = "Category added successfully."; $msg_type = "success";
+        $find=$conn->prepare("SELECT category_id FROM categories WHERE LOWER(category_name)=LOWER(?) LIMIT 1");$find->bind_param('s',$name);$find->execute();$existing=$find->get_result()->fetch_assoc();$find->close();
+        if($existing){$msg="That category already exists.";$msg_type="warning";}
+        else{$add=$conn->prepare("INSERT INTO categories (category_name,status) VALUES (?,?)");$add->bind_param('si',$name,$status);if($add->execute()){$msg="Category added successfully.";$msg_type="success";}else{$msg="Category could not be added: ".$add->error;$msg_type="error";}$add->close();}
     } else { $msg = "Category name cannot be empty."; $msg_type = "error"; }
 }
 
 /* ── EDIT ── */
 if (isset($_POST["edit_category"])) {
     $id     = (int)$_POST["edit_id"];
-    $name   = trim($conn->real_escape_string($_POST["category_name"]));
+    $name   = trim($_POST["category_name"]);
     $status = (int)($_POST["status"] ?? 1);
     if ($name !== "") {
-        $conn->query("UPDATE categories SET category_name='$name', status=$status WHERE category_id=$id");
-        $msg = "Category updated."; $msg_type = "success";
-    }
+        $conn->begin_transaction();
+        try{
+            $find=$conn->prepare("SELECT category_id FROM categories WHERE LOWER(category_name)=LOWER(?) AND category_id<>? LIMIT 1");$find->bind_param('si',$name,$id);$find->execute();$duplicate=$find->get_result()->fetch_assoc();$find->close();
+            if($duplicate){$target=(int)$duplicate['category_id'];$move=$conn->prepare("UPDATE products SET category_id=? WHERE category_id=?");$move->bind_param('ii',$target,$id);$move->execute();$moved=$move->affected_rows;$move->close();$delete=$conn->prepare("DELETE FROM categories WHERE category_id=?");$delete->bind_param('i',$id);if(!$delete->execute())throw new RuntimeException($delete->error);$delete->close();$activate=$conn->prepare("UPDATE categories SET status=? WHERE category_id=?");$activate->bind_param('ii',$status,$target);$activate->execute();$activate->close();$conn->commit();$msg="Categories merged successfully. $moved product(s) moved to '$name'.";$msg_type="success";}
+            else{$update=$conn->prepare("UPDATE categories SET category_name=?,status=? WHERE category_id=?");$update->bind_param('sii',$name,$status,$id);if(!$update->execute())throw new RuntimeException($update->error);if($update->affected_rows===0){$check=$conn->prepare("SELECT category_id FROM categories WHERE category_id=?");$check->bind_param('i',$id);$check->execute();if(!$check->get_result()->fetch_assoc())throw new RuntimeException('Category no longer exists.');$check->close();}$update->close();$conn->commit();$msg="Category updated successfully.";$msg_type="success";}
+        }catch(Throwable $e){$conn->rollback();$msg="Category was not updated: ".$e->getMessage();$msg_type="error";}
+    }else{$msg="Category name cannot be empty.";$msg_type="error";}
 }
 
 /* ── DELETE ── */
 if (isset($_GET["delete"])) {
     $id = (int)$_GET["delete"];
-    $conn->query("DELETE FROM categories WHERE category_id=$id");
-    $msg = "Category deleted."; $msg_type = "warning";
+    $count=$conn->prepare("SELECT COUNT(*) total FROM products WHERE category_id=?");$count->bind_param('i',$id);$count->execute();$used=(int)$count->get_result()->fetch_assoc()['total'];$count->close();
+    if($used>0){$disable=$conn->prepare("UPDATE categories SET status=0 WHERE category_id=?");$disable->bind_param('i',$id);$disable->execute();$disable->close();$msg="This category has $used product(s), so it was safely deactivated instead of deleted.";$msg_type="warning";}
+    else{$delete=$conn->prepare("DELETE FROM categories WHERE category_id=?");$delete->bind_param('i',$id);if($delete->execute()&&$delete->affected_rows>0){$msg="Category deleted successfully.";$msg_type="success";}else{$msg="Category was not deleted because it no longer exists or is still in use.";$msg_type="error";}$delete->close();}
 }
 
 /* ── TOGGLE STATUS ── */
 if (isset($_GET["toggle"])) {
     $id = (int)$_GET["toggle"];
-    $conn->query("UPDATE categories SET status = IF(status=1,0,1) WHERE category_id=$id");
+    $toggle=$conn->prepare("UPDATE categories SET status=IF(status=1,0,1) WHERE category_id=?");$toggle->bind_param('i',$id);$toggle->execute();$toggle->close();
     header("Location: categories.php"); exit;
 }
 
