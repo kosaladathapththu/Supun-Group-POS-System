@@ -359,7 +359,6 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
                     <div class="simple-fields">
                     <?php if (!$edit_row): ?>
                     <div class="form-section-title">1. Supplier &amp; Purchase <small>The supplier is reused if its code or name already exists.</small></div>
-                    <div class="field"><label>Type</label><input class="inp" value="STANDARD" readonly><input type="hidden" name="item_type" value="STANDARD"></div>
                     <div class="field"><label>Supplier Code</label><input class="inp" name="supplier_code" placeholder="SUP-001" value="<?php echo htmlspecialchars($_POST['supplier_code'] ?? ''); ?>"></div>
                     <div class="field span-2"><label>Supplier Name *</label><input class="inp" name="supplier_name" placeholder="e.g. Cammy" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
                     <div class="field"><label>Supplier Phone</label><input class="inp" name="supplier_phone" placeholder="071 234 5678" value="<?php echo htmlspecialchars($_POST['supplier_phone'] ?? ''); ?>"></div>
