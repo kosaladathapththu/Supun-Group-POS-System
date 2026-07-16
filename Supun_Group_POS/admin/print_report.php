@@ -5,7 +5,7 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manag
 function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
 function money($v){return 'Rs. '.number_format((float)$v,2);}
 function validDate($v,$fallback){$d=DateTime::createFromFormat('Y-m-d',(string)$v);return $d&&$d->format('Y-m-d')===$v?$v:$fallback;}
-$type=$_GET['type']??'sales'; if(!in_array($type,['sales','expenses','inventory'],true))$type='sales';$backUrl=$type==='expenses'?'expenses.php':($type==='inventory'?'products.php':'sales.php');
+$type=$_GET['type']??'sales'; if(!in_array($type,['sales','expenses','inventory'],true))$type='sales';$backUrl=$type==='expenses'?'expenses.php':($type==='inventory'?'products.php':'sales.php');ob_start(function($html)use($backUrl){return str_replace('href="javascript:history.back()"','href="'.h($backUrl).'"',$html);});
 $from=validDate($_GET['from']??date('Y-m-01'),date('Y-m-01'));$to=validDate($_GET['to']??date('Y-m-d'),date('Y-m-d'));if($from>$to){$t=$from;$from=$to;$to=$t;}
 $generatedBy=$_SESSION['full_name']??$_SESSION['username']??'Authorized User';$generatedAt=date('d M Y, h:i A');
 $title='';$subtitle='';$summary=[];$sections=[];
