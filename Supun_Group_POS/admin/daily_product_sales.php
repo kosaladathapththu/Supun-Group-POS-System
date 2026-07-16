@@ -401,7 +401,7 @@ $inventorySummary = $conn->query("
 
     <div class="top-bar no-print">
         <a href="sales.php" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Sales</a>
-        <button onclick="window.print()" class="print-btn"><i class="fa-solid fa-print"></i> Print <?php echo htmlspecialchars($reportName); ?></button>
+        <a target="_blank" href="print_report.php?type=sales&amp;scope=<?php echo urlencode($report_type); ?>&amp;from=<?php echo urlencode($from_date); ?>&amp;to=<?php echo urlencode($to_date); ?>" class="print-btn" style="text-decoration:none;"><i class="fa-solid fa-file-pdf"></i> Open Detailed <?php echo htmlspecialchars($reportName); ?></a>
     </div>
 
     <div class="card no-print">
