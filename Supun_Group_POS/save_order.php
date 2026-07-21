@@ -24,7 +24,7 @@ $apply_packaging_fee = isset($_POST["apply_packaging_fee"]) && $_POST["apply_pac
 $packaging_fee = $apply_packaging_fee ? max(0, round((float)($_POST["packaging_fee"] ?? 0), 2)) : 0;
 
 $allowed_order_types = ["retail", "wholesale"];
-$allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer"];
+$allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer", "Cheque"];
 
 if (!in_array($order_type, $allowed_order_types)) {
     die("Invalid order type.");

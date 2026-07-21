@@ -323,7 +323,7 @@ $report_from=$f_month?$f_month.'-01':date('Y-m-01');$report_to=$f_month?date('Y-
                     <div class="field">
                         <label>Payment Method</label>
                         <select name="payment_method" class="inp">
-                            <?php foreach (['Cash','Card','Bank Transfer','Other'] as $pm): ?>
+                            <?php foreach (['Cash','Card','Bank Transfer','Cheque','Other'] as $pm): ?>
                             <option value="<?php echo $pm; ?>"
                                 <?php echo ($edit_row && $edit_row['payment_method']==$pm) ? 'selected' : ($pm=='Cash'&&!$edit_row?'selected':''); ?>>
                                 <?php echo $pm; ?>
@@ -410,7 +410,7 @@ $report_from=$f_month?$f_month.'-01':date('Y-m-01');$report_to=$f_month?date('Y-
                     <label>Payment</label>
                     <select name="pm">
                         <option value="">All</option>
-                        <?php foreach (['Cash','Card','Bank Transfer','Other'] as $p): ?>
+                        <?php foreach (['Cash','Card','Bank Transfer','Cheque','Other'] as $p): ?>
                         <option value="<?php echo $p; ?>" <?php echo $f_pm==$p?'selected':''; ?>><?php echo $p; ?></option>
                         <?php endforeach; ?>
                     </select>

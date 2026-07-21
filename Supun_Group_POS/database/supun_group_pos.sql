@@ -94,7 +94,7 @@ CREATE TABLE orders (
   advance_used DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   payment_status ENUM('pending','paid','partial','cancelled') NOT NULL DEFAULT 'pending',
   order_status ENUM('open','paid','cancelled') NOT NULL DEFAULT 'open',
-  payment_method ENUM('Cash','Card','QR','Bank Transfer','Credit') NOT NULL DEFAULT 'Cash',
+  payment_method ENUM('Cash','Card','QR','Bank Transfer','Cheque','Credit') NOT NULL DEFAULT 'Cash',
   payment_reference VARCHAR(255) NULL,
   cash_given DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,

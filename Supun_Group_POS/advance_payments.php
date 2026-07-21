@@ -7,7 +7,7 @@ ensureAdvancePaymentSchema($conn);
 reconcileClosedOrderAdvances($conn);
 
 $message = ''; $message_type = 'success';
-$methods = ['Cash','Card','QR','Bank Transfer'];
+$methods = ['Cash','Card','QR','Bank Transfer','Cheque'];
 if (isset($_POST['complete_order'])) {
     $order_id = (int)($_POST['order_id'] ?? 0);
     $method = trim($_POST['settlement_method'] ?? 'Cash');

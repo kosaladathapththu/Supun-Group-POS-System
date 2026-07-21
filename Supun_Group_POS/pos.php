@@ -400,7 +400,7 @@ if (isset($_GET["clear"]) && $current_order_id > 0) {
 if (isset($_POST['add_checkout_installment'])) {
     $order_id=(int)($_POST['order_id']??0); $customer_id=(int)($_POST['checkout_customer_id']??0);
     $amount=round((float)($_POST['installment_amount']??0),2); $method=trim($_POST['installment_method']??'Cash');
-    $allowed_advance_methods=['Cash','Card','QR','Bank Transfer'];
+    $allowed_advance_methods=['Cash','Card','QR','Bank Transfer','Cheque'];
     if(!in_array($method,$allowed_advance_methods,true)) $method='Cash';
     if($order_id<=0||$customer_id<=0||$amount<=0){header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
     $conn->begin_transaction();
@@ -426,7 +426,7 @@ if (isset($_POST['create_checkout_advance'])) {
     $phone = trim($_POST['advance_customer_phone'] ?? '');
     $amount = round((float)($_POST['new_advance_amount'] ?? 0), 2);
     $method = trim($_POST['new_advance_method'] ?? 'Cash');
-    $allowed_advance_methods = ['Cash','Card','QR','Bank Transfer'];
+    $allowed_advance_methods = ['Cash','Card','QR','Bank Transfer','Cheque'];
     if (!in_array($method, $allowed_advance_methods, true)) $method = 'Cash';
 
     if ($order_id <= 0 || $name === '' || $amount <= 0) {
@@ -475,7 +475,7 @@ if (isset($_POST["pay_order"])) {
     $requested_advance = max(0, round((float)($_POST['advance_to_use'] ?? 0), 2));
     $selected_customer_id = (int)($_POST['checkout_customer_id'] ?? 0);
 
-    $allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer"];
+    $allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer", "Cheque"];
 
     $type_q = $conn->query("SELECT order_type,customer_id FROM orders WHERE order_id=$order_id AND order_status='open' LIMIT 1");
     $customer_id = 0;
