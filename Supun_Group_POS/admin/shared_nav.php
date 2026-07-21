@@ -55,7 +55,7 @@ $current = basename($_SERVER['PHP_SELF']);
             <div class="sb-avatar"><?php echo strtoupper(substr($_SESSION["full_name"] ?? "A", 0, 1)); ?></div>
             <div class="sb-user-info">
                 <div class="name"><?php echo htmlspecialchars($_SESSION["full_name"] ?? "Admin"); ?></div>
-                <div class="role"><?php echo ($_SESSION['role'] ?? '')==='manager' ? 'Manager' : 'Owner / Admin'; ?></div>
+                <div class="role"><?php echo ($_SESSION['role'] ?? '')==='accountant' ? 'Accountant' : 'Owner / Admin'; ?></div>
             </div>
         </div>
         <a href="../pos.php" style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:8px;background:var(--primary-lt);border:1.5px solid #f9c4a6;border-radius:var(--radius-sm);color:var(--primary);font-size:12px;font-weight:800;font-family:'Nunito',sans-serif;cursor:pointer;text-decoration:none;transition:all .15s;margin-bottom:6px;">

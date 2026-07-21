@@ -1,7 +1,7 @@
 <?php
 session_start();
 include '../db.php';
-if (!isset($_SESSION["user_id"]) || $_SESSION["role"] != "admin") { echo "Unauthorized"; exit; }
+if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) { echo "Unauthorized"; exit; }
 
 $id = (int)($_GET["id"] ?? 0);
 $o  = $conn->query("SELECT o.*, u.full_name AS cashier FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE o.order_id=$id")->fetch_assoc();

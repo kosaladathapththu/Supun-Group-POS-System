@@ -2,7 +2,8 @@
 session_start();
 include 'db.php';
 
-if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "manager"], true)) {
+if (($_SESSION['role'] ?? '') === 'manager') $_SESSION['role'] = 'accountant';
+if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) {
     header("Location: login.php");
     exit;
 }
@@ -1023,7 +1024,7 @@ canvas {
         <div class="sb-logo"><img src="supun-logo.png" alt="Supun Group"></div>
         <div class="sb-brand-text">
             <h2>Supun Group</h2>
-            <small><?php echo $_SESSION['role']==='manager' ? 'Manager Panel' : 'Owner / Admin Panel'; ?></small>
+            <small><?php echo $_SESSION['role']==='accountant' ? 'Accountant Panel' : 'Owner / Admin Panel'; ?></small>
         </div>
     </div>
 
@@ -1082,7 +1083,7 @@ canvas {
             <div class="sb-avatar"><?php echo strtoupper(substr($_SESSION["full_name"] ?? "A", 0, 1)); ?></div>
             <div class="sb-user-info">
                 <div class="name"><?php echo htmlspecialchars($_SESSION["full_name"] ?? "Admin"); ?></div>
-                <div class="role"><?php echo $_SESSION['role']==='manager' ? 'Manager' : 'Owner / Admin'; ?></div>
+                <div class="role"><?php echo $_SESSION['role']==='accountant' ? 'Accountant' : 'Owner / Admin'; ?></div>
             </div>
         </div>
         <div class="sb-footer-btns">
@@ -1102,7 +1103,7 @@ canvas {
     <div class="topbar">
         <div class="topbar-left">
             <div>
-                <div class="page-title-main"><?php echo $_SESSION['role']==='manager' ? 'Manager Dashboard' : 'Owner Dashboard'; ?></div>
+                <div class="page-title-main"><?php echo $_SESSION['role']==='accountant' ? 'Accountant Dashboard' : 'Owner Dashboard'; ?></div>
                 <div class="breadcrumb">
                     <i class="fa-solid fa-house"></i>&nbsp;Home
                     <i class="fa-solid fa-chevron-right"></i> Dashboard

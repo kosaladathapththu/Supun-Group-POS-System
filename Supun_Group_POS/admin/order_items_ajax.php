@@ -2,7 +2,7 @@
 session_start();
 include '../db.php';
 
-if (!isset($_SESSION["user_id"]) || $_SESSION["role"] != "admin") {
+if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) {
     http_response_code(403); echo "Unauthorized"; exit;
 }
 

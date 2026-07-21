@@ -41,7 +41,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST["go_to"])) {
 
         if (password_verify($password, $user["password"])) {
 
-            if (in_array($user["role"], ["admin", "manager"], true)) {
+            if ($user['role'] === 'manager') $user['role'] = 'accountant';
+            if (in_array($user["role"], ["admin", "accountant"], true)) {
                 /* Store temporarily — show destination choice */
                 $_SESSION["pending_admin_id"]   = $user["user_id"];
                 $_SESSION["pending_admin_name"] = $user["full_name"];

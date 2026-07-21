@@ -1,7 +1,7 @@
 <?php
 session_start();
 include '../db.php';
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manager'], true)) { header('Location: ../login.php'); exit; }
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','accountant'], true)) { header('Location: ../login.php'); exit; }
 function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
 function money($v){return 'Rs. '.number_format((float)$v,2);}
 function validDate($v,$fallback){$d=DateTime::createFromFormat('Y-m-d',(string)$v);return $d&&$d->format('Y-m-d')===$v?$v:$fallback;}

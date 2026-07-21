@@ -6,7 +6,8 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-if (!in_array($_SESSION["role"], ["admin", "manager"], true)) {
+if (($_SESSION['role'] ?? '') === 'manager') $_SESSION['role'] = 'accountant';
+if (!in_array($_SESSION["role"], ["admin", "accountant"], true)) {
     die("Access denied");
 }
 ?>
