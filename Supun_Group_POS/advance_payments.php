@@ -106,7 +106,9 @@ $search = trim($_GET['search'] ?? '');
 $where = $search === '' ? '1=1' : "(c.customer_name LIKE '%".$conn->real_escape_string($search)."%' OR c.phone LIKE '%".$conn->real_escape_string($search)."%' OR c.account_number LIKE '%".$conn->real_escape_string($search)."%')";
 $customers = $conn->query("SELECT c.*,COUNT(t.transaction_id) transaction_count FROM customer_accounts c LEFT JOIN advance_payment_transactions t ON t.customer_id=c.customer_id WHERE $where GROUP BY c.customer_id ORDER BY c.customer_name");
 $select_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
-$transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,c.phone,u.full_name,o.order_number,o.order_status,o.total_amount,o.discount,o.service_charge,o.packaging_fee,
+$transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,c.phone,u.full_name,o.order_number,o.order_status,
+    CASE WHEN o.total_amount>0 THEN o.total_amount ELSE GREATEST(0,(SELECT COALESCE(SUM(oi2.line_total),0) FROM order_items oi2 WHERE oi2.order_id=o.order_id)+COALESCE(o.service_charge,0)+COALESCE(o.packaging_fee,0)-COALESCE(o.discount,0)) END total_amount,
+    o.discount,o.service_charge,o.packaging_fee,
     (SELECT COALESCE(SUM(oi.line_total),0) FROM order_items oi WHERE oi.order_id=COALESCE(t.order_id,o.order_id)) item_total,
     (SELECT COALESCE(SUM(x.remaining_amount),0) FROM advance_payment_transactions x WHERE x.order_id=COALESCE(t.order_id,o.order_id) AND x.customer_id=t.customer_id AND x.transaction_type='deposit') order_advance,
     COALESCE(t.order_id,(SELECT o2.order_id FROM orders o2 WHERE o2.customer_id=t.customer_id AND o2.order_status='open' ORDER BY o2.order_id DESC LIMIT 1)) settlement_order_id
