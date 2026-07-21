@@ -57,6 +57,7 @@ $service_charge = $saved_service_charge > 0
     ? $saved_service_charge
     : max(0, $total - $subtotal + $discount - $packaging_fee);
 $pm = $order['payment_method'] ?? 'Cash';
+$advance_used = (float)($order['advance_used'] ?? 0);
 
 $total_qty = 0;
 foreach ($all_items as $it) {
@@ -968,6 +969,12 @@ body.format-a4 .paid-seal small { font-size:9px; }
     </table>
 
     <table class="summ">
+        <?php if ($advance_used > 0): ?>
+        <tr class="c-row">
+            <td class="sl">Paid from Advance</td>
+            <td class="sr">Rs <?php echo fmt($advance_used); ?></td>
+        </tr>
+        <?php endif; ?>
         <?php if ($is_cash): ?>
         <tr class="c-row">
             <td class="sl">Cash Received</td>
@@ -981,7 +988,7 @@ body.format-a4 .paid-seal small { font-size:9px; }
         <?php else: ?>
         <tr class="c-row">
             <td class="sl">Amount Paid</td>
-            <td class="sr">Rs <?php echo fmt($total); ?></td>
+            <td class="sr">Rs <?php echo fmt(max(0, $total - $advance_used)); ?></td>
         </tr>
         <?php endif; ?>
     </table>

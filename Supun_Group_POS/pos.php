@@ -1,11 +1,14 @@
 <?php
 session_start();
 include 'db.php';
+require_once 'includes/advance_accounts.php';
 
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
     exit;
 }
+
+ensureAdvancePaymentSchema($conn);
 
 $user_id = (int) $_SESSION["user_id"];
 $admin_error = "";
@@ -75,15 +78,21 @@ if (isset($_POST["quick_order"])) {
 if (isset($_POST["create_order"])) {
     $order_type    = trim($_POST["new_order_type"] ?? "retail");
     $customer_name = trim($_POST["customer_name"] ?? "");
+    $customer_id   = (int)($_POST["customer_id"] ?? 0);
     $table_id      = isset($_POST["table_id"]) && $_POST["table_id"] !== "" ? (int)$_POST["table_id"] : null;
 
     $allowed_order_types = ["retail", "wholesale"];
     if (!in_array($order_type, $allowed_order_types)) $order_type = "retail";
 
+    if ($customer_id > 0) {
+        $customer_q = $conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1");
+        if ($customer_q && $customer_q->num_rows > 0) $customer_name = $customer_q->fetch_assoc()['customer_name'];
+        else $customer_id = 0;
+    }
     $customer_name_safe = esc($conn, $customer_name);
 
     $sql = "INSERT INTO orders (
-                table_id, user_id, order_type, customer_name,
+                table_id, user_id, order_type, customer_name, customer_id,
                 subtotal, discount, total_amount,
                 payment_status, sync_status, created_at, paid_at,
                 payment_method, cash_given, balance, order_status
@@ -91,7 +100,7 @@ if (isset($_POST["create_order"])) {
                 " . ($table_id === null ? "NULL" : $table_id) . ",
                 $user_id,
                 '$order_type',
-                '$customer_name_safe',
+                '$customer_name_safe', " . ($customer_id > 0 ? $customer_id : "NULL") . ",
                 0.00, 0.00, 0.00,
                 'pending', 0, NOW(), NULL,
                 'Cash', 0.00, 0.00, 'open'
@@ -301,6 +310,7 @@ if (isset($_POST["update_line_price"]) && $current_order_id > 0) {
     exit;
 }
 
+
 if (isset($_GET["restore_price"]) && $current_order_id > 0) {
     $order_item_id = (int)$_GET["restore_price"];
     $conn->query("
@@ -386,14 +396,20 @@ if (isset($_POST["pay_order"])) {
     $apply_service_charge = isset($_POST["apply_service_charge"]) && $_POST["apply_service_charge"] === "1";
     $apply_packaging_fee = isset($_POST["apply_packaging_fee"]) && $_POST["apply_packaging_fee"] === "1";
     $packaging_fee = $apply_packaging_fee ? max(0, round((float)($_POST["packaging_fee"] ?? 0), 2)) : 0;
+    $requested_advance = max(0, round((float)($_POST['advance_to_use'] ?? 0), 2));
+    $selected_customer_id = (int)($_POST['checkout_customer_id'] ?? 0);
 
     $allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer"];
 
-    $type_q = $conn->query("SELECT order_type FROM orders WHERE order_id=$order_id AND order_status='open' LIMIT 1");
+    $type_q = $conn->query("SELECT order_type,customer_id FROM orders WHERE order_id=$order_id AND order_status='open' LIMIT 1");
+    $customer_id = 0;
     if ($type_q && $type_q->num_rows > 0) {
-        $saved_type = $type_q->fetch_assoc()["order_type"] ?? "retail";
+        $order_payment_row = $type_q->fetch_assoc();
+        $saved_type = $order_payment_row["order_type"] ?? "retail";
+        $customer_id = (int)($order_payment_row['customer_id'] ?? 0);
         $order_type = $saved_type === "wholesale" ? "wholesale" : "retail";
     }
+    if ($selected_customer_id > 0) $customer_id = $selected_customer_id;
     if (!in_array($payment_method, $allowed_payment_methods)) $payment_method = "Cash";
 
     // Re-apply the authoritative product price before calculating payment.
@@ -426,15 +442,45 @@ if (isset($_POST["pay_order"])) {
     }
     $discount = min($subtotal + $service_charge + $packaging_fee, $discount);
     $total_amount = max(0, $subtotal + $service_charge + $packaging_fee - $discount);
-    if ($payment_method !== "Cash") $cash_given = $total_amount;
-    $balance = $cash_given - $total_amount;
+    $advance_used = 0.0;
+    if ($requested_advance > 0 && $customer_id > 0) {
+        $aq = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1");
+        $available_advance = $aq && $aq->num_rows ? (float)$aq->fetch_assoc()['advance_balance'] : 0;
+        $advance_used = min($requested_advance, $available_advance, $total_amount);
+    }
+    $amount_due = max(0, $total_amount - $advance_used);
+    if ($payment_method !== "Cash") $cash_given = $amount_due;
+    $balance = $cash_given - $amount_due;
 
-    if ($payment_method === "Cash" && $cash_given < $total_amount) {
+    if ($payment_method === "Cash" && $cash_given < $amount_due) {
         header("Location: pos.php?order_id=$order_id&pay_error=1"); exit;
     }
 
-    $pm_safe = esc($conn, $payment_method);
-    $conn->query("UPDATE orders SET order_type='$order_type', subtotal=$subtotal, discount=$discount, service_charge=$service_charge, packaging_fee=$packaging_fee, total_amount=$total_amount, payment_method='$pm_safe', cash_given=$cash_given, balance=$balance, order_status='paid', payment_status='paid', paid_at=NOW() WHERE order_id=$order_id AND order_status='open'");
+    $pm_safe = esc($conn, $advance_used >= $total_amount && $total_amount > 0 ? 'Credit' : $payment_method);
+    $conn->begin_transaction();
+    try {
+        if ($customer_id > 0) {
+            $customer_result = $conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE");
+            $customer_row = $customer_result ? $customer_result->fetch_assoc() : null;
+            if (!$customer_row) throw new Exception('Selected customer advance account was not found.');
+            $customer_name_safe = esc($conn, $customer_row['customer_name']);
+            $conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$customer_name_safe' WHERE order_id=$order_id AND order_status='open'");
+        }
+        if ($advance_used > 0) {
+            $lock = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id FOR UPDATE")->fetch_assoc();
+            if ((float)$lock['advance_balance'] < $advance_used) throw new Exception('Customer advance balance changed. Please try again.');
+            $stmt = $conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance-? WHERE customer_id=?');
+            $stmt->bind_param('di', $advance_used, $customer_id); $stmt->execute(); $stmt->close();
+            $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Applied to POS order';
+            $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,?,'sale_usage',?,'Advance Account',?,?)");
+            $stmt->bind_param('siidsi', $receipt, $customer_id, $order_id, $advance_used, $note, $uid); $stmt->execute(); $stmt->close();
+        }
+        $updated = $conn->query("UPDATE orders SET order_type='$order_type', subtotal=$subtotal, discount=$discount, service_charge=$service_charge, packaging_fee=$packaging_fee, total_amount=$total_amount, advance_used=$advance_used, payment_method='$pm_safe', cash_given=$cash_given, balance=$balance, order_status='paid', payment_status='paid', paid_at=NOW() WHERE order_id=$order_id AND order_status='open'");
+        if (!$updated || $conn->affected_rows !== 1) throw new Exception('Order could not be completed.');
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback(); die('Payment error: '.htmlspecialchars($e->getMessage()));
+    }
     header("Location: print_bill.php?order_id=" . $order_id); exit;
 }
 
@@ -454,6 +500,8 @@ $product_sql .= " ORDER BY product_name ASC";
 $products = $conn->query($product_sql);
 
 $open_orders = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' ORDER BY o.order_id DESC");
+$advance_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
+$checkout_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
 
 /* =========================================================
    LOAD CURRENT ORDER
@@ -464,7 +512,7 @@ $grand_total   = 0;
 $cart_count    = 0;
 
 if ($current_order_id > 0) {
-    $cq = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_id=$current_order_id LIMIT 1");
+    $cq = $conn->query("SELECT o.*,t.table_name,c.account_number,c.advance_balance FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id LEFT JOIN customer_accounts c ON c.customer_id=o.customer_id WHERE o.order_id=$current_order_id LIMIT 1");
     if ($cq && $cq->num_rows > 0) {
         $current_order = $cq->fetch_assoc();
         $order_items   = $conn->query("SELECT oi.*,p.product_name FROM order_items oi LEFT JOIN products p ON oi.product_id=p.product_id WHERE oi.order_id=$current_order_id ORDER BY oi.order_item_id ASC");
@@ -730,6 +778,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <button class="tb-btn btn-new" type="button" onclick="openOrderModal()">
             <i class="fa-solid fa-user-tag"></i> Customer / Wholesale Sale
         </button>
+
+        <a class="tb-btn btn-new" href="advance_payments.php">
+            <i class="fa-solid fa-wallet"></i> Advance Payment
+        </a>
 
         <button class="tb-btn btn-owner" type="button" onclick="openAdminModal()">
             <i class="fa-solid fa-gauge-high"></i> Dashboard
@@ -1100,6 +1152,17 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span class="total-amt">Rs. <span id="gt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
                     </div>
 
+                    <div class="service-row" style="display:block;background:#fff7ed;border:1px solid #fed7aa;padding:10px;">
+                        <div class="discount-head" style="margin-bottom:7px;"><label class="service-check"><i class="fa-solid fa-wallet"></i><span>Use Customer Advance</span></label><small id="advanceAvailable" style="color:var(--primary);font-weight:900;">Available: Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></small></div>
+                        <select name="checkout_customer_id" id="checkoutCustomerId" class="cash-inp" style="padding-left:10px;margin-bottom:7px;" onchange="selectAdvanceCustomer()">
+                            <option value="0" data-balance="0">Select customer advance account</option>
+                            <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
+                            <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name']); ?></option>
+                            <?php endwhile; endif; ?>
+                        </select>
+                        <div class="fee-input-wrap"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" class="fee-input" style="width:100%;" step="0.01" min="0" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00" placeholder="Amount to use" oninput="updateOrderFees()"></div>
+                    </div>
+
                     <div class="pm-lbl">Payment Method</div>
                     <div class="pm-grid">
                         <button type="button" class="pmb active" data-method="Cash" onclick="selMethod('Cash')">
@@ -1193,7 +1256,17 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             </div>
 
             <div class="mf">
-                <label>Customer Name <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <label>Advance Account <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <div class="miw">
+                    <i class="fa-solid fa-wallet"></i>
+                    <select name="customer_id" class="minp" style="padding-left:34px;" onchange="document.querySelector('[name=customer_name]').disabled=this.value!=='0'">
+                        <option value="0">Walk-in / enter customer below</option>
+                        <?php if ($advance_customers): while($ac=$advance_customers->fetch_assoc()): ?>
+                            <option value="<?php echo (int)$ac['customer_id']; ?>"><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
+                        <?php endwhile; endif; ?>
+                    </select>
+                </div>
+                <label style="margin-top:10px;">Customer Name <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span></label>
                 <div class="miw">
                     <i class="fa-solid fa-user"></i>
                     <input type="text" name="customer_name" class="minp" placeholder="Walk-in Customer">
@@ -1268,6 +1341,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 <script>
 let CART_SUBTOTAL = parseFloat("<?php echo number_format($grand_total, 2, '.', ''); ?>") || 0;
 let GT = CART_SUBTOTAL;
+let AMOUNT_DUE = GT;
 
 function openPriceModal(itemId, itemName, currentPrice) {
     document.getElementById('priceOrderItemId').value = itemId;
@@ -1315,6 +1389,18 @@ function setDiscountType(type) {
     updateOrderFees();
 }
 
+function selectAdvanceCustomer() {
+    const select = document.getElementById('checkoutCustomerId');
+    const input = document.getElementById('advanceToUse');
+    const label = document.getElementById('advanceAvailable');
+    if (!select || !input) return;
+    const balance = Math.max(0, parseFloat(select.options[select.selectedIndex]?.dataset.balance) || 0);
+    input.max = balance.toFixed(2);
+    if ((parseFloat(input.value) || 0) > balance || select.value === '0') input.value = '0.00';
+    if (label) label.textContent = 'Available: Rs. ' + balance.toFixed(2);
+    updateOrderFees();
+}
+
 function updateOrderFees() {
     const serviceToggle = document.getElementById('serviceChargeToggle');
     const packagingToggle = document.getElementById('packagingFeeToggle');
@@ -1341,6 +1427,12 @@ function updateOrderFees() {
         ? Math.min(CART_SUBTOTAL, CART_SUBTOTAL * Math.min(100, discountValue) / 100)
         : Math.min(beforeDiscount, discountValue);
     GT = Math.max(0, beforeDiscount - discount);
+    const advanceInput = document.getElementById('advanceToUse');
+    const maxAdvance = Math.max(0, parseFloat(advanceInput?.max) || 0);
+    let advanceUsed = Math.max(0, parseFloat(advanceInput?.value) || 0);
+    advanceUsed = Math.min(advanceUsed, maxAdvance, GT);
+    if (advanceInput && parseFloat(advanceInput.value || 0) !== advanceUsed) advanceInput.value = advanceUsed.toFixed(2);
+    AMOUNT_DUE = Math.max(0, GT - advanceUsed);
 
     if (subtotalEl) subtotalEl.textContent = CART_SUBTOTAL.toFixed(2);
     if (chargeEl) chargeEl.textContent = serviceCharge.toFixed(2);
@@ -1351,7 +1443,9 @@ function updateOrderFees() {
     const pm = document.getElementById('pm_val')?.value || 'Cash';
     const ci = document.getElementById('cash_given');
     if (ci && pm !== 'Cash') {
-        ci.value = GT.toFixed(2);
+        ci.value = AMOUNT_DUE.toFixed(2);
+    } else if (ci && AMOUNT_DUE === 0) {
+        ci.value = '0.00';
     }
 
     calcBal();
@@ -1420,7 +1514,7 @@ function selMethod(m) {
         ci.placeholder = 'Enter cash amount…';
     } else {
         ci.readOnly = true;
-        ci.value = GT.toFixed(2);
+        ci.value = AMOUNT_DUE.toFixed(2);
         sendToCustomerDisplay(GT, "COLLECT");
     }
 
@@ -1439,7 +1533,7 @@ function calcBal() {
     if (!ci || !pill || !lbl || !amt) return;
 
     const given = parseFloat(ci.value) || 0;
-    const diff  = given - GT;
+    const diff  = given - AMOUNT_DUE;
 
     pill.className = 'bal-pill';
 
@@ -1837,10 +1931,10 @@ function bindOrderForm() {
     oForm.addEventListener('submit', function(e) {
         const m = document.getElementById('pm_val')?.value || 'Cash';
         const given = parseFloat(document.getElementById('cash_given')?.value) || 0;
-        const collect = given || GT;
-        const change = Math.max(0, collect - GT);
+        const collect = given || AMOUNT_DUE;
+        const change = Math.max(0, collect - AMOUNT_DUE);
 
-        if (m === 'Cash' && given < GT) {
+        if (m === 'Cash' && given < AMOUNT_DUE) {
             alert('Cash given is less than the total amount. Please enter the correct amount.');
             e.preventDefault();
             return;

@@ -32,6 +32,9 @@ $current = basename($_SERVER['PHP_SELF']);
         <a class="nav-item <?php echo $current=='expenses.php'?'active':''; ?>" href="expenses.php">
             <i class="fa-solid fa-money-bill-trend-up"></i> Expenses
         </a>
+        <a class="nav-item" href="../advance_payments.php">
+            <i class="fa-solid fa-wallet"></i> Customer Advances
+        </a>
 
         <div class="nav-group-label">Inventory &amp; Management</div>
         <a class="nav-item <?php echo in_array($current,['products.php','product_import.php'])?'active':''; ?>" href="products.php">
