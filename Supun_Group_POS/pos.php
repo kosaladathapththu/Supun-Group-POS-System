@@ -588,6 +588,7 @@ $advance_customers = $conn->query("SELECT customer_id,account_number,customer_na
 $checkout_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,
     (SELECT t.transaction_id FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.transaction_type='deposit' ORDER BY t.transaction_id DESC LIMIT 1) latest_advance_receipt_id
     FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name");
+$modal_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
 
 /* =========================================================
    LOAD CURRENT ORDER
@@ -1253,9 +1254,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                     <div class="advance-box simple-payment-box">
                         <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Payment</div><small>Search customer, then choose payment type</small></div>
                         <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
-                        <label class="advance-label">1. Search customer</label>
-                        <input type="search" id="customerPaymentSearch" class="advance-control" placeholder="Name, phone or account number" oninput="filterPaymentCustomers()">
-                        <label class="advance-label">2. Select customer</label>
+                        <label class="advance-label">1. Select customer</label>
                         <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
                             <option value="0" data-balance="0">Walk-in / no customer</option>
                             <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
@@ -1264,7 +1263,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         </select>
                         <div class="advance-balance-row"><span id="advanceAvailable">Advance already paid: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
                         <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
-                        <label class="advance-label">3. What is the customer paying?</label>
+                        <label class="advance-label">2. What is the customer paying?</label>
                         <div class="payment-choice-grid">
                             <button type="button" class="payment-choice advance-choice" onclick="openPaymentModal()"><i class="fa-solid fa-wallet"></i><strong>Advance / Part Payment</strong><small>Record payment and keep bill open</small></button>
                             <button type="button" class="payment-choice full-choice" onclick="chooseFullPayment()"><i class="fa-solid fa-circle-check"></i><strong>Full Payment</strong><small>Collect balance and close bill</small></button>
@@ -1353,7 +1352,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <div class="m-head"><div class="m-icon"><i class="fa-solid fa-wallet"></i></div><h2>Advance / Part Payment</h2><p id="paymentModalCustomer">Select an existing customer or create a new one</p></div>
         <div class="advance-tabs"><button type="button" class="advance-tab active" id="existingPaymentTab" onclick="setPaymentCustomerMode('existing')">Selected Customer</button><button type="button" class="advance-tab" id="newPaymentTab" onclick="setPaymentCustomerMode('new')">New Customer</button></div>
         <form method="post" id="existingPaymentForm">
-            <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>"><input type="hidden" name="checkout_customer_id" id="modalCustomerId" value="0">
+            <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+            <div class="mf"><label>Search customer</label><input type="search" id="modalCustomerSearch" class="advance-control" placeholder="Name, phone or account number" oninput="filterModalCustomers()"></div>
+            <div class="mf"><label>Select customer *</label><select name="checkout_customer_id" id="modalCustomerId" class="advance-control" required onchange="selectModalCustomer()"><option value="">Choose customer</option><?php if($modal_customers): while($mc=$modal_customers->fetch_assoc()): ?><option value="<?php echo (int)$mc['customer_id']; ?>" data-balance="<?php echo number_format((float)$mc['advance_balance'],2,'.',''); ?>" data-search="<?php echo htmlspecialchars(strtolower($mc['account_number'].' '.$mc['customer_name'].' '.$mc['phone']),ENT_QUOTES,'UTF-8'); ?>"><?php echo htmlspecialchars($mc['account_number'].' · '.$mc['customer_name'].' · '.$mc['phone']); ?></option><?php endwhile; endif; ?></select><small id="modalCustomerMatches" style="display:block;margin-top:4px;color:var(--text-muted);font-size:10px;"></small></div>
             <div class="mf"><label>Amount received *</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalInstallmentAmount" name="installment_amount" min="0.01" step="0.01" required placeholder="0.00" oninput="updatePaymentModalSummary()"></div></div>
             <div class="mf"><label>Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div>
             <div class="payment-summary"><div><span>Bill total</span><strong>Rs. <span data-modal-bill-total>0.00</span></strong></div><div><span>Previously paid</span><strong>Rs. <span data-modal-previous>0.00</span></strong></div><div><span>This payment</span><strong>Rs. <span data-modal-current>0.00</span></strong></div><div class="remaining"><span>Remaining after payment</span><strong>Rs. <span data-modal-remaining>0.00</span></strong></div></div>
