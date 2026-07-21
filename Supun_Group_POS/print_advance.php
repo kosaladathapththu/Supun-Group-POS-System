@@ -55,9 +55,14 @@ body.format-a4 .receipt{width:190mm;min-height:267mm;padding:16mm 18mm;font-size
 <tr><td>Payment Method</td><td>: <?php echo htmlspecialchars($payment['payment_method']); ?></td></tr>
 <tr><td>Received By</td><td>: <?php echo htmlspecialchars($payment['cashier_name']??'-'); ?></td></tr>
 <?php if($payment['order_number']): ?><tr><td>Order</td><td>: <?php echo htmlspecialchars($payment['order_number']); ?></td></tr><?php endif; ?>
+<?php if($payment_number>0): ?><tr><td>Payment No.</td><td>: <?php echo $payment_number; ?></td></tr><?php endif; ?>
 </table>
+<?php if($order_items): ?><div class="section-title">ITEMS / PRODUCTS</div><table class="items"><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody><?php foreach($order_items as $item): ?><tr><td><?php echo htmlspecialchars($item['item_name']); ?></td><td><?php echo number_format((float)$item['quantity'],(float)$item['quantity']==(int)$item['quantity']?0:2); ?></td><td><?php echo number_format((float)$item['price'],2); ?></td><td><?php echo number_format((float)$item['line_total'],2); ?></td></tr><?php endforeach; ?></tbody></table><?php endif; ?>
+<?php if($payment['order_id']): ?><div class="balance"><span>Bill Total</span><span>Rs. <?php echo number_format($bill_total,2); ?></span></div><?php endif; ?>
 <div class="amount-box"><small><?php echo $is_deposit?'ADVANCE AMOUNT RECEIVED':($is_refund?'ADVANCE AMOUNT REFUNDED':'ADVANCE AMOUNT USED'); ?></small><strong>Rs. <?php echo number_format((float)$payment['amount'],2); ?></strong></div>
-<div class="balance"><span>Current Advance Balance</span><span>Rs. <?php echo number_format((float)$payment['advance_balance'],2); ?></span></div>
+<?php if($payment_history): ?><div class="section-title">PAYMENT HISTORY</div><table class="payments"><?php foreach($payment_history as $index=>$paid): ?><tr><td><?php echo ($index+1).'. '.date('d M Y',strtotime($paid['created_at'])); ?><br><small><?php echo htmlspecialchars($paid['receipt_number'].' · '.$paid['payment_method']); ?></small></td><td>Rs. <?php echo number_format((float)$paid['amount'],2); ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<div class="balance"><span>Total Paid</span><span>Rs. <?php echo number_format($total_paid,2); ?></span></div>
+<div class="balance due"><span>Remaining Balance</span><span>Rs. <?php echo number_format($remaining_balance,2); ?></span></div>
 <?php if($payment['reference_note']): ?><div class="note"><strong>Reference:</strong> <?php echo htmlspecialchars($payment['reference_note']); ?></div><?php endif; ?>
 <div class="divider"></div><div class="footer">This receipt confirms an advance payment only.<br>Thank you for your business.</div>
 </section><div class="format-picker"><label for="printFormat">Paper size</label><select id="printFormat" onchange="setPrintFormat(this.value)"><option value="80">Thermal 80mm</option><option value="58">Thermal 58mm</option><option value="a4">A4 Page</option></select></div><div class="actions"><button class="print" onclick="window.print()">Print Advance Bill</button><a class="back" href="<?php echo htmlspecialchars($back_url); ?>">Back</a></div></main>
