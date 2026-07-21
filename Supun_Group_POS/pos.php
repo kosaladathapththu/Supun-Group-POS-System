@@ -761,6 +761,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .advance-label{display:block;font-size:9px;font-weight:900;text-transform:uppercase;color:var(--text-mid);margin:6px 0 4px}.advance-control{width:100%;height:37px;border:1px solid #d0d5dd;border-radius:7px;background:#fff;padding:0 9px;font:inherit;font-size:12px;color:var(--text)}
 .advance-balance-row,.advance-due{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:10px;padding:7px 2px;color:var(--text-muted)}.advance-balance-row strong{color:var(--accent)}.advance-due{margin-top:7px;background:#ecfdf5;border-radius:7px;padding:8px;color:#047857;font-weight:800}.advance-due strong{font-size:13px}
 .advance-money{display:flex;align-items:center;width:100%;height:39px;border:1.5px solid #fdba74;border-radius:7px;background:#fff;overflow:hidden}.advance-money span{padding:0 9px;color:#c2410c;font-size:11px;font-weight:900;background:#fff7ed;height:100%;display:flex;align-items:center}.advance-money input{min-width:0;width:100%;height:100%;border:0;padding:0 9px;font:inherit;font-weight:900;outline:0}
+.advance-print-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 8px;padding:8px;border:1px solid #c2410c;border-radius:7px;background:#fff;color:#c2410c;text-decoration:none;font-size:10px;font-weight:900}.advance-print-btn:hover{background:#c2410c;color:#fff}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
@@ -1465,11 +1466,17 @@ function selectAdvanceCustomer() {
     const select = document.getElementById('checkoutCustomerId');
     const input = document.getElementById('advanceToUse');
     const label = document.getElementById('advanceAvailable');
+    const printLink = document.getElementById('printAdvanceReceipt');
     if (!select || !input) return;
     const balance = Math.max(0, parseFloat(select.options[select.selectedIndex]?.dataset.balance) || 0);
     input.max = balance.toFixed(2);
     if ((parseFloat(input.value) || 0) > balance || select.value === '0') input.value = '0.00';
     if (label) label.innerHTML = 'Available balance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
+    const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
+    if (printLink) {
+        printLink.href = receiptId > 0 ? 'print_advance.php?transaction_id=' + receiptId + '&return_order=<?php echo (int)$current_order_id; ?>' : '#';
+        printLink.style.display = receiptId > 0 ? 'flex' : 'none';
+    }
     updateOrderFees();
 }
 
@@ -2036,6 +2043,7 @@ window.addEventListener("load", function () {
     bindPaySection();
     bindOrderForm();
     updateOrderFees();
+    selectAdvanceCustomer();
     <?php if ($advance_error): ?>showAdvanceMode('new');<?php endif; ?>
 
     if (GT > 0) {
