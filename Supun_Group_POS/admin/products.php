@@ -12,7 +12,7 @@ if (isset($_GET['imported'])) { $msg = (int)$_GET['imported'] . ' inventory line
 /* ── ADD PRODUCT ── */
 if (isset($_POST['add_product'])) {
     $cat_name=trim($_POST['category_name']??''); $prod_name=trim($_POST['product_name']??'');
-    $supplier_code=trim($_POST['supplier_code']??''); $supplier_name=trim($_POST['supplier_name']??''); $supplier_phone=trim($_POST['supplier_phone']??'');
+    $supplier_id_input=(int)($_POST['supplier_id']??0);$supplier_code=trim($_POST['supplier_code']??''); $supplier_name=trim($_POST['supplier_name']??''); $supplier_phone=trim($_POST['supplier_phone']??'');
     $supplier_invoice=trim($_POST['supplier_invoice']??''); $purchase_date=trim($_POST['purchase_date']??'')?:date('Y-m-d');
     $sku=trim($_POST['sku']??''); $barcode=trim($_POST['barcode']??''); $serial=trim($_POST['serial_no']??''); $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??'pcs')?:'pcs';
     $cost=max(0,(float)($_POST['cost_price']??0)); $price=max(0,(float)($_POST['price']??0)); $wholesale=max(0,(float)($_POST['wholesale_price']??0));
@@ -30,7 +30,7 @@ if (isset($_POST['add_product'])) {
                 $uid=(int)$_SESSION['user_id'];$pending_note='New product received before supplier invoice';$invoice_status='pending';$log=$conn->prepare("INSERT INTO stock_adjustments(product_id,user_id,adjustment_type,quantity,stock_before,stock_after,unit_cost,total_cost,note,invoice_status) VALUES(?,?,'stock_in',?,0,?,0,0,?,?)");$log->bind_param('iiddss',$product_id,$uid,$stock,$stock,$pending_note,$invoice_status);$log->execute();$log->close();
                 $conn->commit();$msg='Product and physical stock added. Its supplier invoice is pending and can be completed below.';$msg_type='success';
             }else{
-            $supplier=null;
+            $supplier=null;if($supplier_id_input>0){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_id=? AND status=1 LIMIT 1');$find->bind_param('i',$supplier_id_input);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
             if($supplier_code!==''){$find=$conn->prepare("SELECT supplier_id FROM suppliers WHERE supplier_code=? LIMIT 1");$find->bind_param('s',$supplier_code);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
             if(!$supplier){$find=$conn->prepare("SELECT supplier_id FROM suppliers WHERE supplier_name=? LIMIT 1");$find->bind_param('s',$supplier_name);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
             if($supplier){$supplier_id=(int)$supplier['supplier_id'];}else{$add=$conn->prepare("INSERT INTO suppliers(supplier_code,supplier_name,phone,status) VALUES(NULLIF(?,''),?,?,1)");$add->bind_param('sss',$supplier_code,$supplier_name,$supplier_phone);$add->execute();$supplier_id=$conn->insert_id;$add->close();}
@@ -107,12 +107,12 @@ if (isset($_POST['adjust_stock'])) {
 
 /* COMPLETE A SUPPLIER INVOICE FOR STOCK THAT WAS ALREADY RECEIVED */
 if (isset($_POST['finalize_pending_invoice'])) {
-    $adjustment_id=(int)($_POST['adjustment_id']??0);$supplier_code=trim($_POST['pending_supplier_code']??'');$supplier_name=trim($_POST['pending_supplier_name']??'');$supplier_phone=trim($_POST['pending_supplier_phone']??'');
+    $adjustment_id=(int)($_POST['adjustment_id']??0);$supplier_id_input=(int)($_POST['pending_supplier_id']??0);$supplier_code=trim($_POST['pending_supplier_code']??'');$supplier_name=trim($_POST['pending_supplier_name']??'');$supplier_phone=trim($_POST['pending_supplier_phone']??'');
     $supplier_invoice=trim($_POST['pending_supplier_invoice']??'');$invoice_date=trim($_POST['pending_invoice_date']??'')?:date('Y-m-d');$unit_cost=max(0,(float)($_POST['pending_unit_cost']??0));$payment_method=trim($_POST['pending_payment_method']??'Cash');$is_paid=isset($_POST['pending_paid']);
     if($adjustment_id<=0||$supplier_name===''||$supplier_invoice===''||$unit_cost<=0){$msg='Enter the supplier, invoice number and actual cost per item.';$msg_type='error';}
     else{$conn->begin_transaction();try{
         $lock=$conn->prepare("SELECT sa.*,p.product_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id WHERE sa.adjustment_id=? AND sa.adjustment_type='stock_in' AND sa.invoice_status='pending' FOR UPDATE");$lock->bind_param('i',$adjustment_id);$lock->execute();$pending=$lock->get_result()->fetch_assoc();$lock->close();if(!$pending)throw new RuntimeException('This pending stock invoice was already completed or no longer exists.');
-        $supplier=null;if($supplier_code!==''){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_code=? LIMIT 1');$find->bind_param('s',$supplier_code);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}if(!$supplier){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_name=? LIMIT 1');$find->bind_param('s',$supplier_name);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
+        $supplier=null;if($supplier_id_input>0){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_id=? AND status=1 LIMIT 1');$find->bind_param('i',$supplier_id_input);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}if(!$supplier&&$supplier_code!==''){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_code=? LIMIT 1');$find->bind_param('s',$supplier_code);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}if(!$supplier){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_name=? LIMIT 1');$find->bind_param('s',$supplier_name);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
         if($supplier){$supplier_id=(int)$supplier['supplier_id'];}else{$add=$conn->prepare("INSERT INTO suppliers(supplier_code,supplier_name,phone,status) VALUES(NULLIF(?,''),?,?,1)");$add->bind_param('sss',$supplier_code,$supplier_name,$supplier_phone);$add->execute();$supplier_id=$conn->insert_id;$add->close();}
         $quantity=(float)$pending['quantity'];$total=$quantity*$unit_cost;$uid=(int)$_SESSION['user_id'];$paid_amount=$is_paid?$total:0;$payment_status=$is_paid?'paid':'unpaid';$notes='Invoice completed for stock received earlier. Adjustment #'.$adjustment_id;
         $purchase=$conn->prepare("INSERT INTO purchases(supplier_id,supplier_invoice,purchase_date,status,payment_status,subtotal,total_amount,paid_amount,notes,created_by,received_by,received_at) VALUES(?,? ,?,'received',?,?,?,?,?,?,?,NOW())");$purchase->bind_param('isssdddsii',$supplier_id,$supplier_invoice,$invoice_date,$payment_status,$total,$total,$paid_amount,$notes,$uid,$uid);$purchase->execute();$purchase_id=$conn->insert_id;$purchase->close();
@@ -170,6 +170,7 @@ $products = $conn->query("
 ");
 
 $categories = $conn->query("SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC");
+$supplier_options=[];$supplier_result=$conn->query("SELECT supplier_id,supplier_code,supplier_name,phone FROM suppliers WHERE status=1 ORDER BY supplier_name ASC");if($supplier_result)while($supplier_row=$supplier_result->fetch_assoc())$supplier_options[]=$supplier_row;
 $stock_products = $conn->query("SELECT product_id,product_name,stock_qty,unit FROM products ORDER BY product_name ASC");
 $stock_history = $conn->query("SELECT sa.*,p.product_name,u.full_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id ORDER BY sa.adjustment_id DESC LIMIT 8");
 $pending_invoices = $conn->query("SELECT sa.*,p.product_name,p.unit,u.full_name received_by_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE sa.adjustment_type='stock_in' AND sa.invoice_status='pending' ORDER BY sa.created_at ASC");
@@ -358,13 +359,16 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
         <div class="panel-help"><i class="fa-solid fa-circle-info"></i> These quantities are already in stock. Completing an invoice records its purchase cost and expense only—it will not add stock again.</div>
         <div class="card-body" style="display:grid;gap:12px">
         <?php while($pi=$pending_invoices->fetch_assoc()): ?>
-            <form method="post" style="border:1px solid var(--border);border-radius:10px;padding:13px;background:#fafcfd">
+            <form method="post" class="supplier-form" style="border:1px solid var(--border);border-radius:10px;padding:13px;background:#fafcfd">
                 <input type="hidden" name="adjustment_id" value="<?php echo (int)$pi['adjustment_id']; ?>">
+                <input type="hidden" name="pending_supplier_id" class="supplier-id" value="">
                 <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap"><strong><?php echo htmlspecialchars($pi['product_name']); ?> — <?php echo number_format((float)$pi['quantity'],3); ?> <?php echo htmlspecialchars($pi['unit']); ?></strong><span class="muted">Received <?php echo date('d M Y, h:i A',strtotime($pi['created_at'])); ?><?php if($pi['note']): ?> · <?php echo htmlspecialchars($pi['note']); ?><?php endif; ?></span></div>
                 <div style="display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:9px">
-                    <div class="field"><label>Supplier Code</label><input class="inp" name="pending_supplier_code" placeholder="SUP-001"></div>
-                    <div class="field"><label>Supplier Name *</label><input class="inp" name="pending_supplier_name" required></div>
-                    <div class="field"><label>Supplier Phone</label><input class="inp" name="pending_supplier_phone"></div>
+                    <div class="field" style="grid-column:span 3"><label>Find Existing Supplier</label><input class="inp supplier-search" list="supplierDirectory" placeholder="Type supplier name, code or phone" autocomplete="off"><small class="supplier-hint">Choose a suggestion, or use New Supplier.</small></div>
+                    <div class="field"><label>&nbsp;</label><button type="button" class="btn-secondary" onclick="clearSupplierSelection(this)" style="height:44px"><i class="fa-solid fa-user-plus"></i> New Supplier</button></div>
+                    <div class="field"><label>Supplier Code</label><input class="inp supplier-code" name="pending_supplier_code" placeholder="SUP-001"></div>
+                    <div class="field"><label>Supplier Name *</label><input class="inp supplier-name" name="pending_supplier_name" required></div>
+                    <div class="field"><label>Supplier Phone</label><input class="inp supplier-phone" name="pending_supplier_phone"></div>
                     <div class="field"><label>Invoice Number *</label><input class="inp" name="pending_supplier_invoice" required></div>
                     <div class="field"><label>Invoice Date *</label><input class="inp" type="date" name="pending_invoice_date" value="<?php echo date('Y-m-d'); ?>" required></div>
                     <div class="field"><label>Actual Cost Per Item *</label><input class="inp" type="number" min="0.01" step="0.01" name="pending_unit_cost" required></div>
@@ -408,7 +412,7 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
             </div>
             <div class="panel-help"><i class="fa-solid fa-circle-info"></i> This form uses the same information as one row of the Inventory Excel template.</div>
             <div class="card-body">
-                <form method="POST" class="product-form">
+                <form method="POST" class="product-form supplier-form">
                     <?php if ($edit_row): ?>
                         <input type="hidden" name="edit_id" value="<?php echo $edit_row['product_id']; ?>">
                     <?php endif; ?>
@@ -416,9 +420,12 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
                     <div class="simple-fields">
                     <?php if (!$edit_row): ?>
                     <div class="form-section-title">1. Supplier &amp; Purchase <small>The supplier is reused if its code or name already exists.</small><label style="display:flex;align-items:center;gap:7px;margin-top:7px;text-transform:none;letter-spacing:0"><input type="checkbox" id="newProductInvoicePending" name="new_product_invoice_pending" value="1" onchange="toggleNewProductInvoice()" <?php echo isset($_POST['new_product_invoice_pending'])?'checked':''; ?>> Receive stock now — supplier invoice/details will be added later</label></div>
-                    <div class="field"><label>Supplier Code</label><input class="inp" name="supplier_code" placeholder="SUP-001" value="<?php echo htmlspecialchars($_POST['supplier_code'] ?? ''); ?>"></div>
-                    <div class="field span-2"><label>Supplier Name <span id="supplierRequiredMark">*</span></label><input class="inp" id="newProductSupplierName" name="supplier_name" placeholder="e.g. Cammy" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
-                    <div class="field"><label>Supplier Phone</label><input class="inp" name="supplier_phone" placeholder="071 234 5678" value="<?php echo htmlspecialchars($_POST['supplier_phone'] ?? ''); ?>"></div>
+                    <input type="hidden" name="supplier_id" class="supplier-id" value="<?php echo (int)($_POST['supplier_id'] ?? 0); ?>">
+                    <div class="field span-2"><label>Find Existing Supplier</label><input class="inp supplier-search" list="supplierDirectory" placeholder="Type supplier name, code or phone" autocomplete="off"><small class="supplier-hint">Select a matching supplier to fill the details automatically.</small></div>
+                    <div class="field"><label>&nbsp;</label><button type="button" class="btn-secondary" onclick="clearSupplierSelection(this)" style="height:44px"><i class="fa-solid fa-user-plus"></i> New Supplier</button></div>
+                    <div class="field"><label>Supplier Code</label><input class="inp supplier-code" name="supplier_code" placeholder="SUP-001" value="<?php echo htmlspecialchars($_POST['supplier_code'] ?? ''); ?>"></div>
+                    <div class="field span-2"><label>Supplier Name <span id="supplierRequiredMark">*</span></label><input class="inp supplier-name" id="newProductSupplierName" name="supplier_name" placeholder="e.g. Cammy" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
+                    <div class="field"><label>Supplier Phone</label><input class="inp supplier-phone" name="supplier_phone" placeholder="071 234 5678" value="<?php echo htmlspecialchars($_POST['supplier_phone'] ?? ''); ?>"></div>
                     <div class="field"><label>Supplier Invoice</label><input class="inp" name="supplier_invoice" placeholder="INV-1001" value="<?php echo htmlspecialchars($_POST['supplier_invoice'] ?? ''); ?>"></div>
                     <div class="field"><label>Purchase Date *</label><input class="inp" type="date" name="purchase_date" required value="<?php echo htmlspecialchars($_POST['purchase_date'] ?? date('Y-m-d')); ?>"></div>
                     <div class="field"><label>Purchase Quantity *</label><input class="inp" type="number" name="stock_qty" step="0.001" min="0.001" required value="<?php echo htmlspecialchars($_POST['stock_qty'] ?? '1'); ?>"></div>
