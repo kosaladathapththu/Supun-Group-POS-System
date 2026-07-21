@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    <?php include 'shared_style.php'; ?>
-    <style>
+      <style>
+          <?php include 'shared_style.php'; ?>
         .btn-danger{
             display:inline-flex;
             align-items:center;
