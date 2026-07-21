@@ -7,11 +7,12 @@ ensureAdvancePaymentSchema($conn);
 
 $transaction_id = (int)($_GET['transaction_id'] ?? 0);
 $return_order = (int)($_GET['return_order'] ?? 0);
-$stmt = $conn->prepare("SELECT t.*,c.account_number,c.customer_name,c.phone,c.address,c.advance_balance,u.full_name cashier_name,o.order_number,o.total_amount order_total,o.subtotal order_subtotal,o.order_type
+$stmt = $conn->prepare("SELECT t.*,c.account_number,c.customer_name,c.phone,c.address,c.advance_balance,u.full_name cashier_name,o.order_number,o.total_amount order_total,o.subtotal order_subtotal,o.order_type,o.order_status,oc.cancellation_reason
     FROM advance_payment_transactions t
     JOIN customer_accounts c ON c.customer_id=t.customer_id
     LEFT JOIN users u ON u.user_id=t.created_by
     LEFT JOIN orders o ON o.order_id=t.order_id
+    LEFT JOIN order_cancellations oc ON oc.refund_transaction_id=t.transaction_id
     WHERE t.transaction_id=? LIMIT 1");
 $stmt->bind_param('i', $transaction_id); $stmt->execute();
 $payment = $stmt->get_result()->fetch_assoc(); $stmt->close();
@@ -39,9 +40,10 @@ $payment_ordinal=$payment_number>0?ordinalPayment($payment_number):'';
 $back_url = 'advance_payments.php';
 $is_deposit = $payment['transaction_type'] === 'deposit';
 $is_refund = $payment['transaction_type'] === 'refund';
+$is_bill_refund = $is_refund && ($payment['order_status']??'') === 'cancelled';
 $is_order_installment=$is_deposit && !empty($payment['order_id']) && $payment_number>0;
-$title = $is_order_installment ? strtoupper($payment_ordinal.' PAYMENT RECEIPT') : ($is_deposit ? 'ADVANCE PAYMENT RECEIPT' : ($is_refund ? 'ADVANCE SETTLEMENT RECEIPT' : 'ADVANCE USAGE RECEIPT'));
-$seal_main = $is_refund ? 'Advance Settled' : ($is_order_installment ? $payment_ordinal.' Payment' : 'Advance Payment');
+$title = $is_bill_refund ? 'BILL CANCELLATION & REFUND RECEIPT' : ($is_order_installment ? strtoupper($payment_ordinal.' PAYMENT RECEIPT') : ($is_deposit ? 'ADVANCE PAYMENT RECEIPT' : ($is_refund ? 'ADVANCE SETTLEMENT RECEIPT' : 'ADVANCE USAGE RECEIPT')));
+$seal_main = $is_bill_refund ? 'Bill Cancelled' : ($is_refund ? 'Advance Settled' : ($is_order_installment ? $payment_ordinal.' Payment' : 'Advance Payment'));
 $seal_small = $is_refund ? 'Refunded' : ($is_deposit ? ($is_order_installment?'Installment Received':'Received') : 'Applied');
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo htmlspecialchars($title); ?></title>
@@ -85,9 +87,9 @@ body.format-a4 .seal-wrap{top:55%!important;right:8%!important}body.format-a4 .a
 <?php if($payment['order_id']): ?><div class="balance"><span>Bill Total</span><span>Rs. <?php echo number_format($bill_total,2); ?></span></div><?php endif; ?>
 <div class="amount-box"><small><?php echo $is_deposit?'ADVANCE AMOUNT RECEIVED':($is_refund?'ADVANCE AMOUNT REFUNDED':'ADVANCE AMOUNT USED'); ?></small><strong>Rs. <?php echo number_format((float)$payment['amount'],2); ?></strong></div>
 <?php if($payment_history): ?><div class="section-title">PAYMENT HISTORY</div><table class="payments"><?php foreach($payment_history as $index=>$paid): ?><tr><td><?php echo ($index+1).'. '.date('d M Y',strtotime($paid['created_at'])); ?><br><small><?php echo htmlspecialchars($paid['receipt_number'].' · '.$paid['payment_method']); ?></small></td><td>Rs. <?php echo number_format((float)$paid['amount'],2); ?></td></tr><?php endforeach; ?></table><?php endif; ?>
-<div class="balance"><span>Total Paid</span><span>Rs. <?php echo number_format($total_paid,2); ?></span></div>
-<div class="balance due"><span>Remaining Balance</span><span>Rs. <?php echo number_format($remaining_balance,2); ?></span></div>
+<?php if($is_bill_refund): ?><div class="balance"><span>Original Bill Total</span><span>Rs. <?php echo number_format($bill_total,2); ?></span></div><div class="balance due" style="background:#fef3f2;color:#b42318"><span>Bill Status</span><span>CANCELLED &amp; REFUNDED</span></div>
+<?php else: ?><div class="balance"><span>Total Paid</span><span>Rs. <?php echo number_format($total_paid,2); ?></span></div><div class="balance due"><span>Remaining Balance</span><span>Rs. <?php echo number_format($remaining_balance,2); ?></span></div><?php endif; ?>
 <?php if($payment['reference_note']): ?><div class="note"><strong>Reference:</strong> <?php echo htmlspecialchars($payment['reference_note']); ?></div><?php endif; ?>
-<div class="divider"></div><div class="footer">This receipt confirms an advance payment only.<br>Thank you for your business.</div>
+<div class="divider"></div><div class="footer"><?php echo $is_bill_refund?'This receipt confirms the bill cancellation and customer refund.':'This receipt confirms an advance payment only.'; ?><br>Thank you for your business.</div>
 </section><div class="format-picker"><label for="printFormat">Paper size</label><select id="printFormat" onchange="setPrintFormat(this.value)"><option value="80">Thermal 80mm</option><option value="58">Thermal 58mm</option><option value="a4">A4 Page</option></select></div><div class="actions"><button class="print" onclick="window.print()">Print Advance Bill</button><a class="back" href="<?php echo htmlspecialchars($back_url); ?>">&larr; Back to Advance Payments</a></div></main>
 <script>function setPrintFormat(format){document.body.className='format-'+format;localStorage.setItem('advancePrintFormat',format)}window.addEventListener('load',()=>{const saved=localStorage.getItem('advancePrintFormat')||'a4';document.getElementById('printFormat').value=saved;setPrintFormat(saved)});</script></body></html>
