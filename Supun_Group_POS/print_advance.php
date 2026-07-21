@@ -36,7 +36,7 @@ function ordinalPayment(int $number): string {
 }
 $payment_ordinal=$payment_number>0?ordinalPayment($payment_number):'';
 
-$back_url = $return_order > 0 ? 'pos.php' : 'advance_payments.php';
+$back_url = 'advance_payments.php';
 $is_deposit = $payment['transaction_type'] === 'deposit';
 $is_refund = $payment['transaction_type'] === 'refund';
 $is_order_installment=$is_deposit && !empty($payment['order_id']) && $payment_number>0;
@@ -89,5 +89,5 @@ body.format-a4 .seal-wrap{top:55%!important;right:8%!important}body.format-a4 .a
 <div class="balance due"><span>Remaining Balance</span><span>Rs. <?php echo number_format($remaining_balance,2); ?></span></div>
 <?php if($payment['reference_note']): ?><div class="note"><strong>Reference:</strong> <?php echo htmlspecialchars($payment['reference_note']); ?></div><?php endif; ?>
 <div class="divider"></div><div class="footer">This receipt confirms an advance payment only.<br>Thank you for your business.</div>
-</section><div class="format-picker"><label for="printFormat">Paper size</label><select id="printFormat" onchange="setPrintFormat(this.value)"><option value="80">Thermal 80mm</option><option value="58">Thermal 58mm</option><option value="a4">A4 Page</option></select></div><div class="actions"><button class="print" onclick="window.print()">Print Advance Bill</button><a class="back" href="<?php echo htmlspecialchars($back_url); ?>">Back</a></div></main>
+</section><div class="format-picker"><label for="printFormat">Paper size</label><select id="printFormat" onchange="setPrintFormat(this.value)"><option value="80">Thermal 80mm</option><option value="58">Thermal 58mm</option><option value="a4">A4 Page</option></select></div><div class="actions"><button class="print" onclick="window.print()">Print Advance Bill</button><a class="back" href="<?php echo htmlspecialchars($back_url); ?>">&larr; Back to Advance Payments</a></div></main>
 <script>function setPrintFormat(format){document.body.className='format-'+format;localStorage.setItem('advancePrintFormat',format)}window.addEventListener('load',()=>{const saved=localStorage.getItem('advancePrintFormat')||'a4';document.getElementById('printFormat').value=saved;setPrintFormat(saved)});</script></body></html>
