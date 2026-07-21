@@ -72,6 +72,22 @@ function ensureAdvancePaymentSchema(mysqli $conn): void
     if (!isset($columns['payment_reference'])) {
         $conn->query("ALTER TABLE orders ADD payment_reference VARCHAR(255) NULL AFTER payment_method");
     }
+
+    $conn->query("CREATE TABLE IF NOT EXISTS order_cancellations (
+        cancellation_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        order_id BIGINT UNSIGNED NOT NULL UNIQUE,
+        refund_transaction_id BIGINT UNSIGNED NULL,
+        refund_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        refund_method VARCHAR(40) NOT NULL DEFAULT 'Cash',
+        cancellation_reason VARCHAR(255) NOT NULL,
+        stock_restored TINYINT(1) NOT NULL DEFAULT 0,
+        cancelled_by INT UNSIGNED NULL,
+        cancelled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_order_cancelled_at (cancelled_at),
+        CONSTRAINT fk_order_cancellation_order FOREIGN KEY (order_id) REFERENCES orders(order_id),
+        CONSTRAINT fk_order_cancellation_refund FOREIGN KEY (refund_transaction_id) REFERENCES advance_payment_transactions(transaction_id) ON DELETE SET NULL,
+        CONSTRAINT fk_order_cancellation_user FOREIGN KEY (cancelled_by) REFERENCES users(user_id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
 function nextAccountNumber(mysqli $conn): string

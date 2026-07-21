@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS purchase_items;
 DROP TABLE IF EXISTS purchases;
 DROP TABLE IF EXISTS suppliers;
 DROP TABLE IF EXISTS stock_adjustments;
+DROP TABLE IF EXISTS order_cancellations;
 DROP TABLE IF EXISTS advance_payment_transactions;
 DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS orders;
@@ -129,6 +130,22 @@ CREATE TABLE advance_payment_transactions (
   CONSTRAINT fk_advance_customer FOREIGN KEY (customer_id) REFERENCES customer_accounts(customer_id),
   CONSTRAINT fk_advance_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE SET NULL,
   CONSTRAINT fk_advance_user FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE order_cancellations (
+  cancellation_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  refund_transaction_id BIGINT UNSIGNED NULL,
+  refund_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  refund_method VARCHAR(40) NOT NULL DEFAULT 'Cash',
+  cancellation_reason VARCHAR(255) NOT NULL,
+  stock_restored TINYINT(1) NOT NULL DEFAULT 0,
+  cancelled_by INT UNSIGNED NULL,
+  cancelled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_order_cancelled_at (cancelled_at),
+  CONSTRAINT fk_order_cancellation_order FOREIGN KEY (order_id) REFERENCES orders(order_id),
+  CONSTRAINT fk_order_cancellation_refund FOREIGN KEY (refund_transaction_id) REFERENCES advance_payment_transactions(transaction_id) ON DELETE SET NULL,
+  CONSTRAINT fk_order_cancellation_user FOREIGN KEY (cancelled_by) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE order_items (
