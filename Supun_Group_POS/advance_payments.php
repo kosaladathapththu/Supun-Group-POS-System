@@ -140,6 +140,13 @@ $pending_orders = $conn->query("SELECT o.order_id,o.order_number,o.customer_id,o
     FROM orders o JOIN customer_accounts c ON c.customer_id=o.customer_id
     WHERE o.order_status='open' AND EXISTS(SELECT 1 FROM advance_payment_transactions t2 WHERE t2.order_id=o.order_id AND t2.transaction_type='deposit' AND t2.remaining_amount>0)
     ORDER BY o.order_id DESC");
+$pending_order_rows=[];
+while($pending_orders && $po=$pending_orders->fetch_assoc()) {
+    $po['bill_total']=(float)$po['bill_total'];
+    $po['paid_amount']=min($po['bill_total'],(float)$po['paid_amount']);
+    $po['remaining_amount']=max(0,$po['bill_total']-$po['paid_amount']);
+    $pending_order_rows[]=$po;
+}
 $summary = $conn->query("SELECT COUNT(*) customers,COALESCE(SUM(advance_balance),0) balance FROM customer_accounts WHERE status=1")->fetch_assoc();
 $open_summary = $conn->query("SELECT COUNT(*) open_items,COALESCE(SUM(t.settlement_due_date<CURDATE()),0) overdue FROM advance_payment_transactions t JOIN orders o ON o.order_id=t.order_id WHERE t.transaction_type='deposit' AND o.order_status='open'")->fetch_assoc();
 ?>
