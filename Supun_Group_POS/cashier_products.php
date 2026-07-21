@@ -133,11 +133,57 @@ $products = $conn->query("
             color: #1c2038;
             font-weight: bold;
         }
+
+        .import-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            border: 1px solid #99e5d4;
+            background: linear-gradient(135deg, #ecfdf7, #ffffff);
+        }
+        .import-box h2 { margin: 0 0 8px; }
+        .import-box p { margin: 0; color: #53647a; line-height: 1.5; }
+        .import-actions { flex: 0 0 auto; }
+        .import-btn {
+            display: inline-block;
+            padding: 13px 20px;
+            border-radius: 9px;
+            background: #087f70;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .import-note { display: block; margin-top: 7px; color: #6b7280; font-size: 12px; text-align: center; }
+
+        @media (max-width: 760px) {
+            .import-box { align-items: stretch; flex-direction: column; }
+            .import-btn { display: block; text-align: center; }
+        }
     </style>
 </head>
 <body>
 
 <a href="pos.php" class="back">← Back to POS</a>
+
+<div class="box import-box">
+    <div>
+        <h2>Import Inventory from Excel</h2>
+        <p>Use the Excel or CSV template to import products, suppliers, purchases and stock in one validated upload.</p>
+    </div>
+    <div class="import-actions">
+        <?php
+        $import_url = $user_role === 'admin'
+            ? 'admin/product_import.php'
+            : 'pos.php?admin_login=1&amp;admin_return=product_import';
+        ?>
+        <a href="<?php echo $import_url; ?>" class="import-btn">Open Excel Import</a>
+        <?php if ($user_role !== 'admin'): ?>
+            <span class="import-note">Admin password required</span>
+        <?php endif; ?>
+    </div>
+</div>
 
 <div class="box">
     <h2>Add New Product</h2>
