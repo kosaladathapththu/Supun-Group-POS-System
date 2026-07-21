@@ -853,6 +853,14 @@ body.format-a4 .paid-seal small { font-size:9px; }
     body.format-a4 .ftr .ft3,body.format-a4 .ref-line,body.format-a4 .dev-credit { font-size:8.5px !important;line-height:1.2 !important; }
     body.format-a4 .paid-seal-wrap { top:50% !important;right:10% !important; }
     body.format-a4 .paid-seal { width:26mm !important;height:26mm !important;border-width:1mm !important; }
+    /* Remove every non-invoice element from print layout and take the invoice
+       out of normal document flow. This prevents Chrome creating a trailing
+       blank sheet from flex-body/control dimensions. */
+    body.format-a4 { display:block !important;position:relative !important;padding:0 !important;margin:0 !important; }
+    body.format-a4 > .format-picker,
+    body.format-a4 > .print-status,
+    body.format-a4 > .actions { display:none !important;width:0 !important;height:0 !important;margin:0 !important;padding:0 !important; }
+    body.format-a4 > .receipt { position:absolute !important;top:0 !important;left:0 !important; }
 }
 </style>
 </head>
