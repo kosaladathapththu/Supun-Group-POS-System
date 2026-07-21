@@ -36,7 +36,7 @@ if (isset($_POST['complete_order'])) {
             $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id'];
             $note = 'Additional installment for order';
             $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
-            $stmt->bind_param('siddssi',$receipt,$customer_id,$order_id,$received,$received,$method,$note,$uid);
+            $stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$received,$received,$method,$note,$uid);
             if (!$stmt->execute()) throw new Exception($stmt->error);
             $installment_id=$conn->insert_id; $stmt->close();
             $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance+? WHERE customer_id=?');
