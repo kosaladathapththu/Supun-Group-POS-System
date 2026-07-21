@@ -41,6 +41,9 @@ if (isset($_POST['complete_order'])) {
             $installment_id=$conn->insert_id; $stmt->close();
             $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance+? WHERE customer_id=?');
             $stmt->bind_param('di',$received,$customer_id); $stmt->execute(); $stmt->close();
+            $item_subtotal=round((float)$order['item_total'],2);
+            $stmt=$conn->prepare('UPDATE orders SET subtotal=?,total_amount=? WHERE order_id=? AND order_status=\'open\'');
+            $stmt->bind_param('ddi',$item_subtotal,$total,$order_id); $stmt->execute(); $stmt->close();
             $conn->commit();
             header("Location: print_advance.php?transaction_id=$installment_id"); exit;
         }
