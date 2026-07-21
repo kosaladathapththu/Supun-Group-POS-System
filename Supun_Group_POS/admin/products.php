@@ -69,6 +69,7 @@ if (isset($_POST['adjust_stock'])) {
     $quantity = max(0, (float)($_POST['stock_quantity'] ?? 0));
     $purchase_unit_cost = max(0, (float)($_POST['purchase_unit_cost'] ?? 0));
     $note = trim($_POST['stock_note'] ?? '');
+    $invoice_pending = $action === 'stock_in' && isset($_POST['invoice_pending']);
     $allowed_actions = ['stock_in', 'stock_out', 'set'];
     if ($product_id > 0 && in_array($action, $allowed_actions, true) && ($quantity > 0 || $action === 'set')) {
         $conn->begin_transaction();
@@ -80,19 +81,40 @@ if (isset($_POST['adjust_stock'])) {
             $before = (float)$stock_row['stock_qty'];
             $after = $action === 'stock_in' ? $before + $quantity : ($action === 'stock_out' ? $before - $quantity : $quantity);
             if ($after < 0) throw new Exception('Cannot remove more stock than is available.');
-            $unit_cost = $action === 'stock_in' ? ($purchase_unit_cost > 0 ? $purchase_unit_cost : (float)$stock_row['cost_price']) : 0;
-            $total_cost = $action === 'stock_in' ? $unit_cost * $quantity : 0;
+            $unit_cost = $action === 'stock_in' && !$invoice_pending ? ($purchase_unit_cost > 0 ? $purchase_unit_cost : (float)$stock_row['cost_price']) : 0;
+            $total_cost = $action === 'stock_in' && !$invoice_pending ? $unit_cost * $quantity : 0;
             $update = $conn->prepare("UPDATE products SET stock_qty=?,cost_price=CASE WHEN ?='stock_in' AND ?>0 THEN ? ELSE cost_price END WHERE product_id=?");
             $update->bind_param('dsddi', $after, $action, $unit_cost, $unit_cost, $product_id); $update->execute(); $update->close();
             $user_id = (int)$_SESSION['user_id'];
-            $log = $conn->prepare("INSERT INTO stock_adjustments (product_id,user_id,adjustment_type,quantity,stock_before,stock_after,unit_cost,total_cost,note) VALUES (?,?,?,?,?,?,?,?,?)");
-            $log->bind_param('iisddddds', $product_id, $user_id, $action, $quantity, $before, $after, $unit_cost, $total_cost, $note); $log->execute(); $log->close();
+            $invoice_status = $invoice_pending ? 'pending' : 'not_required';
+            $log = $conn->prepare("INSERT INTO stock_adjustments (product_id,user_id,adjustment_type,quantity,stock_before,stock_after,unit_cost,total_cost,note,invoice_status) VALUES (?,?,?,?,?,?,?,?,?,?)");
+            $log->bind_param('iisdddddss', $product_id, $user_id, $action, $quantity, $before, $after, $unit_cost, $total_cost, $note, $invoice_status); $log->execute(); $log->close();
             $conn->commit();
-            $msg = 'Stock updated successfully.'; $msg_type = 'success';
+            $msg = $invoice_pending ? 'Stock received. Supplier invoice is pending and can be completed below without adding stock again.' : 'Stock updated successfully.'; $msg_type = 'success';
         } catch (Throwable $e) {
             $conn->rollback(); $msg = $e->getMessage(); $msg_type = 'error';
         }
     } else { $msg = 'Select a product and enter a valid quantity.'; $msg_type = 'error'; }
+}
+
+/* COMPLETE A SUPPLIER INVOICE FOR STOCK THAT WAS ALREADY RECEIVED */
+if (isset($_POST['finalize_pending_invoice'])) {
+    $adjustment_id=(int)($_POST['adjustment_id']??0);$supplier_code=trim($_POST['pending_supplier_code']??'');$supplier_name=trim($_POST['pending_supplier_name']??'');$supplier_phone=trim($_POST['pending_supplier_phone']??'');
+    $supplier_invoice=trim($_POST['pending_supplier_invoice']??'');$invoice_date=trim($_POST['pending_invoice_date']??'')?:date('Y-m-d');$unit_cost=max(0,(float)($_POST['pending_unit_cost']??0));$payment_method=trim($_POST['pending_payment_method']??'Cash');$is_paid=isset($_POST['pending_paid']);
+    if($adjustment_id<=0||$supplier_name===''||$supplier_invoice===''||$unit_cost<=0){$msg='Enter the supplier, invoice number and actual cost per item.';$msg_type='error';}
+    else{$conn->begin_transaction();try{
+        $lock=$conn->prepare("SELECT sa.*,p.product_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id WHERE sa.adjustment_id=? AND sa.adjustment_type='stock_in' AND sa.invoice_status='pending' FOR UPDATE");$lock->bind_param('i',$adjustment_id);$lock->execute();$pending=$lock->get_result()->fetch_assoc();$lock->close();if(!$pending)throw new RuntimeException('This pending stock invoice was already completed or no longer exists.');
+        $supplier=null;if($supplier_code!==''){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_code=? LIMIT 1');$find->bind_param('s',$supplier_code);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}if(!$supplier){$find=$conn->prepare('SELECT supplier_id FROM suppliers WHERE supplier_name=? LIMIT 1');$find->bind_param('s',$supplier_name);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
+        if($supplier){$supplier_id=(int)$supplier['supplier_id'];}else{$add=$conn->prepare("INSERT INTO suppliers(supplier_code,supplier_name,phone,status) VALUES(NULLIF(?,''),?,?,1)");$add->bind_param('sss',$supplier_code,$supplier_name,$supplier_phone);$add->execute();$supplier_id=$conn->insert_id;$add->close();}
+        $quantity=(float)$pending['quantity'];$total=$quantity*$unit_cost;$uid=(int)$_SESSION['user_id'];$paid_amount=$is_paid?$total:0;$payment_status=$is_paid?'paid':'unpaid';$notes='Invoice completed for stock received earlier. Adjustment #'.$adjustment_id;
+        $purchase=$conn->prepare("INSERT INTO purchases(supplier_id,supplier_invoice,purchase_date,status,payment_status,subtotal,total_amount,paid_amount,notes,created_by,received_by,received_at) VALUES(?,? ,?,'received',?,?,?,?,?,?,?,NOW())");$purchase->bind_param('isssdddsii',$supplier_id,$supplier_invoice,$invoice_date,$payment_status,$total,$total,$paid_amount,$notes,$uid,$uid);$purchase->execute();$purchase_id=$conn->insert_id;$purchase->close();
+        $purchase_number='PUR-'.str_pad((string)$purchase_id,6,'0',STR_PAD_LEFT);$number=$conn->prepare('UPDATE purchases SET purchase_number=? WHERE purchase_id=?');$number->bind_param('si',$purchase_number,$purchase_id);$number->execute();$number->close();
+        $product_id=(int)$pending['product_id'];$item=$conn->prepare('INSERT INTO purchase_items(purchase_id,product_id,quantity,received_qty,unit_cost,line_total) VALUES(?,?,?,?,?,?)');$item->bind_param('iidddd',$purchase_id,$product_id,$quantity,$quantity,$unit_cost,$total);$item->execute();$item->close();
+        if($is_paid){$pay=$conn->prepare('INSERT INTO purchase_payments(purchase_id,payment_date,amount,payment_method,reference_no,notes,added_by) VALUES(?,?,?,?,?, ?,?)');$pay_note='Payment recorded when pending invoice was completed';$pay->bind_param('isdsssi',$purchase_id,$invoice_date,$total,$payment_method,$supplier_invoice,$pay_note,$uid);$pay->execute();$pay->close();}
+        $product=$conn->prepare('UPDATE products SET cost_price=? WHERE product_id=?');$product->bind_param('di',$unit_cost,$product_id);$product->execute();$product->close();
+        $finish=$conn->prepare("UPDATE stock_adjustments SET unit_cost=?,total_cost=?,invoice_status='finalized',supplier_id=?,purchase_id=?,supplier_invoice=?,invoice_date=?,finalized_at=NOW(),note=CONCAT(COALESCE(note,''),' | Invoice finalized: ',?) WHERE adjustment_id=?");$finish->bind_param('ddiisssi',$unit_cost,$total,$supplier_id,$purchase_id,$supplier_invoice,$invoice_date,$purchase_number,$adjustment_id);$finish->execute();$finish->close();
+        $conn->commit();$msg="Invoice completed as $purchase_number. Stock quantity was not changed; Rs. ".number_format($total,2).' was added to purchase expenses.';$msg_type='success';
+    }catch(Throwable $e){$conn->rollback();$msg='Invoice could not be completed: '.$e->getMessage();$msg_type='error';}}
 }
 
 if (isset($_GET['delete'])) {
@@ -142,6 +164,7 @@ $products = $conn->query("
 $categories = $conn->query("SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC");
 $stock_products = $conn->query("SELECT product_id,product_name,stock_qty,unit FROM products ORDER BY product_name ASC");
 $stock_history = $conn->query("SELECT sa.*,p.product_name,u.full_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id ORDER BY sa.adjustment_id DESC LIMIT 8");
+$pending_invoices = $conn->query("SELECT sa.*,p.product_name,p.unit,u.full_name received_by_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE sa.adjustment_type='stock_in' AND sa.invoice_status='pending' ORDER BY sa.created_at ASC");
 
 /* Counts */
 $total_active   = $conn->query("SELECT COUNT(*) AS v FROM products WHERE status=1")->fetch_assoc()['v'];
@@ -321,6 +344,32 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
         </div>
     </div>
 
+    <?php if($pending_invoices && $pending_invoices->num_rows): ?>
+    <section class="card" style="margin-bottom:18px;border:1.5px solid #f6c56f">
+        <div class="card-head"><h4><i class="fa-solid fa-file-circle-exclamation"></i> Pending Supplier Invoices</h4><span class="count-badge"><?php echo $pending_invoices->num_rows; ?> waiting</span></div>
+        <div class="panel-help"><i class="fa-solid fa-circle-info"></i> These quantities are already in stock. Completing an invoice records its purchase cost and expense only—it will not add stock again.</div>
+        <div class="card-body" style="display:grid;gap:12px">
+        <?php while($pi=$pending_invoices->fetch_assoc()): ?>
+            <form method="post" style="border:1px solid var(--border);border-radius:10px;padding:13px;background:#fafcfd">
+                <input type="hidden" name="adjustment_id" value="<?php echo (int)$pi['adjustment_id']; ?>">
+                <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap"><strong><?php echo htmlspecialchars($pi['product_name']); ?> — <?php echo number_format((float)$pi['quantity'],3); ?> <?php echo htmlspecialchars($pi['unit']); ?></strong><span class="muted">Received <?php echo date('d M Y, h:i A',strtotime($pi['created_at'])); ?><?php if($pi['note']): ?> · <?php echo htmlspecialchars($pi['note']); ?><?php endif; ?></span></div>
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:9px">
+                    <div class="field"><label>Supplier Code</label><input class="inp" name="pending_supplier_code" placeholder="SUP-001"></div>
+                    <div class="field"><label>Supplier Name *</label><input class="inp" name="pending_supplier_name" required></div>
+                    <div class="field"><label>Supplier Phone</label><input class="inp" name="pending_supplier_phone"></div>
+                    <div class="field"><label>Invoice Number *</label><input class="inp" name="pending_supplier_invoice" required></div>
+                    <div class="field"><label>Invoice Date *</label><input class="inp" type="date" name="pending_invoice_date" value="<?php echo date('Y-m-d'); ?>" required></div>
+                    <div class="field"><label>Actual Cost Per Item *</label><input class="inp" type="number" min="0.01" step="0.01" name="pending_unit_cost" required></div>
+                    <div class="field"><label>Payment Method</label><select class="inp" name="pending_payment_method"><option>Cash</option><option>Card</option><option>Bank Transfer</option><option>Cheque</option><option>Credit</option></select></div>
+                    <div class="field"><label style="display:flex;gap:7px;align-items:center;margin-top:26px;text-transform:none;letter-spacing:0"><input type="checkbox" name="pending_paid" value="1"> Invoice already paid</label></div>
+                </div>
+                <button class="btn-primary" name="finalize_pending_invoice" style="margin-top:10px" onclick="return confirm('Complete this invoice without changing the stock quantity?')"><i class="fa-solid fa-file-circle-check"></i> Complete Invoice &amp; Record Expense</button>
+            </form>
+        <?php endwhile; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <section class="card stock-manager collapsible-panel <?php echo isset($_POST['adjust_stock'])?'panel-open':''; ?>" id="stockPanel">
         <div class="card-head"><h4><i class="fa-solid fa-warehouse"></i> Correct Existing Stock</h4><button type="button" class="panel-close" onclick="closeInventoryPanel('stockPanel')"><i class="fa-solid fa-xmark"></i> Close</button></div>
         <div class="panel-help"><i class="fa-solid fa-circle-info"></i> Select the product, choose what happened, enter the quantity, and click Save Stock Change.</div>
@@ -330,7 +379,7 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
                 <div class="field"><label>What happened?</label><select name="stock_action" id="stockAction" class="inp" onchange="updateStockFormHelp()"><option value="stock_in">Stock was added</option><option value="stock_out">Stock was removed / damaged</option><option value="set">Correct to an exact quantity</option></select></div>
                 <div class="field"><label id="stockQtyLabel">Quantity added</label><input type="number" name="stock_quantity" class="inp" min="0" step="1" placeholder="Enter quantity" required></div>
                 <div class="field" id="costField"><label>Cost per item (optional)</label><input type="number" name="purchase_unit_cost" class="inp" min="0" step="0.01" placeholder="Leave empty to keep current cost"></div>
-                <div class="field stock-note"><label>Reason / Reference</label><input type="text" name="stock_note" class="inp" maxlength="255" placeholder="e.g. Count correction or damaged item"></div>
+                <div class="field stock-note"><label>Reason / Reference</label><input type="text" name="stock_note" class="inp" maxlength="255" placeholder="e.g. Delivery note or temporary reference"><label style="display:flex;gap:7px;align-items:center;margin-top:8px;text-transform:none;letter-spacing:0"><input type="checkbox" name="invoice_pending" value="1"> Supplier invoice/details will be added later</label></div>
                 <button type="submit" name="adjust_stock" class="btn-primary"><i class="fa-solid fa-check"></i> Save Stock Change</button>
             </form>
         </div>

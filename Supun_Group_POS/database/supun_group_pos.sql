@@ -158,9 +158,16 @@ CREATE TABLE stock_adjustments (
   unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   note VARCHAR(255) NULL,
+  invoice_status ENUM('not_required','pending','finalized') NOT NULL DEFAULT 'not_required',
+  supplier_id INT UNSIGNED NULL,
+  purchase_id BIGINT UNSIGNED NULL,
+  supplier_invoice VARCHAR(80) NULL,
+  invoice_date DATE NULL,
+  finalized_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_stock_adjustments_product (product_id),
   INDEX idx_stock_adjustments_created (created_at),
+  INDEX idx_stock_adjustments_invoice_status (invoice_status),
   CONSTRAINT fk_stock_adjustment_product FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
   CONSTRAINT fk_stock_adjustment_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
