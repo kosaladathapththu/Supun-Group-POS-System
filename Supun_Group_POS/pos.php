@@ -805,6 +805,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .installment-box{border:1px solid #a7f3d0;border-radius:7px;background:#f0fdf4;padding:8px;margin-bottom:9px}.installment-box summary{cursor:pointer;color:#047857;font-size:11px;font-weight:900}.installment-box p{font-size:9px;color:var(--text-muted);margin:6px 0}
 .advance-auto-note{font-size:9px;line-height:1.35;color:#175cd3;background:#eff8ff;border-radius:6px;padding:7px;margin-top:6px;font-weight:800}
 .payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0}.payment-choice{min-height:72px;border:1.5px solid;border-radius:8px;padding:8px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:'Nunito',sans-serif}.payment-choice i{font-size:16px}.payment-choice strong{font-size:11px}.payment-choice small{font-size:8px;line-height:1.2}.advance-choice{background:#fff7ed;border-color:#fb923c;color:#c2410c}.full-choice{background:#ecfdf5;border-color:#34d399;color:#047857}.payment-choice:hover{filter:brightness(.97);transform:translateY(-1px)}.payment-modal{width:430px}.simple-payment-box .advance-control{margin-bottom:4px}
+.payment-summary{background:#f8fafc;border:1px solid #dbe2ea;border-radius:8px;padding:8px;margin:9px 0}.payment-summary>div{display:flex;justify-content:space-between;gap:10px;padding:4px 2px;font-size:11px;color:var(--text-mid)}.payment-summary .remaining{border-top:1px dashed #94a3b8;margin-top:4px;padding-top:8px;color:#047857;font-size:13px;font-weight:900}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
@@ -1353,16 +1354,18 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <div class="advance-tabs"><button type="button" class="advance-tab active" id="existingPaymentTab" onclick="setPaymentCustomerMode('existing')">Selected Customer</button><button type="button" class="advance-tab" id="newPaymentTab" onclick="setPaymentCustomerMode('new')">New Customer</button></div>
         <form method="post" id="existingPaymentForm">
             <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>"><input type="hidden" name="checkout_customer_id" id="modalCustomerId" value="0">
-            <div class="mf"><label>Amount received *</label><div class="advance-money"><span>Rs.</span><input type="number" name="installment_amount" min="0.01" step="0.01" required placeholder="0.00"></div></div>
+            <div class="mf"><label>Amount received *</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalInstallmentAmount" name="installment_amount" min="0.01" step="0.01" required placeholder="0.00" oninput="updatePaymentModalSummary()"></div></div>
             <div class="mf"><label>Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div>
+            <div class="payment-summary"><div><span>Bill total</span><strong>Rs. <span data-modal-bill-total>0.00</span></strong></div><div><span>Previously paid</span><strong>Rs. <span data-modal-previous>0.00</span></strong></div><div><span>This payment</span><strong>Rs. <span data-modal-current>0.00</span></strong></div><div class="remaining"><span>Remaining after payment</span><strong>Rs. <span data-modal-remaining>0.00</span></strong></div></div>
             <button class="m-sub green" name="add_checkout_installment"><i class="fa-solid fa-floppy-disk"></i> Save Payment &amp; Print Receipt</button>
         </form>
         <form method="post" id="newPaymentForm" style="display:none;">
             <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
             <div class="mf"><label>Customer name *</label><input class="advance-control" name="advance_customer_name" required placeholder="Customer / business name"></div>
             <div class="mf"><label>Phone number</label><input class="advance-control" name="advance_customer_phone" placeholder="Phone number"></div>
-            <div class="mf"><label>First payment *</label><div class="advance-money"><span>Rs.</span><input type="number" name="new_advance_amount" min="0.01" step="0.01" required placeholder="0.00"></div></div>
+            <div class="mf"><label>First payment *</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalNewPaymentAmount" name="new_advance_amount" min="0.01" step="0.01" required placeholder="0.00" oninput="updatePaymentModalSummary()"></div></div>
             <div class="mf"><label>Payment method</label><select class="advance-control" name="new_advance_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div>
+            <div class="payment-summary"><div><span>Bill total</span><strong>Rs. <span data-modal-bill-total>0.00</span></strong></div><div><span>Previously paid</span><strong>Rs. <span data-modal-previous>0.00</span></strong></div><div><span>This payment</span><strong>Rs. <span data-modal-current>0.00</span></strong></div><div class="remaining"><span>Remaining after payment</span><strong>Rs. <span data-modal-remaining>0.00</span></strong></div></div>
             <button class="m-sub green" name="create_checkout_advance"><i class="fa-solid fa-user-plus"></i> Create Customer &amp; Save Payment</button>
         </form>
     </div>
@@ -1594,6 +1597,24 @@ function setPaymentCustomerMode(mode) {
     document.getElementById('newPaymentForm').style.display = isNew ? 'block' : 'none';
     document.getElementById('existingPaymentTab').classList.toggle('active', !isNew);
     document.getElementById('newPaymentTab').classList.toggle('active', isNew);
+    updatePaymentModalSummary();
+}
+
+function updatePaymentModalSummary() {
+    const select = document.getElementById('checkoutCustomerId');
+    const previous = Math.min(GT, Math.max(0, parseFloat(select?.options[select.selectedIndex]?.dataset.balance) || 0));
+    document.querySelectorAll('.payment-summary').forEach(summary => {
+        const isNew = summary.closest('form')?.id === 'newPaymentForm';
+        const paidBefore = isNew ? 0 : previous;
+        const input = document.getElementById(isNew ? 'modalNewPaymentAmount' : 'modalInstallmentAmount');
+        const current = Math.max(0, parseFloat(input?.value) || 0);
+        const dueBefore = Math.max(0, GT - paidBefore);
+        if (input) input.max = dueBefore.toFixed(2);
+        summary.querySelector('[data-modal-bill-total]').textContent = GT.toFixed(2);
+        summary.querySelector('[data-modal-previous]').textContent = paidBefore.toFixed(2);
+        summary.querySelector('[data-modal-current]').textContent = current.toFixed(2);
+        summary.querySelector('[data-modal-remaining]').textContent = Math.max(0, dueBefore - current).toFixed(2);
+    });
 }
 
 function openPaymentModal() {
@@ -1602,6 +1623,7 @@ function openPaymentModal() {
     document.getElementById('modalCustomerId').value = customerId;
     document.getElementById('paymentModalCustomer').textContent = customerId > 0 ? select.options[select.selectedIndex].textContent : 'No customer selected — create a new customer';
     setPaymentCustomerMode(customerId > 0 ? 'existing' : 'new');
+    updatePaymentModalSummary();
     document.getElementById('paymentOverlay').classList.add('show');
 }
 
