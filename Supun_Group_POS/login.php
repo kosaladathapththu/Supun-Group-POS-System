@@ -530,8 +530,8 @@ body::after {
                             <i class="fa-solid fa-gauge-high"></i>
                         </div>
                         <div>
-                            <div class="cc-title">Owner Dashboard</div>
-                            <div class="cc-sub">Reports, settings &amp; management</div>
+                            <div class="cc-title">Management Dashboard</div>
+                            <div class="cc-sub">Reports, accounts and management</div>
                         </div>
                     </button>
                 </form>

@@ -896,7 +896,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         </button>
 
       <a href="cashier_products.php" class="tb-btn btn-owner">
-    <i class="fa-solid fa-box"></i> Products
+    <i class="fa-solid fa-boxes-stacked"></i> Add Stock
 </a>
 
         <div class="cashier-pill">

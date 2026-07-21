@@ -23,7 +23,7 @@ CREATE TABLE users (
   full_name VARCHAR(120) NOT NULL,
   username VARCHAR(60) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  role ENUM('admin','manager','cashier') NOT NULL DEFAULT 'cashier',
+  role ENUM('admin','accountant','cashier') NOT NULL DEFAULT 'cashier',
   status TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -251,7 +251,7 @@ CREATE TABLE purchase_payments (
 
 INSERT INTO users (full_name,username,password,role,status) VALUES
 ('System Administrator','admin','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','admin',1),
-('Store Manager','manager','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','manager',1),
+('Store Accountant','accountant','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','accountant',1),
 ('Shop Cashier','cashier','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','cashier',1);
 
 INSERT INTO categories (category_name) VALUES

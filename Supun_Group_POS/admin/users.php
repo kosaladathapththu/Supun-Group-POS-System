@@ -13,7 +13,7 @@ if (isset($_POST["add_user"])) {
     $full  = trim($_POST["full_name"]);
     $uname = trim($_POST["username"]);
     $pass  = $_POST["password"];
-    $role  = in_array($_POST["role"], ['admin','manager','cashier']) ? $_POST["role"] : 'cashier';
+    $role  = in_array($_POST["role"], ['admin','accountant','cashier']) ? $_POST["role"] : 'cashier';
     $stat  = (int)($_POST["status"] ?? 1);
 
     if ($full && $uname && $pass) {
@@ -36,7 +36,7 @@ if (isset($_POST["edit_user"])) {
     $id    = (int)$_POST["user_id"];
     $full  = trim($_POST["full_name"]);
     $uname = trim($_POST["username"]);
-    $role  = in_array($_POST["role"], ['admin','manager','cashier']) ? $_POST["role"] : 'cashier';
+    $role  = in_array($_POST["role"], ['admin','accountant','cashier']) ? $_POST["role"] : 'cashier';
     $stat  = (int)($_POST["status"] ?? 1);
     $npass = trim($_POST["new_password"] ?? "");
 
@@ -96,7 +96,7 @@ if (isset($_GET["edit"])) {
 
 $total_users    = $conn->query("SELECT COUNT(*) AS v FROM users WHERE status=1")->fetch_assoc()['v'];
 $total_admin    = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='admin'")->fetch_assoc()['v'];
-$total_manager  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='manager'")->fetch_assoc()['v'];
+$total_accountant = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='accountant'")->fetch_assoc()['v'];
 $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cashier'")->fetch_assoc()['v'];
 ?>
 <!DOCTYPE html>
@@ -122,7 +122,7 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
     <div class="page-header">
         <div>
             <h2 class="page-title-h"><i class="fa-solid fa-users"></i> Staff &amp; Users</h2>
-            <p class="page-sub">Owner-only control for managers, cashiers and administrator accounts</p>
+            <p class="page-sub">Admin-only control for accountants, cashiers and administrator accounts</p>
         </div>
     </div>
 
@@ -135,7 +135,7 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
     <?php endif; ?>
 
     <!-- Stat Strip -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
         <div class="stat-tile">
             <div class="st-icon" style="background:var(--primary-lt);color:var(--primary);"><i class="fa-solid fa-users"></i></div>
             <div><div class="st-val"><?php echo $total_users; ?></div><div class="st-lbl">Active Users</div></div>
@@ -143,6 +143,10 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
         <div class="stat-tile">
             <div class="st-icon" style="background:var(--primary-lt);color:var(--primary);"><i class="fa-solid fa-shield-halved"></i></div>
             <div><div class="st-val"><?php echo $total_admin; ?></div><div class="st-lbl">Owners / Admins</div></div>
+        </div>
+        <div class="stat-tile">
+            <div class="st-icon" style="background:var(--green-lt);color:var(--green);"><i class="fa-solid fa-calculator"></i></div>
+            <div><div class="st-val"><?php echo $total_accountant; ?></div><div class="st-lbl">Accountants</div></div>
         </div>
         <div class="stat-tile">
             <div class="st-icon" style="background:var(--indigo-lt);color:var(--indigo);"><i class="fa-solid fa-cash-register"></i></div>
@@ -219,8 +223,8 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                                 <option value="admin" <?php echo ($edit_user && $edit_user['role']=='admin')?'selected':''; ?>>
                                     Admin (Owner)
                                 </option>
-                                <option value="manager" <?php echo ($edit_user && $edit_user['role']=='manager')?'selected':''; ?>>
-                                    Manager
+                                <option value="accountant" <?php echo ($edit_user && $edit_user['role']=='accountant')?'selected':''; ?>>
+                                    Accountant
                                 </option>
                             </select>
                         </div>
@@ -311,8 +315,8 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                             <td>
                                 <?php if ($u['role'] === 'admin'): ?>
                                     <span class="badge b-orange"><i class="fa-solid fa-shield-halved"></i> Owner</span>
-                                <?php elseif ($u['role'] === 'manager'): ?>
-                                    <span class="badge b-green"><i class="fa-solid fa-user-tie"></i> Manager</span>
+                                <?php elseif ($u['role'] === 'accountant'): ?>
+                                    <span class="badge b-green"><i class="fa-solid fa-calculator"></i> Accountant</span>
                                 <?php else: ?>
                                     <span class="badge b-indigo"><i class="fa-solid fa-cash-register"></i> Cashier</span>
                                 <?php endif; ?>
