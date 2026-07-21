@@ -8,6 +8,55 @@ reconcileClosedOrderAdvances($conn);
 
 $message = ''; $message_type = 'success';
 $methods = ['Cash','Card','QR','Bank Transfer'];
+if (isset($_POST['complete_order'])) {
+    $order_id = (int)($_POST['order_id'] ?? 0);
+    $method = trim($_POST['settlement_method'] ?? 'Cash');
+    $received = round((float)($_POST['settlement_received'] ?? 0), 2);
+    if (!in_array($method, $methods, true)) $method = 'Cash';
+    $conn->begin_transaction();
+    try {
+        $oq = $conn->query("SELECT order_id,customer_id,total_amount FROM orders WHERE order_id=$order_id AND order_status='open' FOR UPDATE");
+        $order = $oq ? $oq->fetch_assoc() : null;
+        if (!$order || (int)$order['customer_id'] <= 0) throw new Exception('This open customer order was not found.');
+        $customer_id = (int)$order['customer_id'];
+        $total = round((float)$order['total_amount'], 2);
+        $dq = $conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE order_id=$order_id AND customer_id=$customer_id AND transaction_type='deposit' AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
+        $deposits = []; $advance_used = 0.0;
+        while ($dq && $d = $dq->fetch_assoc()) { $deposits[] = $d; $advance_used += (float)$d['remaining_amount']; }
+        $advance_used = min($total, round($advance_used, 2));
+        $amount_due = max(0, round($total - $advance_used, 2));
+        if ($method === 'Cash' && $received + 0.0001 < $amount_due) throw new Exception('Enter at least Rs. '.number_format($amount_due,2).' to complete this payment.');
+        if ($method !== 'Cash') $received = $amount_due;
+
+        $to_allocate = $advance_used; $uid = (int)$_SESSION['user_id'];
+        foreach ($deposits as $d) {
+            if ($to_allocate <= 0.0001) break;
+            $source_id = (int)$d['transaction_id'];
+            $applied = min($to_allocate, (float)$d['remaining_amount']);
+            $remaining = max(0, (float)$d['remaining_amount'] - $applied);
+            $status = $remaining <= 0.0001 ? 'settled' : 'partial';
+            $conn->query("UPDATE advance_payment_transactions SET remaining_amount=$remaining,settlement_status='$status' WHERE transaction_id=$source_id");
+            $receipt = nextAdvanceReceipt($conn); $note = 'Applied when final payment was completed';
+            $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)");
+            $stmt->bind_param('siiidsi', $receipt,$customer_id,$order_id,$source_id,$applied,$note,$uid);
+            if (!$stmt->execute()) throw new Exception($stmt->error);
+            $stmt->close(); $to_allocate -= $applied;
+        }
+        if ($advance_used > 0) {
+            $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance-?) WHERE customer_id=?');
+            $stmt->bind_param('di',$advance_used,$customer_id); $stmt->execute(); $stmt->close();
+        }
+        $change = max(0, round($received - $amount_due, 2));
+        $stored_method = $advance_used >= $total && $total > 0 ? 'Credit' : $method;
+        $stmt=$conn->prepare("UPDATE orders SET advance_used=?,payment_method=?,cash_given=?,balance=?,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=? AND order_status='open'");
+        $stmt->bind_param('dsddi',$advance_used,$stored_method,$received,$change,$order_id);
+        if (!$stmt->execute() || $stmt->affected_rows !== 1) throw new Exception('The order could not be completed.');
+        $stmt->close(); $conn->commit();
+        header("Location: print_bill.php?order_id=$order_id"); exit;
+    } catch (Throwable $e) {
+        $conn->rollback(); $message='Could not complete payment: '.$e->getMessage(); $message_type='error';
+    }
+}
 if (isset($_POST['save_advance'])) {
     $customer_id = (int)($_POST['customer_id'] ?? 0);
     $name = trim($_POST['customer_name'] ?? '');
@@ -54,7 +103,8 @@ $search = trim($_GET['search'] ?? '');
 $where = $search === '' ? '1=1' : "(c.customer_name LIKE '%".$conn->real_escape_string($search)."%' OR c.phone LIKE '%".$conn->real_escape_string($search)."%' OR c.account_number LIKE '%".$conn->real_escape_string($search)."%')";
 $customers = $conn->query("SELECT c.*,COUNT(t.transaction_id) transaction_count FROM customer_accounts c LEFT JOIN advance_payment_transactions t ON t.customer_id=c.customer_id WHERE $where GROUP BY c.customer_id ORDER BY c.customer_name");
 $select_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
-$transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,u.full_name,o.order_number,o.order_status,
+$transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,c.phone,u.full_name,o.order_number,o.order_status,o.total_amount,
+    (SELECT COALESCE(SUM(x.remaining_amount),0) FROM advance_payment_transactions x WHERE x.order_id=COALESCE(t.order_id,o.order_id) AND x.customer_id=t.customer_id AND x.transaction_type='deposit') order_advance,
     COALESCE(t.order_id,(SELECT o2.order_id FROM orders o2 WHERE o2.customer_id=t.customer_id AND o2.order_status='open' ORDER BY o2.order_id DESC LIMIT 1)) settlement_order_id
     FROM advance_payment_transactions t JOIN customer_accounts c ON c.customer_id=t.customer_id LEFT JOIN users u ON u.user_id=t.created_by LEFT JOIN orders o ON o.order_id=t.order_id ORDER BY t.transaction_id DESC LIMIT 100");
 $summary = $conn->query("SELECT COUNT(*) customers,COALESCE(SUM(advance_balance),0) balance FROM customer_accounts WHERE status=1")->fetch_assoc();
