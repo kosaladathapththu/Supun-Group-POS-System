@@ -388,6 +388,29 @@ if (isset($_GET["clear"]) && $current_order_id > 0) {
 /* =========================================================
    CREATE CUSTOMER ADVANCE FROM CHECKOUT
 ========================================================= */
+if (isset($_POST['add_checkout_installment'])) {
+    $order_id=(int)($_POST['order_id']??0); $customer_id=(int)($_POST['checkout_customer_id']??0);
+    $amount=round((float)($_POST['installment_amount']??0),2); $method=trim($_POST['installment_method']??'Cash');
+    $allowed_advance_methods=['Cash','Card','QR','Bank Transfer'];
+    if(!in_array($method,$allowed_advance_methods,true)) $method='Cash';
+    if($order_id<=0||$customer_id<=0||$amount<=0){header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
+    $conn->begin_transaction();
+    try{
+        $customer_result=$conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE");
+        $customer=$customer_result?$customer_result->fetch_assoc():null;
+        if(!$customer) throw new Exception('Customer account not found.');
+        $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance+? WHERE customer_id=?');$stmt->bind_param('di',$amount,$customer_id);$stmt->execute();$stmt->close();
+        $receipt=nextAdvanceReceipt($conn);$uid=(int)$_SESSION['user_id'];$note='Additional installment received at POS';
+        $stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
+        $stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$amount,$amount,$method,$note,$uid);
+        if(!$stmt->execute()) throw new Exception($stmt->error);
+        $transaction_id=$conn->insert_id;$stmt->close();
+        $name_safe=esc($conn,$customer['customer_name']);
+        $conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'");
+        $conn->commit();header("Location: print_advance.php?transaction_id=$transaction_id&return_order=$order_id");exit;
+    }catch(Throwable $e){$conn->rollback();header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
+}
+
 if (isset($_POST['create_checkout_advance'])) {
     $order_id = (int)($_POST['order_id'] ?? 0);
     $name = trim($_POST['advance_customer_name'] ?? '');
@@ -1236,6 +1259,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             </select>
                             <div class="advance-balance-row"><span id="advanceAvailable">Available balance: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></strong></span><span>Enter how much to use below</span></div>
                             <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Print Latest Advance Receipt</a>
+                            <details class="installment-box"><summary><i class="fa-solid fa-circle-plus"></i> Receive 2nd / 3rd Payment</summary><p>Record another payment for this same customer and order.</p><div class="advance-two"><div><label class="advance-label">Payment amount</label><div class="advance-money"><span>Rs.</span><input type="number" name="installment_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div></div><button type="submit" name="add_checkout_installment" class="create-advance-btn" formnovalidate><i class="fa-solid fa-floppy-disk"></i> Save This Payment &amp; Print Receipt</button></details>
                             <label class="advance-label">Advance amount to use for this bill</label>
                             <div class="advance-money"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" step="0.01" min="0" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00" placeholder="0.00" oninput="updateOrderFees()"></div>
                             <div class="advance-due"><span>Remaining amount to pay</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
