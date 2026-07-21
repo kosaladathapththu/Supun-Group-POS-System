@@ -545,7 +545,9 @@ $products = $conn->query($product_sql);
 
 $open_orders = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' ORDER BY o.order_id DESC");
 $advance_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
-$checkout_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
+$checkout_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,
+    (SELECT t.transaction_id FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.transaction_type='deposit' ORDER BY t.transaction_id DESC LIMIT 1) latest_advance_receipt_id
+    FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name");
 
 /* =========================================================
    LOAD CURRENT ORDER
@@ -1216,10 +1218,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
                                 <option value="0" data-balance="0">Choose customer name / account</option>
                                 <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
-                                <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
+                                <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" data-receipt-id="<?php echo (int)($ac['latest_advance_receipt_id']??0); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
                                 <?php endwhile; endif; ?>
                             </select>
                             <div class="advance-balance-row"><span id="advanceAvailable">Available balance: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></strong></span><span>Enter how much to use below</span></div>
+                            <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Print Latest Advance Receipt</a>
                             <label class="advance-label">Advance amount to use for this bill</label>
                             <div class="advance-money"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" step="0.01" min="0" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00" placeholder="0.00" oninput="updateOrderFees()"></div>
                             <div class="advance-due"><span>Remaining amount to pay</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
