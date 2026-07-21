@@ -910,6 +910,13 @@ body.format-a4 .paid-seal small { font-size:9px; }
             <td class="sep-col">:</td>
             <td class="val"><?php echo htmlspecialchars($pm); ?></td>
         </tr>
+        <?php if (!empty($order['payment_reference'])): ?>
+        <tr>
+            <td class="lbl">Reference</td>
+            <td class="sep-col">:</td>
+            <td class="val"><?php echo htmlspecialchars($order['payment_reference']); ?></td>
+        </tr>
+        <?php endif; ?>
     </table>
 
     <div class="sep-eq">--------------------------------</div>
