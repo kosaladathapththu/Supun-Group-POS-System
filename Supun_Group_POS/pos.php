@@ -1228,7 +1228,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             <p class="advance-help">Create a customer account and receive their advance deposit now. After saving, it will be selected for this sale.</p>
                             <div class="advance-two"><div><label class="advance-label">Customer name *</label><input class="advance-control" name="advance_customer_name" placeholder="Customer / business name"></div><div><label class="advance-label">Phone</label><input class="advance-control" name="advance_customer_phone" placeholder="Phone number"></div></div>
                             <div class="advance-two"><div><label class="advance-label">Advance received *</label><div class="advance-money"><span>Rs.</span><input type="number" name="new_advance_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Received by</label><select class="advance-control" name="new_advance_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div></div>
-                            <button type="submit" name="create_checkout_advance" class="create-advance-btn"><i class="fa-solid fa-wallet"></i> Create Account &amp; Save Advance</button>
+                            <button type="submit" name="create_checkout_advance" class="create-advance-btn" formnovalidate><i class="fa-solid fa-wallet"></i> Create Account &amp; Save Advance</button>
                         </div>
                     </div>
 
@@ -1466,8 +1466,16 @@ function selectAdvanceCustomer() {
     const balance = Math.max(0, parseFloat(select.options[select.selectedIndex]?.dataset.balance) || 0);
     input.max = balance.toFixed(2);
     if ((parseFloat(input.value) || 0) > balance || select.value === '0') input.value = '0.00';
-    if (label) label.textContent = 'Available: Rs. ' + balance.toFixed(2);
+    if (label) label.innerHTML = 'Available balance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     updateOrderFees();
+}
+
+function showAdvanceMode(mode) {
+    const isNew = mode === 'new';
+    document.getElementById('existingAdvancePanel').style.display = isNew ? 'none' : 'block';
+    document.getElementById('newAdvancePanel').style.display = isNew ? 'block' : 'none';
+    document.getElementById('existingAdvanceTab').classList.toggle('active', !isNew);
+    document.getElementById('newAdvanceTab').classList.toggle('active', isNew);
 }
 
 function updateOrderFees() {
@@ -1508,6 +1516,8 @@ function updateOrderFees() {
     if (totalEl) totalEl.textContent = GT.toFixed(2);
     if (discountEl) discountEl.textContent = discount.toFixed(2);
     if (discountSummary) discountSummary.style.display = discount > 0 ? 'flex' : 'none';
+    const remainingEl = document.getElementById('remainingAfterAdvance');
+    if (remainingEl) remainingEl.textContent = AMOUNT_DUE.toFixed(2);
 
     const pm = document.getElementById('pm_val')?.value || 'Cash';
     const ci = document.getElementById('cash_given');
@@ -1998,6 +2008,7 @@ function bindOrderForm() {
     oForm.dataset.bound = "1";
 
     oForm.addEventListener('submit', function(e) {
+        if (e.submitter && e.submitter.name === 'create_checkout_advance') return;
         const m = document.getElementById('pm_val')?.value || 'Cash';
         const given = parseFloat(document.getElementById('cash_given')?.value) || 0;
         const collect = given || AMOUNT_DUE;
