@@ -411,7 +411,7 @@ if (isset($_POST['create_checkout_advance'])) {
 
         $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Advance received at POS checkout';
         $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,?,?)");
-        $stmt->bind_param('sidsi', $receipt, $customer_id, $amount, $method, $note, $uid);
+        $stmt->bind_param('sidssi', $receipt, $customer_id, $amount, $method, $note, $uid);
         if (!$stmt->execute()) throw new Exception($stmt->error);
         $stmt->close();
 
@@ -2033,6 +2033,7 @@ window.addEventListener("load", function () {
     bindPaySection();
     bindOrderForm();
     updateOrderFees();
+    <?php if ($advance_error): ?>showAdvanceMode('new');<?php endif; ?>
 
     if (GT > 0) {
         sendToCustomerDisplay(GT, "TOTAL");

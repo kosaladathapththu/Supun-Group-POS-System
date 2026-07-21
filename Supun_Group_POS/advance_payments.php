@@ -38,7 +38,7 @@ if (isset($_POST['save_advance'])) {
             $stmt->bind_param('di', $amount, $customer_id); $stmt->execute(); $stmt->close();
             $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id'];
             $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,?,?)");
-            $stmt->bind_param('sidsi', $receipt, $customer_id, $amount, $method, $note, $uid);
+            $stmt->bind_param('sidssi', $receipt, $customer_id, $amount, $method, $note, $uid);
             if (!$stmt->execute()) throw new Exception($stmt->error);
             $stmt->close(); $conn->commit();
             $message = "Advance payment saved. Receipt: $receipt";
