@@ -48,6 +48,7 @@ $pm_map  = [
     'Card'          => ['b-indigo', 'fa-credit-card'],
     'QR'            => ['b-amber',  'fa-qrcode'],
     'Bank Transfer' => ['b-sky',    'fa-building-columns'],
+    'Cheque'        => ['b-amber',  'fa-money-check-dollar'],
 ];
 ?>
 <!DOCTYPE html>
@@ -300,6 +301,7 @@ $pm_map  = [
                     <option value="Card"          <?php echo $filter_pm=='Card'?'selected':''; ?>>Card</option>
                     <option value="QR"            <?php echo $filter_pm=='QR'?'selected':''; ?>>QR</option>
                     <option value="Bank Transfer" <?php echo $filter_pm=='Bank Transfer'?'selected':''; ?>>Bank Transfer</option>
+                    <option value="Cheque"        <?php echo $filter_pm=='Cheque'?'selected':''; ?>>Cheque</option>
                 </select>
             </div>
 

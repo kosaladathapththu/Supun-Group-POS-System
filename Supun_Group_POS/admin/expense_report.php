@@ -403,8 +403,8 @@ while ($r = $all_cats_q->fetch_assoc()) $all_cats[] = $r['category'];
                     if ($top10 && $top10->num_rows > 0):
                         while ($ex = $top10->fetch_assoc()):
                             $rank++;
-                            $pm_cls = ['Cash'=>'b-green','Card'=>'b-indigo','Bank Transfer'=>'b-sky','Other'=>'b-amber'][$ex['payment_method']] ?? 'b-amber';
-                            $pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','Bank Transfer'=>'fa-building-columns','Other'=>'fa-circle-dot'][$ex['payment_method']] ?? 'fa-circle-dot';
+                            $pm_cls = ['Cash'=>'b-green','Card'=>'b-indigo','Bank Transfer'=>'b-sky','Cheque'=>'b-amber','Other'=>'b-amber'][$ex['payment_method']] ?? 'b-amber';
+                            $pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','Bank Transfer'=>'fa-building-columns','Cheque'=>'fa-money-check-dollar','Other'=>'fa-circle-dot'][$ex['payment_method']] ?? 'fa-circle-dot';
                     ?>
                     <tr>
                         <td>

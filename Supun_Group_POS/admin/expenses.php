@@ -451,12 +451,14 @@ $report_from=$f_month?$f_month.'-01':date('Y-m-01');$report_to=$f_month?date('Y-
                                     'Cash'         => 'pm-cash',
                                     'Card'         => 'pm-card',
                                     'Bank Transfer'=> 'pm-bank',
+                                    'Cheque'       => 'pm-bank',
                                     'Other'        => 'pm-other',
                                 ][$ex['payment_method']] ?? 'pm-other';
                                 $pm_ico = [
                                     'Cash'         => 'fa-money-bill-wave',
                                     'Card'         => 'fa-credit-card',
                                     'Bank Transfer'=> 'fa-building-columns',
+                                    'Cheque'       => 'fa-money-check-dollar',
                                     'Other'        => 'fa-circle-dot',
                                 ][$ex['payment_method']] ?? 'fa-circle-dot';
                         ?>

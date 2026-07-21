@@ -127,8 +127,8 @@ $orders_list = $conn->query("
 ");
 
 /* PM icon map */
-$pm_icons = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns'];
-$pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer'=>'b-sky'];
+$pm_icons = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns','Cheque'=>'fa-money-check-dollar'];
+$pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer'=>'b-sky','Cheque'=>'b-amber'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -219,6 +219,7 @@ $pm_cls   = ['Cash'=>'b-green','Card'=>'b-indigo','QR'=>'b-amber','Bank Transfer
                         <option value="Card"          <?php echo $filter_pm=='Card'?'selected':''; ?>>Card</option>
                         <option value="QR"            <?php echo $filter_pm=='QR'?'selected':''; ?>>QR</option>
                         <option value="Bank Transfer" <?php echo $filter_pm=='Bank Transfer'?'selected':''; ?>>Bank Transfer</option>
+                        <option value="Cheque" <?php echo $filter_pm=='Cheque'?'selected':''; ?>>Cheque</option>
                     </select>
                 </div>
                 <div class="ff">

@@ -33,6 +33,7 @@ $pm_map = [
     'Card'          => ['b-indigo', 'fa-credit-card'],
     'QR'            => ['b-amber',  'fa-qrcode'],
     'Bank Transfer' => ['b-sky',    'fa-building-columns'],
+    'Cheque'        => ['b-amber',  'fa-money-check-dollar'],
 ];
 $pm_c      = $pm_map[$o['payment_method']] ?? ['b-green', 'fa-money-bill'];
 $bal       = (float)$o['balance'];

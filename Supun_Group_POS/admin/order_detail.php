@@ -14,8 +14,8 @@ $items = $conn->query("
     WHERE oi.order_id = $id
 ");
 
-$pm_cls = ['Cash'=>'bp-cash','Card'=>'bp-card','QR'=>'bp-qr','Bank Transfer'=>'bp-bank'];
-$pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns'];
+$pm_cls = ['Cash'=>'bp-cash','Card'=>'bp-card','QR'=>'bp-qr','Bank Transfer'=>'bp-bank','Cheque'=>'bp-bank'];
+$pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns','Cheque'=>'fa-money-check-dollar'];
 ?>
 <style>
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}

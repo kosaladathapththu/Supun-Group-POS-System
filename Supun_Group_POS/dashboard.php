@@ -1288,8 +1288,8 @@ canvas {
                             <?php foreach ($recent_orders as $o): ?>
                                 <?php
                                 $pm = $o['payment_method'];
-                                $cls_map  = ['Cash'=>'bp-cash','Card'=>'bp-card','QR'=>'bp-qr','Bank Transfer'=>'bp-bank'];
-                                $icon_map = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns'];
+                                $cls_map  = ['Cash'=>'bp-cash','Card'=>'bp-card','QR'=>'bp-qr','Bank Transfer'=>'bp-bank','Cheque'=>'bp-bank'];
+                                $icon_map = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns','Cheque'=>'fa-money-check-dollar'];
                                 ?>
                                 <tr>
                                     <td><strong><?php echo htmlspecialchars($o['order_number'] ?: ('#' . $o['order_id'])); ?></strong></td>
