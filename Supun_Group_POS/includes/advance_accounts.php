@@ -86,3 +86,40 @@ function nextAdvanceReceipt(mysqli $conn): string
     } while ($exists && $exists->num_rows);
     return $number;
 }
+
+function reconcileClosedOrderAdvances(mysqli $conn): void
+{
+    $orders = $conn->query("SELECT DISTINCT o.order_id,o.customer_id,o.total_amount,o.advance_used,o.cash_given
+        FROM orders o JOIN advance_payment_transactions t ON t.order_id=o.order_id AND t.transaction_type='deposit' AND t.remaining_amount>0
+        WHERE o.order_status='paid' AND o.payment_status='paid'");
+    if (!$orders) return;
+    while ($order = $orders->fetch_assoc()) {
+        $order_id=(int)$order['order_id']; $customer_id=(int)$order['customer_id'];
+        $capacity=max(0,(float)$order['total_amount']-(float)$order['advance_used']);
+        if ($capacity<=0) continue;
+        $conn->begin_transaction();
+        try {
+            $deposits=$conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE order_id=$order_id AND customer_id=$customer_id AND transaction_type='deposit' AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
+            $applied_total=0.0;
+            while($capacity>0.0001 && $deposit=$deposits->fetch_assoc()) {
+                $source_id=(int)$deposit['transaction_id']; $applied=min($capacity,(float)$deposit['remaining_amount']);
+                $remaining=max(0,(float)$deposit['remaining_amount']-$applied); $status=$remaining<=0.0001?'settled':'partial';
+                $conn->query("UPDATE advance_payment_transactions SET remaining_amount=$remaining,settlement_status='$status' WHERE transaction_id=$source_id");
+                $receipt=nextAdvanceReceipt($conn); $note='Applied automatically when linked order was completed';
+                $stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,NULL)");
+                $stmt->bind_param('siiids',$receipt,$customer_id,$order_id,$source_id,$applied,$note);
+                if(!$stmt->execute()) throw new Exception($stmt->error);
+                $stmt->close(); $capacity-=$applied; $applied_total+=$applied;
+            }
+            if($applied_total>0) {
+                $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance-?) WHERE customer_id=?');
+                $stmt->bind_param('di',$applied_total,$customer_id);$stmt->execute();$stmt->close();
+                $new_advance=(float)$order['advance_used']+$applied_total;
+                $new_cash=max(0,(float)$order['total_amount']-$new_advance);
+                $stmt=$conn->prepare('UPDATE orders SET advance_used=?,cash_given=?,balance=0 WHERE order_id=?');
+                $stmt->bind_param('ddi',$new_advance,$new_cash,$order_id);$stmt->execute();$stmt->close();
+            }
+            $conn->commit();
+        } catch(Throwable $e) { $conn->rollback(); }
+    }
+}

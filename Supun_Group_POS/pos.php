@@ -510,6 +510,11 @@ if (isset($_POST["pay_order"])) {
     $discount = min($subtotal + $service_charge + $packaging_fee, $discount);
     $total_amount = max(0, $subtotal + $service_charge + $packaging_fee - $discount);
     $advance_used = 0.0;
+    if ($customer_id > 0) {
+        $linked_q = $conn->query("SELECT COALESCE(SUM(remaining_amount),0) linked_balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND order_id=$order_id AND transaction_type='deposit' AND remaining_amount>0");
+        $linked_advance = $linked_q ? (float)$linked_q->fetch_assoc()['linked_balance'] : 0;
+        $requested_advance = max($requested_advance, min($linked_advance, $total_amount));
+    }
     if ($requested_advance > 0 && $customer_id > 0) {
         $aq = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1");
         $available_advance = $aq && $aq->num_rows ? (float)$aq->fetch_assoc()['advance_balance'] : 0;

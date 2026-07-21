@@ -4,6 +4,7 @@ include 'db.php';
 require_once 'includes/advance_accounts.php';
 if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 ensureAdvancePaymentSchema($conn);
+reconcileClosedOrderAdvances($conn);
 
 $message = ''; $message_type = 'success';
 $methods = ['Cash','Card','QR','Bank Transfer'];
