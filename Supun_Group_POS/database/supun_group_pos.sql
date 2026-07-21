@@ -251,8 +251,8 @@ CREATE TABLE purchase_payments (
 
 INSERT INTO users (full_name,username,password,role,status) VALUES
 ('System Administrator','admin','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','admin',1),
-('Store Accountant','accountant','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','accountant',1),
-('Shop Cashier','cashier','$2y$10$skvzEZX78q3VcbFNASq73uT9yzC8pMsbkmqXsGTvdMxBnCqy4Qn.q','cashier',1);
+('Store Accountant','accountant','$2y$10$pjsb24.CjhgR/cYXmozfSePX6Z8y9/pXf.VCf/tgdw3MvHfHeQ8eq','accountant',1),
+('Shop Cashier','cashier','$2y$10$HCfGXAmxonE0cVkG7pSdyOIyip8jaO30DUGU17V8RFYvzeiEc1Cua','cashier',1);
 
 INSERT INTO categories (category_name) VALUES
 ('Air Conditioners'),('Refrigerators'),('Fans'),('Televisions'),('Washing Machines'),('Small Appliances');
