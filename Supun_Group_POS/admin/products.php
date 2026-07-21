@@ -666,7 +666,40 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
 </div><!-- /content -->
 </div><!-- /main -->
 
+<datalist id="supplierDirectory">
+<?php foreach($supplier_options as $supplier_option):
+    $supplier_label=implode(' · ',array_filter([$supplier_option['supplier_code'],$supplier_option['supplier_name'],$supplier_option['phone']])); ?>
+    <option value="<?php echo htmlspecialchars($supplier_label); ?>"></option>
+<?php endforeach; ?>
+</datalist>
+
 <script>
+const supplierDirectory=<?php echo json_encode($supplier_options,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;
+function supplierLabel(s){return [s.supplier_code,s.supplier_name,s.phone].filter(Boolean).join(' · ');}
+function findSupplier(value){
+    const query=(value||'').trim().toLocaleLowerCase();
+    if(!query)return null;
+    return supplierDirectory.find(s=>[supplierLabel(s),s.supplier_code,s.supplier_name,s.phone].filter(Boolean).some(v=>String(v).trim().toLocaleLowerCase()===query))||null;
+}
+function setSupplier(form,supplier){
+    form.querySelector('.supplier-id').value=supplier?supplier.supplier_id:'';
+    form.querySelector('.supplier-code').value=supplier?.supplier_code||'';
+    form.querySelector('.supplier-name').value=supplier?.supplier_name||'';
+    form.querySelector('.supplier-phone').value=supplier?.phone||'';
+    const hint=form.querySelector('.supplier-hint');
+    if(hint)hint.textContent=supplier?'Existing supplier selected — details filled automatically.':'Enter the new supplier details below.';
+}
+document.querySelectorAll('.supplier-search').forEach(input=>{
+    input.addEventListener('input',()=>{const supplier=findSupplier(input.value);if(supplier)setSupplier(input.closest('.supplier-form'),supplier);});
+    input.addEventListener('change',()=>{const supplier=findSupplier(input.value);if(supplier)setSupplier(input.closest('.supplier-form'),supplier);});
+});
+function clearSupplierSelection(button){
+    const form=button.closest('.supplier-form');
+    const search=form.querySelector('.supplier-search');
+    if(search)search.value='';
+    setSupplier(form,null);
+    form.querySelector('.supplier-name')?.focus();
+}
 function openInventoryPanel(id){
     document.querySelectorAll('.collapsible-panel').forEach(panel=>panel.classList.remove('panel-open'));
     const panel=document.getElementById(id);
