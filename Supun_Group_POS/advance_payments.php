@@ -49,12 +49,39 @@ if (isset($_POST['save_advance'])) {
     }
 }
 
+if (isset($_POST['settle_deposit'])) {
+    $deposit_id = (int)($_POST['deposit_id'] ?? 0);
+    $settle_method = trim($_POST['settle_method'] ?? 'Cash');
+    if (!in_array($settle_method, $methods, true)) $settle_method = 'Cash';
+    $conn->begin_transaction();
+    try {
+        $result = $conn->query("SELECT customer_id,remaining_amount FROM advance_payment_transactions WHERE transaction_id=$deposit_id AND transaction_type='deposit' FOR UPDATE");
+        $deposit = $result ? $result->fetch_assoc() : null;
+        if (!$deposit || (float)$deposit['remaining_amount'] <= 0) throw new Exception('This advance is already settled.');
+        $customer_id = (int)$deposit['customer_id']; $refund = (float)$deposit['remaining_amount'];
+        $account = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id FOR UPDATE")->fetch_assoc();
+        if ((float)$account['advance_balance'] < $refund) throw new Exception('Customer balance is lower than this deposit balance.');
+        $stmt = $conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance-? WHERE customer_id=?');
+        $stmt->bind_param('di', $refund, $customer_id); $stmt->execute(); $stmt->close();
+        $conn->query("UPDATE advance_payment_transactions SET remaining_amount=0,settlement_status='settled' WHERE transaction_id=$deposit_id");
+        $receipt = nextAdvanceReceipt($conn); $uid=(int)$_SESSION['user_id']; $note='Unused advance refunded and settled';
+        $stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,'refund',?,0,'settled',?,?,?)");
+        $stmt->bind_param('siidssi',$receipt,$customer_id,$deposit_id,$refund,$settle_method,$note,$uid);
+        if(!$stmt->execute()) throw new Exception($stmt->error);
+        $refund_transaction_id=$conn->insert_id; $stmt->close(); $conn->commit();
+        header("Location: print_advance.php?transaction_id=$refund_transaction_id"); exit;
+    } catch(Throwable $e) {
+        $conn->rollback(); $message='Could not settle advance: '.$e->getMessage(); $message_type='error';
+    }
+}
+
 $search = trim($_GET['search'] ?? '');
 $where = $search === '' ? '1=1' : "(c.customer_name LIKE '%".$conn->real_escape_string($search)."%' OR c.phone LIKE '%".$conn->real_escape_string($search)."%' OR c.account_number LIKE '%".$conn->real_escape_string($search)."%')";
 $customers = $conn->query("SELECT c.*,COUNT(t.transaction_id) transaction_count FROM customer_accounts c LEFT JOIN advance_payment_transactions t ON t.customer_id=c.customer_id WHERE $where GROUP BY c.customer_id ORDER BY c.customer_name");
 $select_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
 $transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,u.full_name FROM advance_payment_transactions t JOIN customer_accounts c ON c.customer_id=t.customer_id LEFT JOIN users u ON u.user_id=t.created_by ORDER BY t.transaction_id DESC LIMIT 100");
 $summary = $conn->query("SELECT COUNT(*) customers,COALESCE(SUM(advance_balance),0) balance FROM customer_accounts WHERE status=1")->fetch_assoc();
+$open_summary = $conn->query("SELECT COUNT(*) open_items,SUM(settlement_due_date<CURDATE()) overdue FROM advance_payment_transactions WHERE transaction_type='deposit' AND settlement_status<>'settled'")->fetch_assoc();
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Customer Advance Payments</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><style>
