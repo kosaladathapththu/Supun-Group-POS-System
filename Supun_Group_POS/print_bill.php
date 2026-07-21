@@ -2,6 +2,9 @@
 include 'db.php';
 
 $order_id = isset($_GET["order_id"]) ? (int) $_GET["order_id"] : 0;
+$from_advance = ($_GET['from'] ?? '') === 'advance';
+$back_url = $from_advance ? 'advance_payments.php' : 'pos.php';
+$back_label = $from_advance ? 'Back to Advance Payments' : 'Back to POS';
 if ($order_id <= 0) {
     die("Invalid order ID.");
 }
@@ -1115,8 +1118,8 @@ body.format-a4 .paid-seal small { font-size:9px; }
         <i class="fa-solid fa-cash-register"></i> Open Drawer
     </button>
 
-    <a class="a-btn a-back" href="pos.php">
-        <i class="fa-solid fa-arrow-left"></i> Back to POS
+    <a class="a-btn a-back" href="<?php echo htmlspecialchars($back_url); ?>">
+        <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($back_label); ?>
     </a>
 </div>
 
