@@ -134,6 +134,12 @@ $transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,c.phon
 $order_payment_history = [];
 $history_q = $conn->query("SELECT order_id,receipt_number,amount,payment_method,created_at FROM advance_payment_transactions WHERE transaction_type='deposit' AND order_id IS NOT NULL ORDER BY created_at,transaction_id");
 while ($history_q && $h=$history_q->fetch_assoc()) $order_payment_history[(int)$h['order_id']][]=$h;
+$pending_orders = $conn->query("SELECT o.order_id,o.order_number,o.customer_id,o.customer_name,c.phone,
+    CASE WHEN o.total_amount>0 THEN o.total_amount ELSE GREATEST(0,(SELECT COALESCE(SUM(oi.line_total),0) FROM order_items oi WHERE oi.order_id=o.order_id)+COALESCE(o.service_charge,0)+COALESCE(o.packaging_fee,0)-COALESCE(o.discount,0)) END bill_total,
+    (SELECT COALESCE(SUM(t.remaining_amount),0) FROM advance_payment_transactions t WHERE t.order_id=o.order_id AND t.transaction_type='deposit') paid_amount
+    FROM orders o JOIN customer_accounts c ON c.customer_id=o.customer_id
+    WHERE o.order_status='open' AND EXISTS(SELECT 1 FROM advance_payment_transactions t2 WHERE t2.order_id=o.order_id AND t2.transaction_type='deposit' AND t2.remaining_amount>0)
+    ORDER BY o.order_id DESC");
 $summary = $conn->query("SELECT COUNT(*) customers,COALESCE(SUM(advance_balance),0) balance FROM customer_accounts WHERE status=1")->fetch_assoc();
 $open_summary = $conn->query("SELECT COUNT(*) open_items,COALESCE(SUM(t.settlement_due_date<CURDATE()),0) overdue FROM advance_payment_transactions t JOIN orders o ON o.order_id=t.order_id WHERE t.transaction_type='deposit' AND o.order_status='open'")->fetch_assoc();
 ?>
