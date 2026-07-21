@@ -12,6 +12,7 @@ if (isset($_POST['complete_order'])) {
     $order_id = (int)($_POST['order_id'] ?? 0);
     $method = trim($_POST['settlement_method'] ?? 'Cash');
     $received = round((float)($_POST['settlement_received'] ?? 0), 2);
+    $payment_reference = trim($_POST['settlement_reference'] ?? '');
     if (!in_array($method, $methods, true)) $method = 'Cash';
     $conn->begin_transaction();
     try {
@@ -34,7 +35,7 @@ if (isset($_POST['complete_order'])) {
         // It remains available as advance credit until the final installment closes the sale.
         if ($received + 0.0001 < $amount_due) {
             $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id'];
-            $note = 'Additional installment for order';
+            $note = $payment_reference !== '' ? $payment_reference : 'Additional installment for order';
             $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
             $stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$received,$received,$method,$note,$uid);
             if (!$stmt->execute()) throw new Exception($stmt->error);
@@ -69,8 +70,8 @@ if (isset($_POST['complete_order'])) {
         $change = max(0, round($received - $amount_due, 2));
         $stored_method = $advance_used >= $total && $total > 0 ? 'Credit' : $method;
         $item_subtotal = round((float)$order['item_total'],2);
-        $stmt=$conn->prepare("UPDATE orders SET subtotal=?,total_amount=?,advance_used=?,payment_method=?,cash_given=?,balance=?,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=? AND order_status='open'");
-        $stmt->bind_param('dddsddi',$item_subtotal,$total,$advance_used,$stored_method,$received,$change,$order_id);
+        $stmt=$conn->prepare("UPDATE orders SET subtotal=?,total_amount=?,advance_used=?,payment_method=?,payment_reference=?,cash_given=?,balance=?,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=? AND order_status='open'");
+        $stmt->bind_param('dddssddi',$item_subtotal,$total,$advance_used,$stored_method,$payment_reference,$received,$change,$order_id);
         if (!$stmt->execute() || $stmt->affected_rows !== 1) throw new Exception('The order could not be completed.');
         $stmt->close(); $conn->commit();
         header("Location: print_bill.php?order_id=$order_id"); exit;

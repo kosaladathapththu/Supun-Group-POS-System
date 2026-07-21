@@ -69,6 +69,9 @@ function ensureAdvancePaymentSchema(mysqli $conn): void
     if (!isset($columns['advance_used'])) {
         $conn->query("ALTER TABLE orders ADD advance_used DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER total_amount");
     }
+    if (!isset($columns['payment_reference'])) {
+        $conn->query("ALTER TABLE orders ADD payment_reference VARCHAR(255) NULL AFTER payment_method");
+    }
 }
 
 function nextAccountNumber(mysqli $conn): string
