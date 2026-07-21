@@ -1569,6 +1569,49 @@ function selectAdvanceCustomer() {
     updateOrderFees();
 }
 
+function filterPaymentCustomers() {
+    const query = (document.getElementById('customerPaymentSearch')?.value || '').trim().toLowerCase();
+    const select = document.getElementById('checkoutCustomerId');
+    if (!select) return;
+    let matches = 0;
+    Array.from(select.options).forEach((option, index) => {
+        if (index === 0) return;
+        const match = !query || (option.dataset.search || option.textContent.toLowerCase()).includes(query);
+        option.hidden = !match;
+        if (match) matches++;
+    });
+    const result = document.getElementById('customerSearchResult');
+    if (result) result.textContent = query ? matches + ' found' : '';
+    if (query && matches === 1) {
+        const only = Array.from(select.options).find((option,index) => index>0 && !option.hidden);
+        if (only) { select.value=only.value; selectAdvanceCustomer(); }
+    }
+}
+
+function setPaymentCustomerMode(mode) {
+    const isNew = mode === 'new';
+    document.getElementById('existingPaymentForm').style.display = isNew ? 'none' : 'block';
+    document.getElementById('newPaymentForm').style.display = isNew ? 'block' : 'none';
+    document.getElementById('existingPaymentTab').classList.toggle('active', !isNew);
+    document.getElementById('newPaymentTab').classList.toggle('active', isNew);
+}
+
+function openPaymentModal() {
+    const select = document.getElementById('checkoutCustomerId');
+    const customerId = parseInt(select?.value || '0',10);
+    document.getElementById('modalCustomerId').value = customerId;
+    document.getElementById('paymentModalCustomer').textContent = customerId > 0 ? select.options[select.selectedIndex].textContent : 'No customer selected — create a new customer';
+    setPaymentCustomerMode(customerId > 0 ? 'existing' : 'new');
+    document.getElementById('paymentOverlay').classList.add('show');
+}
+
+function closePaymentModal() { document.getElementById('paymentOverlay').classList.remove('show'); }
+
+function chooseFullPayment() {
+    document.querySelector('.pm-lbl')?.scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('cash_given')?.focus({preventScroll:true});
+}
+
 function showAdvanceMode(mode) {
     const isNew = mode === 'new';
     document.getElementById('existingAdvancePanel').style.display = isNew ? 'none' : 'block';
@@ -2076,6 +2119,13 @@ if (priceOverlay) {
     });
 }
 
+const paymentOverlay = document.getElementById('paymentOverlay');
+if (paymentOverlay) {
+    paymentOverlay.addEventListener('click', function(e) {
+        if (e.target === this) closePaymentModal();
+    });
+}
+
 const adminOverlay = document.getElementById('adminOverlay');
 if (adminOverlay) {
     adminOverlay.addEventListener('click', function(e) {
@@ -2085,6 +2135,7 @@ if (adminOverlay) {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        closePaymentModal();
         closePriceModal();
         closeOrderModal();
         closeAdminModal();
@@ -2129,6 +2180,7 @@ function bindOrderForm() {
    PAGE LOAD
 ============================== */
 window.addEventListener("load", function () {
+    document.querySelectorAll('.legacy-advance-box input,.legacy-advance-box select,.legacy-advance-box button').forEach(el => el.disabled=true);
     bindPaySection();
     bindOrderForm();
     updateOrderFees();
