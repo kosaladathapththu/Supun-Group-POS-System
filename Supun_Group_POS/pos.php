@@ -27,7 +27,6 @@ function esc($conn, $value) {
 if (isset($_POST["admin_login_submit"])) {
     $au = trim($_POST["admin_username"] ?? "");
     $ap = $_POST["admin_password"] ?? "";
-    $admin_return = trim($_POST["admin_return"] ?? "");
 
     $au_safe = $conn->real_escape_string($au);
     $ar = $conn->query("SELECT * FROM users WHERE username='$au_safe' AND role='admin' AND status=1 LIMIT 1");
@@ -39,10 +38,7 @@ if (isset($_POST["admin_login_submit"])) {
             $_SESSION["user_id"]   = $admin_row["user_id"];
             $_SESSION["full_name"] = $admin_row["full_name"];
             $_SESSION["role"]      = "admin";
-            $admin_destinations = [
-                "product_import" => "admin/product_import.php",
-            ];
-            header("Location: " . ($admin_destinations[$admin_return] ?? "dashboard.php"));
+            header("Location: dashboard.php");
             exit;
         } else {
             $admin_error = "Invalid username or password.";
@@ -1491,7 +1487,6 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <?php endif; ?>
 
         <form method="POST">
-            <input type="hidden" name="admin_return" value="<?php echo htmlspecialchars($_GET['admin_return'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
             <div class="mf">
                 <label>Username</label>
                 <div class="miw">

@@ -170,18 +170,14 @@ $products = $conn->query("
 <div class="box import-box">
     <div>
         <h2>Import Inventory from Excel</h2>
-        <p>Use the Excel or CSV template to import products, suppliers, purchases and stock in one validated upload.</p>
+        <p>Import product names, selling prices, categories and stock without exposing supplier, cost or purchase information.</p>
     </div>
     <div class="import-actions">
         <?php
-        $import_url = $user_role === 'admin'
-            ? 'admin/product_import.php'
-            : 'pos.php?admin_login=1&amp;admin_return=product_import';
+        $import_url = 'cashier_product_import.php';
         ?>
         <a href="<?php echo $import_url; ?>" class="import-btn">Open Excel Import</a>
-        <?php if ($user_role !== 'admin'): ?>
-            <span class="import-note">Admin password required</span>
-        <?php endif; ?>
+        <span class="import-note">Restricted product details only</span>
     </div>
 </div>
 
