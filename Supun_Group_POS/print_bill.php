@@ -59,6 +59,19 @@ $service_charge = $saved_service_charge > 0
 $pm = $order['payment_method'] ?? 'Cash';
 $advance_used = (float)($order['advance_used'] ?? 0);
 
+$payment_history = [];
+$payment_stmt = $conn->prepare("SELECT COALESCE(d.receipt_number,u.receipt_number) receipt_number,u.amount,COALESCE(d.payment_method,u.payment_method) payment_method,COALESCE(d.created_at,u.created_at) created_at
+    FROM advance_payment_transactions u LEFT JOIN advance_payment_transactions d ON d.transaction_id=u.parent_transaction_id
+    WHERE u.order_id=? AND u.transaction_type='sale_usage' ORDER BY COALESCE(d.created_at,u.created_at),u.transaction_id");
+$payment_stmt->bind_param('i',$order_id); $payment_stmt->execute();
+$payment_result=$payment_stmt->get_result();
+while($payment_row=$payment_result->fetch_assoc()) $payment_history[]=$payment_row;
+$payment_stmt->close();
+if (($order['payment_status'] ?? '') === 'paid') {
+    $final_payment=max(0,$total-$advance_used);
+    if($final_payment>0.0001) $payment_history[]=['receipt_number'=>'FINAL-'.$order_number,'amount'=>$final_payment,'payment_method'=>$pm,'created_at'=>$order['paid_at']?:$order['created_at']];
+}
+
 $total_qty = 0;
 foreach ($all_items as $it) {
     $total_qty += (int)$it['quantity'];
@@ -967,6 +980,18 @@ body.format-a4 .paid-seal small { font-size:9px; }
             <td class="gr">Rs <?php echo fmt($total); ?></td>
         </tr>
     </table>
+
+    <?php if (count($payment_history) > 1): ?>
+    <div class="sep-eq">----- PAYMENT HISTORY -----</div>
+    <table class="summ" style="font-size:10px;margin-bottom:7px;">
+        <?php foreach($payment_history as $index=>$history): ?>
+        <tr>
+            <td class="sl"><?php echo ($index+1).'. '.date('d M Y',strtotime($history['created_at'])); ?><br><small><?php echo htmlspecialchars($history['receipt_number'].' · '.$history['payment_method']); ?></small></td>
+            <td class="sr">Rs <?php echo fmt($history['amount']); ?></td>
+        </tr>
+        <?php endforeach; ?>
+    </table>
+    <?php endif; ?>
 
     <table class="summ">
         <?php if ($advance_used > 0): ?>
