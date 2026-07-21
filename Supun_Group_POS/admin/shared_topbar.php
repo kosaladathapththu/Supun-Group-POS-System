@@ -16,6 +16,7 @@ $titles  = [
     'purchase_view.php' => 'Purchase Details',
     'purchase_import.php' => 'Existing Stock Purchase Import',
     'suppliers.php' => 'Suppliers',
+    'advances.php' => 'Customer Advances',
 ];
 $page_title = $titles[$current] ?? 'Admin';
 ?>

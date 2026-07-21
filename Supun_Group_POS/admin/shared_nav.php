@@ -32,7 +32,7 @@ $current = basename($_SERVER['PHP_SELF']);
         <a class="nav-item <?php echo $current=='expenses.php'?'active':''; ?>" href="expenses.php">
             <i class="fa-solid fa-money-bill-trend-up"></i> Expenses
         </a>
-        <a class="nav-item" href="../advance_payments.php">
+        <a class="nav-item <?php echo $current=='advances.php'?'active':''; ?>" href="advances.php">
             <i class="fa-solid fa-wallet"></i> Customer Advances
         </a>
 
