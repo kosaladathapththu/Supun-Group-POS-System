@@ -797,6 +797,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .advance-balance-row,.advance-due{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:10px;padding:7px 2px;color:var(--text-muted)}.advance-balance-row strong{color:var(--accent)}.advance-due{margin-top:7px;background:#ecfdf5;border-radius:7px;padding:8px;color:#047857;font-weight:800}.advance-due strong{font-size:13px}
 .advance-money{display:flex;align-items:center;width:100%;height:39px;border:1.5px solid #fdba74;border-radius:7px;background:#fff;overflow:hidden}.advance-money span{padding:0 9px;color:#c2410c;font-size:11px;font-weight:900;background:#fff7ed;height:100%;display:flex;align-items:center}.advance-money input{min-width:0;width:100%;height:100%;border:0;padding:0 9px;font:inherit;font-weight:900;outline:0}
 .advance-print-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 8px;padding:8px;border:1px solid #c2410c;border-radius:7px;background:#fff;color:#c2410c;text-decoration:none;font-size:10px;font-weight:900}.advance-print-btn:hover{background:#c2410c;color:#fff}
+.installment-box{border:1px solid #a7f3d0;border-radius:7px;background:#f0fdf4;padding:8px;margin-bottom:9px}.installment-box summary{cursor:pointer;color:#047857;font-size:11px;font-weight:900}.installment-box p{font-size:9px;color:var(--text-muted);margin:6px 0}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
@@ -2054,7 +2055,7 @@ function bindOrderForm() {
     oForm.dataset.bound = "1";
 
     oForm.addEventListener('submit', function(e) {
-        if (e.submitter && e.submitter.name === 'create_checkout_advance') return;
+        if (e.submitter && ['create_checkout_advance','add_checkout_installment'].includes(e.submitter.name)) return;
         const m = document.getElementById('pm_val')?.value || 'Cash';
         const given = parseFloat(document.getElementById('cash_given')?.value) || 0;
         const collect = given || AMOUNT_DUE;
