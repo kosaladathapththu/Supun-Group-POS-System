@@ -891,9 +891,15 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <i class="fa-solid fa-wallet"></i> Advance Payment
         </a>
 
-        <button class="tb-btn btn-owner" type="button" onclick="openAdminModal()">
+        <?php if (in_array($user_role, ['admin', 'accountant'], true)): ?>
+        <a class="tb-btn btn-owner" href="dashboard.php">
             <i class="fa-solid fa-gauge-high"></i> Dashboard
+        </a>
+        <?php else: ?>
+        <button class="tb-btn btn-owner" type="button" onclick="openAdminModal()">
+            <i class="fa-solid fa-lock"></i> Admin
         </button>
+        <?php endif; ?>
 
       <a href="cashier_products.php" class="tb-btn btn-owner">
     <i class="fa-solid fa-boxes-stacked"></i> Add Stock
