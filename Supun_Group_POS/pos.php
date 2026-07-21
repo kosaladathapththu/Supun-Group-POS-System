@@ -2193,7 +2193,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-<?php if (!empty($admin_error)): ?>
+<?php if (!empty($admin_error) || isset($_GET['admin_login'])): ?>
 window.addEventListener('load', function() {
     openAdminModal();
 });
