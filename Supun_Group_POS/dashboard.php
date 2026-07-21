@@ -1014,88 +1014,31 @@ canvas {
         grid-template-columns: 1fr;
     }
 }
+/* The dashboard uses the same shared navigation component as every back-office page. */
+:root{--sidebar-w:240px}
+.sidebar{width:var(--sidebar-w)}
+.sb-brand{padding:16px 18px 14px}
+.sb-logo{width:36px;height:36px}
+.sb-brand-text h2{font-size:14px}
+.sb-brand-text small{font-size:9px}
+.sb-nav{padding:10px 0}
+.nav-group-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted);padding:9px 18px 4px}
+.sidebar .nav-item{gap:9px;padding:9px 18px;font-size:13px;border-radius:0}
+.sidebar .nav-item i{width:16px;font-size:13px}
+.sidebar .nav-item.active::before{left:0;top:0;bottom:0;width:3px;border-radius:0 3px 3px 0}
+.sb-footer{padding:12px 14px}
+.sb-user{padding:9px 11px;margin-bottom:8px}
+.sb-avatar{width:30px;height:30px;font-size:12px}
+.sb-user-info .name{font-size:12px}
+.sb-user-info .role{font-size:9px}
+.sidebar .btn-logout-sb{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:8px;font-size:12px;text-decoration:none}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);z-index:190}
 </style>
 </head>
 <body>
 
 <!-- SIDEBAR -->
-<nav class="sidebar">
-    <div class="sb-brand">
-        <div class="sb-logo"><img src="supun-logo.png" alt="Supun Group"></div>
-        <div class="sb-brand-text">
-            <h2>Supun Group</h2>
-            <small><?php echo $_SESSION['role']==='accountant' ? 'Accountant Panel' : 'Owner / Admin Panel'; ?></small>
-        </div>
-    </div>
-
-    <div class="sb-nav">
-        <div class="nav-sec-lbl">Overview</div>
-
-        <a class="nav-item active" href="dashboard.php">
-            <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
-        </a>
-
-        <button class="nav-grp-btn" type="button" onclick="toggleGrp('reports', this)">
-            <span class="grp-left"><i class="fa-solid fa-chart-bar grp-icon"></i>Reports</span>
-            <i class="fa-solid fa-chevron-right grp-arrow"></i>
-        </button>
-        <div class="nav-grp-body" id="grp-reports">
-            <a class="nav-item nav-child" href="admin/sales.php">
-                <i class="fa-solid fa-file-invoice-dollar"></i><span>Sales Report</span>
-            </a>
-            <a class="nav-item nav-child" href="admin/orders.php">
-                <i class="fa-solid fa-receipt"></i><span>All Orders</span>
-            </a>
-            <a class="nav-item nav-child" href="admin/expense_report.php">
-                <i class="fa-solid fa-chart-pie"></i><span>Expense Report</span>
-            </a>
-        </div>
-
-        <button class="nav-grp-btn" type="button" onclick="toggleGrp('finance', this)">
-            <span class="grp-left"><i class="fa-solid fa-coins grp-icon"></i>Finance</span>
-            <i class="fa-solid fa-chevron-right grp-arrow"></i>
-        </button>
-        <div class="nav-grp-body" id="grp-finance">
-            <a class="nav-item nav-child" href="admin/expenses.php">
-                <i class="fa-solid fa-money-bill-trend-up"></i><span>Expenses</span>
-            </a>
-        </div>
-
-        <button class="nav-grp-btn" type="button" onclick="toggleGrp('management', this)">
-            <span class="grp-left"><i class="fa-solid fa-sliders grp-icon"></i>Management</span>
-            <i class="fa-solid fa-chevron-right grp-arrow"></i>
-        </button>
-        <div class="nav-grp-body" id="grp-management">
-            <a class="nav-item nav-child" href="admin/products.php">
-                <i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span>
-            </a>
-            <a class="nav-item nav-child" href="admin/categories.php">
-                <i class="fa-solid fa-tags"></i><span>Categories</span>
-            </a>
-            <?php if ($_SESSION['role']==='admin'): ?><a class="nav-item nav-child" href="admin/users.php">
-                <i class="fa-solid fa-users"></i><span>Staff / Users</span>
-            </a><?php endif; ?>
-        </div>
-    </div>
-
-    <div class="sb-footer">
-        <div class="sb-user">
-            <div class="sb-avatar"><?php echo strtoupper(substr($_SESSION["full_name"] ?? "A", 0, 1)); ?></div>
-            <div class="sb-user-info">
-                <div class="name"><?php echo htmlspecialchars($_SESSION["full_name"] ?? "Admin"); ?></div>
-                <div class="role"><?php echo $_SESSION['role']==='accountant' ? 'Accountant' : 'Owner / Admin'; ?></div>
-            </div>
-        </div>
-        <div class="sb-footer-btns">
-            <a href="pos.php" class="sb-pos-btn">
-                <i class="fa-solid fa-cash-register"></i> Go to POS
-            </a>
-            <a href="logout.php" class="btn-logout-sb">
-                <i class="fa-solid fa-right-from-bracket"></i> Logout
-            </a>
-        </div>
-    </div>
-</nav>
+<?php $shared_nav_from_root=true; include 'admin/shared_nav.php'; ?>
 
 <!-- MAIN -->
 <div class="main">
