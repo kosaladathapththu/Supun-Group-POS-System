@@ -14,6 +14,8 @@ $user_id = (int) $_SESSION["user_id"];
 $admin_error = "";
 $pay_error = isset($_GET["pay_error"]) ? 1 : 0;
 $stock_error = isset($_GET["stock_error"]) ? 1 : 0;
+$advance_error = isset($_GET['advance_error']) ? 1 : 0;
+$advance_created = isset($_GET['advance_created']) ? 1 : 0;
 
 function esc($conn, $value) {
     return $conn->real_escape_string(trim($value));
@@ -384,6 +386,48 @@ if (isset($_GET["clear"]) && $current_order_id > 0) {
 }
 
 /* =========================================================
+   CREATE CUSTOMER ADVANCE FROM CHECKOUT
+========================================================= */
+if (isset($_POST['create_checkout_advance'])) {
+    $order_id = (int)($_POST['order_id'] ?? 0);
+    $name = trim($_POST['advance_customer_name'] ?? '');
+    $phone = trim($_POST['advance_customer_phone'] ?? '');
+    $amount = round((float)($_POST['new_advance_amount'] ?? 0), 2);
+    $method = trim($_POST['new_advance_method'] ?? 'Cash');
+    $allowed_advance_methods = ['Cash','Card','QR','Bank Transfer'];
+    if (!in_array($method, $allowed_advance_methods, true)) $method = 'Cash';
+
+    if ($order_id <= 0 || $name === '' || $amount <= 0) {
+        header("Location: pos.php?order_id=$order_id&advance_error=1"); exit;
+    }
+
+    $conn->begin_transaction();
+    try {
+        $account = nextAccountNumber($conn);
+        $stmt = $conn->prepare('INSERT INTO customer_accounts (account_number,customer_name,phone,advance_balance) VALUES (?,?,?,?)');
+        $stmt->bind_param('sssd', $account, $name, $phone, $amount);
+        if (!$stmt->execute()) throw new Exception($stmt->error);
+        $customer_id = $conn->insert_id; $stmt->close();
+
+        $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Advance received at POS checkout';
+        $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,?,?)");
+        $stmt->bind_param('sidsi', $receipt, $customer_id, $amount, $method, $note, $uid);
+        if (!$stmt->execute()) throw new Exception($stmt->error);
+        $stmt->close();
+
+        $name_safe = esc($conn, $name);
+        if (!$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'") || $conn->affected_rows !== 1) {
+            throw new Exception('Open order was not found.');
+        }
+        $conn->commit();
+        header("Location: pos.php?order_id=$order_id&advance_created=1"); exit;
+    } catch (Throwable $e) {
+        $conn->rollback();
+        header("Location: pos.php?order_id=$order_id&advance_error=1"); exit;
+    }
+}
+
+/* =========================================================
    PAY ORDER
 ========================================================= */
 if (isset($_POST["pay_order"])) {
@@ -709,6 +753,13 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .discount-input{width:100%;height:42px;border:1.5px solid var(--border-dk);border-radius:7px;background:#fff;color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;outline:none;padding:0 12px 0 50px;text-align:right;}
 .discount-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,118,110,.12);}
 .discount-summary{background:#ecfdf5;border:1px solid #99f6e4;border-radius:7px;padding:7px 10px;margin:-2px 0 10px;}
+.advance-box{background:#fffaf5;border:1.5px solid #fdba74;border-radius:10px;padding:11px;margin:7px 0 10px;}
+.advance-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;color:#c2410c;font-size:13px;font-weight:900;}.advance-title small{color:var(--text-muted);font-size:9px;text-align:right;}
+.advance-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}.advance-tab{border:1px solid #fed7aa;background:#fff;color:#9a3412;border-radius:7px;padding:8px 4px;font-size:10px;font-weight:900;cursor:pointer}.advance-tab.active{background:#c2410c;color:#fff;border-color:#c2410c}
+.advance-label{display:block;font-size:9px;font-weight:900;text-transform:uppercase;color:var(--text-mid);margin:6px 0 4px}.advance-control{width:100%;height:37px;border:1px solid #d0d5dd;border-radius:7px;background:#fff;padding:0 9px;font:inherit;font-size:12px;color:var(--text)}
+.advance-balance-row,.advance-due{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:10px;padding:7px 2px;color:var(--text-muted)}.advance-balance-row strong{color:var(--accent)}.advance-due{margin-top:7px;background:#ecfdf5;border-radius:7px;padding:8px;color:#047857;font-weight:800}.advance-due strong{font-size:13px}
+.advance-money{display:flex;align-items:center;width:100%;height:39px;border:1.5px solid #fdba74;border-radius:7px;background:#fff;overflow:hidden}.advance-money span{padding:0 9px;color:#c2410c;font-size:11px;font-weight:900;background:#fff7ed;height:100%;display:flex;align-items:center}.advance-money input{min-width:0;width:100%;height:100%;border:0;padding:0 9px;font:inherit;font-weight:900;outline:0}
+.advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
 .pmb{padding:7px 3px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text-mid);font-size:11px;font-weight:800;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Nunito',sans-serif;transition:.14s;}
@@ -1152,15 +1203,33 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span class="total-amt">Rs. <span id="gt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
                     </div>
 
-                    <div class="service-row" style="display:block;background:#fff7ed;border:1px solid #fed7aa;padding:10px;">
-                        <div class="discount-head" style="margin-bottom:7px;"><label class="service-check"><i class="fa-solid fa-wallet"></i><span>Use Customer Advance</span></label><small id="advanceAvailable" style="color:var(--primary);font-weight:900;">Available: Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></small></div>
-                        <select name="checkout_customer_id" id="checkoutCustomerId" class="cash-inp" style="padding-left:10px;margin-bottom:7px;" onchange="selectAdvanceCustomer()">
-                            <option value="0" data-balance="0">Select customer advance account</option>
-                            <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
-                            <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name']); ?></option>
-                            <?php endwhile; endif; ?>
-                        </select>
-                        <div class="fee-input-wrap"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" class="fee-input" style="width:100%;" step="0.01" min="0" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00" placeholder="Amount to use" oninput="updateOrderFees()"></div>
+                    <div class="advance-box">
+                        <div class="advance-title"><div><i class="fa-solid fa-wallet"></i> Advance Payment</div><small>Use a previous deposit or create one now</small></div>
+                        <?php if ($advance_created): ?><div class="advance-message ok"><i class="fa-solid fa-circle-check"></i> New advance account created and selected.</div><?php endif; ?>
+                        <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Enter customer name and a valid advance amount.</div><?php endif; ?>
+                        <div class="advance-tabs">
+                            <button type="button" class="advance-tab active" id="existingAdvanceTab" onclick="showAdvanceMode('existing')"><i class="fa-solid fa-users"></i> Select Existing</button>
+                            <button type="button" class="advance-tab" id="newAdvanceTab" onclick="showAdvanceMode('new')"><i class="fa-solid fa-user-plus"></i> Create New Advance</button>
+                        </div>
+                        <div id="existingAdvancePanel">
+                            <label class="advance-label">Customer account</label>
+                            <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
+                                <option value="0" data-balance="0">Choose customer name / account</option>
+                                <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
+                                <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
+                                <?php endwhile; endif; ?>
+                            </select>
+                            <div class="advance-balance-row"><span id="advanceAvailable">Available balance: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></strong></span><span>Enter how much to use below</span></div>
+                            <label class="advance-label">Advance amount to use for this bill</label>
+                            <div class="advance-money"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" step="0.01" min="0" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00" placeholder="0.00" oninput="updateOrderFees()"></div>
+                            <div class="advance-due"><span>Remaining amount to pay</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                        </div>
+                        <div id="newAdvancePanel" style="display:none;">
+                            <p class="advance-help">Create a customer account and receive their advance deposit now. After saving, it will be selected for this sale.</p>
+                            <div class="advance-two"><div><label class="advance-label">Customer name *</label><input class="advance-control" name="advance_customer_name" placeholder="Customer / business name"></div><div><label class="advance-label">Phone</label><input class="advance-control" name="advance_customer_phone" placeholder="Phone number"></div></div>
+                            <div class="advance-two"><div><label class="advance-label">Advance received *</label><div class="advance-money"><span>Rs.</span><input type="number" name="new_advance_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Received by</label><select class="advance-control" name="new_advance_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div></div>
+                            <button type="submit" name="create_checkout_advance" class="create-advance-btn"><i class="fa-solid fa-wallet"></i> Create Account &amp; Save Advance</button>
+                        </div>
                     </div>
 
                     <div class="pm-lbl">Payment Method</div>
