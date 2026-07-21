@@ -101,10 +101,10 @@ $total_ever = $conn->query("SELECT COALESCE(SUM(amount),0) AS v FROM expenses")-
 $this_month = $conn->query("SELECT COALESCE(SUM(amount),0) AS v FROM expenses WHERE DATE_FORMAT(expense_date,'%Y-%m')='" . date('Y-m') . "'")->fetch_assoc()['v'];
 
 /* STOCK PURCHASES RECORDED FROM INVENTORY */
-$purchase_month_sql = $f_month ? "AND DATE_FORMAT(sa.created_at,'%Y-%m')='".$conn->real_escape_string($f_month)."'" : '';
+$purchase_month_sql = $f_month ? "AND DATE_FORMAT(COALESCE(sa.invoice_date,DATE(sa.created_at)),'%Y-%m')='".$conn->real_escape_string($f_month)."'" : '';
 $purchase_filtered = (float)$conn->query("SELECT COALESCE(SUM(sa.total_cost),0) AS v FROM stock_adjustments sa WHERE sa.adjustment_type='stock_in' $purchase_month_sql")->fetch_assoc()['v'];
-$purchase_this_month = (float)$conn->query("SELECT COALESCE(SUM(total_cost),0) AS v FROM stock_adjustments WHERE adjustment_type='stock_in' AND DATE_FORMAT(created_at,'%Y-%m')='".date('Y-m')."'")->fetch_assoc()['v'];
-$purchases = $conn->query("SELECT sa.*,p.product_name,p.unit,u.full_name AS added_by_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE sa.adjustment_type='stock_in' $purchase_month_sql ORDER BY sa.created_at DESC,sa.adjustment_id DESC");
+$purchase_this_month = (float)$conn->query("SELECT COALESCE(SUM(total_cost),0) AS v FROM stock_adjustments WHERE adjustment_type='stock_in' AND DATE_FORMAT(COALESCE(invoice_date,DATE(created_at)),'%Y-%m')='".date('Y-m')."'")->fetch_assoc()['v'];
+$purchases = $conn->query("SELECT sa.*,p.product_name,p.unit,u.full_name AS added_by_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE sa.adjustment_type='stock_in' $purchase_month_sql ORDER BY COALESCE(sa.invoice_date,DATE(sa.created_at)) DESC,sa.adjustment_id DESC");
 $filtered_outgoing = (float)$kpi['total'] + $purchase_filtered;
 $this_month_outgoing = (float)$this_month + $purchase_this_month;
 

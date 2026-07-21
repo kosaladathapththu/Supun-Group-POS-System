@@ -901,7 +901,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         </button>
         <?php endif; ?>
 
-      <a href="cashier_products.php" class="tb-btn btn-owner">
+      <a href="<?php echo in_array($user_role,['admin','accountant'],true)?'admin/products.php':'cashier_products.php'; ?>" class="tb-btn btn-owner">
     <i class="fa-solid fa-boxes-stacked"></i> Add Stock
 </a>
 

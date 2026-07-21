@@ -415,9 +415,9 @@ $potential_profit = (float)$conn->query("SELECT COALESCE(SUM((price-cost_price)*
 
                     <div class="simple-fields">
                     <?php if (!$edit_row): ?>
-                    <div class="form-section-title">1. Supplier &amp; Purchase <small>The supplier is reused if its code or name already exists.</small></div>
+                    <div class="form-section-title">1. Supplier &amp; Purchase <small>The supplier is reused if its code or name already exists.</small><label style="display:flex;align-items:center;gap:7px;margin-top:7px;text-transform:none;letter-spacing:0"><input type="checkbox" id="newProductInvoicePending" name="new_product_invoice_pending" value="1" onchange="toggleNewProductInvoice()" <?php echo isset($_POST['new_product_invoice_pending'])?'checked':''; ?>> Receive stock now — supplier invoice/details will be added later</label></div>
                     <div class="field"><label>Supplier Code</label><input class="inp" name="supplier_code" placeholder="SUP-001" value="<?php echo htmlspecialchars($_POST['supplier_code'] ?? ''); ?>"></div>
-                    <div class="field span-2"><label>Supplier Name *</label><input class="inp" name="supplier_name" placeholder="e.g. Cammy" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
+                    <div class="field span-2"><label>Supplier Name <span id="supplierRequiredMark">*</span></label><input class="inp" id="newProductSupplierName" name="supplier_name" placeholder="e.g. Cammy" required value="<?php echo htmlspecialchars($_POST['supplier_name'] ?? ''); ?>"></div>
                     <div class="field"><label>Supplier Phone</label><input class="inp" name="supplier_phone" placeholder="071 234 5678" value="<?php echo htmlspecialchars($_POST['supplier_phone'] ?? ''); ?>"></div>
                     <div class="field"><label>Supplier Invoice</label><input class="inp" name="supplier_invoice" placeholder="INV-1001" value="<?php echo htmlspecialchars($_POST['supplier_invoice'] ?? ''); ?>"></div>
                     <div class="field"><label>Purchase Date *</label><input class="inp" type="date" name="purchase_date" required value="<?php echo htmlspecialchars($_POST['purchase_date'] ?? date('Y-m-d')); ?>"></div>
@@ -673,6 +673,13 @@ function updateStockFormHelp(){
     if(label)label.textContent=action==='stock_in'?'Quantity added':(action==='stock_out'?'Quantity removed':'Correct quantity now in stock');
     if(cost)cost.style.display=action==='stock_in'?'flex':'none';
 }
+function toggleNewProductInvoice(){
+    const pending=document.getElementById('newProductInvoicePending')?.checked||false;
+    const supplier=document.getElementById('newProductSupplierName');
+    const mark=document.getElementById('supplierRequiredMark');
+    if(supplier)supplier.required=!pending;
+    if(mark)mark.style.display=pending?'none':'inline';
+}
 function calculateProductProfit(){
     const cost=parseFloat(document.getElementById('costPrice')?.value)||0;
     const retail=parseFloat(document.getElementById('retailPrice')?.value)||0;
@@ -687,6 +694,7 @@ function calculateProductProfit(){
 }
 calculateProductProfit();
 updateStockFormHelp();
+toggleNewProductInvoice();
 <?php if($edit_row):?>setTimeout(()=>document.getElementById('productFormCard')?.scrollIntoView({behavior:'smooth',block:'start'}),100);<?php endif;?>
 </script>
 
