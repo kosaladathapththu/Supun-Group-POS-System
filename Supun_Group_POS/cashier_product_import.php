@@ -4,7 +4,7 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
-if (!in_array($_SESSION['role'] ?? '', ['cashier', 'admin'], true)) {
+if (!in_array($_SESSION['role'] ?? '', ['cashier', 'accountant', 'admin'], true)) {
     http_response_code(403);
     exit('Access denied.');
 }
