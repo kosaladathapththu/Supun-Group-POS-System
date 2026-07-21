@@ -54,6 +54,10 @@ function ensureAdvancePaymentSchema(mysqli $conn): void
     if (!isset($advance_columns['parent_transaction_id'])) {
         $conn->query("ALTER TABLE advance_payment_transactions ADD parent_transaction_id BIGINT UNSIGNED NULL AFTER order_id, ADD INDEX idx_advance_parent (parent_transaction_id)");
     }
+    $conn->query("UPDATE advance_payment_transactions t
+        JOIN orders o ON o.customer_id=t.customer_id AND o.order_status='open'
+        SET t.order_id=o.order_id
+        WHERE t.transaction_type='deposit' AND t.order_id IS NULL AND t.reference_note='Advance received at POS checkout'");
 
     $columns = [];
     if ($result = $conn->query("SHOW COLUMNS FROM orders")) {

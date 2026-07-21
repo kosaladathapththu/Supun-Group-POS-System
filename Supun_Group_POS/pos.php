@@ -410,8 +410,8 @@ if (isset($_POST['create_checkout_advance'])) {
         $customer_id = $conn->insert_id; $stmt->close();
 
         $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Advance received at POS checkout';
-        $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
-        $stmt->bind_param('siddssi', $receipt, $customer_id, $amount, $amount, $method, $note, $uid);
+        $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
+        $stmt->bind_param('siiddssi', $receipt, $customer_id, $order_id, $amount, $amount, $method, $note, $uid);
         if (!$stmt->execute()) throw new Exception($stmt->error);
         $advance_transaction_id = $conn->insert_id; $stmt->close();
 
