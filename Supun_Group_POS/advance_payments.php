@@ -67,8 +67,9 @@ if (isset($_POST['cancel_order_refund'])) {
                 if(!$order || (int)$order['customer_id']<=0) throw new Exception('The customer bill was not found or is already cancelled.');
                 $exists=$conn->query('SELECT cancellation_id FROM order_cancellations WHERE order_id='.$order_id.' FOR UPDATE');
                 if($exists && $exists->num_rows) throw new Exception('This bill has already been cancelled.');
-                $customer_id=(int)$order['customer_id']; $was_paid=$order['order_status']==='paid';
-                $available=(float)($conn->query("SELECT COALESCE(SUM(remaining_amount),0) amount FROM advance_payment_transactions WHERE order_id=$order_id AND customer_id=$customer_id AND transaction_type='deposit' FOR UPDATE")->fetch_assoc()['amount']??0);
+                $customer_id=(int)$order['customer_id']; $was_paid=$order['order_status']==='paid'; $available=0.0;
+                $locked_deposits=$conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE order_id=$order_id AND customer_id=$customer_id AND transaction_type='deposit' FOR UPDATE");
+                while($locked_deposits && $locked_deposit=$locked_deposits->fetch_assoc()) $available+=(float)$locked_deposit['remaining_amount'];
                 $refund_amount=round($was_paid?(float)$order['total_amount']:$available,2);
                 if($refund_amount<=0) throw new Exception('No received payment is available to refund for this bill.');
 
