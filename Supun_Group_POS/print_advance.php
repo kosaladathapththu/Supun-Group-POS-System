@@ -7,7 +7,7 @@ ensureAdvancePaymentSchema($conn);
 
 $transaction_id = (int)($_GET['transaction_id'] ?? 0);
 $return_order = (int)($_GET['return_order'] ?? 0);
-$stmt = $conn->prepare("SELECT t.*,c.account_number,c.customer_name,c.phone,c.address,c.advance_balance,u.full_name cashier_name,o.order_number
+$stmt = $conn->prepare("SELECT t.*,c.account_number,c.customer_name,c.phone,c.address,c.advance_balance,u.full_name cashier_name,o.order_number,o.total_amount order_total,o.subtotal order_subtotal,o.order_type
     FROM advance_payment_transactions t
     JOIN customer_accounts c ON c.customer_id=t.customer_id
     LEFT JOIN users u ON u.user_id=t.created_by
@@ -16,6 +16,18 @@ $stmt = $conn->prepare("SELECT t.*,c.account_number,c.customer_name,c.phone,c.ad
 $stmt->bind_param('i', $transaction_id); $stmt->execute();
 $payment = $stmt->get_result()->fetch_assoc(); $stmt->close();
 if (!$payment) { http_response_code(404); die('Advance payment receipt not found.'); }
+
+$order_items=[]; $calculated_total=0.0; $payment_history=[]; $total_paid=0.0;
+if (!empty($payment['order_id'])) {
+    $oid=(int)$payment['order_id'];
+    $items=$conn->query("SELECT COALESCE(p.product_name,oi.custom_item_name,'Item') item_name,oi.quantity,oi.price,oi.line_total FROM order_items oi LEFT JOIN products p ON p.product_id=oi.product_id WHERE oi.order_id=$oid ORDER BY oi.order_item_id");
+    if($items) while($item=$items->fetch_assoc()){ $order_items[]=$item; $calculated_total+=(float)$item['line_total']; }
+    $history=$conn->query("SELECT transaction_id,receipt_number,amount,payment_method,created_at FROM advance_payment_transactions WHERE order_id=$oid AND transaction_type='deposit' AND transaction_id<=$transaction_id ORDER BY transaction_id");
+    if($history) while($row=$history->fetch_assoc()){ $payment_history[]=$row; $total_paid+=(float)$row['amount']; }
+}
+$bill_total=(float)($payment['order_total']??0)>0?(float)$payment['order_total']:$calculated_total;
+$remaining_balance=max(0,$bill_total-$total_paid);
+$payment_number=count($payment_history);
 
 $back_url = $return_order > 0 ? 'pos.php?order_id='.$return_order.'&advance_created=1' : 'advance_payments.php';
 $is_deposit = $payment['transaction_type'] === 'deposit';
