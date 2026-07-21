@@ -125,6 +125,15 @@ if (isset($_POST["create_order"])) {
 ========================================================= */
 $current_order_id = isset($_GET["order_id"]) ? (int)$_GET["order_id"] : 0;
 
+// Advance-held orders stay out of the normal POS workspace and are reopened
+// only through the explicit Complete Payment action.
+if ($current_order_id > 0 && !isset($_GET['settle'])) {
+    $held_q = $conn->query("SELECT 1 FROM advance_payment_transactions WHERE order_id=$current_order_id AND transaction_type='deposit' AND remaining_amount>0 LIMIT 1");
+    if ($held_q && $held_q->num_rows > 0) {
+        header('Location: pos.php'); exit;
+    }
+}
+
 /* =========================================================
    ORDER TYPE IS LOCKED AFTER CREATION
 ========================================================= */
