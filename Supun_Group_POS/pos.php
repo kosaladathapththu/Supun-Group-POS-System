@@ -413,14 +413,14 @@ if (isset($_POST['create_checkout_advance'])) {
         $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,?,?)");
         $stmt->bind_param('sidssi', $receipt, $customer_id, $amount, $method, $note, $uid);
         if (!$stmt->execute()) throw new Exception($stmt->error);
-        $stmt->close();
+        $advance_transaction_id = $conn->insert_id; $stmt->close();
 
         $name_safe = esc($conn, $name);
         if (!$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'") || $conn->affected_rows !== 1) {
             throw new Exception('Open order was not found.');
         }
         $conn->commit();
-        header("Location: pos.php?order_id=$order_id&advance_created=1"); exit;
+        header("Location: print_advance.php?transaction_id=$advance_transaction_id&return_order=$order_id"); exit;
     } catch (Throwable $e) {
         $conn->rollback();
         header("Location: pos.php?order_id=$order_id&advance_error=1"); exit;
