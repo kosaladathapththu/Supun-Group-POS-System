@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
 
 ALTER TABLE orders ADD COLUMN customer_id BIGINT UNSIGNED NULL AFTER customer_name;
 ALTER TABLE orders ADD COLUMN advance_used DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER total_amount;
+ALTER TABLE orders ADD COLUMN payment_reference VARCHAR(255) NULL AFTER payment_method;
 ALTER TABLE orders ADD INDEX idx_orders_customer (customer_id);
 ALTER TABLE orders ADD CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customer_accounts(customer_id) ON DELETE SET NULL;
 
@@ -31,7 +32,7 @@ CREATE TABLE IF NOT EXISTS advance_payment_transactions (
   reference_note VARCHAR(255) NULL,
   created_by INT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_advance_customer (customer_id), INDEX idx_advance_order (order_id), INDEX idx_advance_created (created_at),
+  INDEX idx_advance_customer (customer_id), INDEX idx_advance_order (order_id), INDEX idx_advance_parent (parent_transaction_id), INDEX idx_advance_created (created_at),
   CONSTRAINT fk_advance_customer FOREIGN KEY (customer_id) REFERENCES customer_accounts(customer_id),
   CONSTRAINT fk_advance_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE SET NULL,
   CONSTRAINT fk_advance_user FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL

@@ -7,8 +7,10 @@ DROP TABLE IF EXISTS purchase_items;
 DROP TABLE IF EXISTS purchases;
 DROP TABLE IF EXISTS suppliers;
 DROP TABLE IF EXISTS stock_adjustments;
+DROP TABLE IF EXISTS advance_payment_transactions;
 DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS customer_accounts;
 DROP TABLE IF EXISTS expenses;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS categories;
@@ -61,6 +63,20 @@ CREATE TABLE restaurant_tables (
   status TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB;
 
+CREATE TABLE customer_accounts (
+  customer_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  account_number VARCHAR(30) NOT NULL UNIQUE,
+  customer_name VARCHAR(150) NOT NULL,
+  phone VARCHAR(30) NULL,
+  address VARCHAR(255) NULL,
+  advance_balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  status TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_customer_name (customer_name),
+  INDEX idx_customer_phone (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE orders (
   order_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   order_number VARCHAR(30) NULL UNIQUE,
@@ -68,23 +84,52 @@ CREATE TABLE orders (
   user_id INT UNSIGNED NOT NULL,
   order_type ENUM('retail','wholesale') NOT NULL DEFAULT 'retail',
   customer_name VARCHAR(150) NULL,
+  customer_id BIGINT UNSIGNED NULL,
   customer_phone VARCHAR(30) NULL,
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   discount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   service_charge DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   packaging_fee DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   total_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  advance_used DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   payment_status ENUM('pending','paid','partial','cancelled') NOT NULL DEFAULT 'pending',
   order_status ENUM('open','paid','cancelled') NOT NULL DEFAULT 'open',
   payment_method ENUM('Cash','Card','QR','Bank Transfer','Credit') NOT NULL DEFAULT 'Cash',
+  payment_reference VARCHAR(255) NULL,
   cash_given DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   sync_status TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   paid_at DATETIME NULL,
+  INDEX idx_orders_customer (customer_id),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(user_id),
+  CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customer_accounts(customer_id) ON DELETE SET NULL,
   CONSTRAINT fk_orders_legacy_table FOREIGN KEY (table_id) REFERENCES restaurant_tables(table_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+CREATE TABLE advance_payment_transactions (
+  transaction_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  receipt_number VARCHAR(35) NOT NULL UNIQUE,
+  customer_id BIGINT UNSIGNED NOT NULL,
+  order_id BIGINT UNSIGNED NULL,
+  parent_transaction_id BIGINT UNSIGNED NULL,
+  transaction_type ENUM('deposit','sale_usage','refund','adjustment') NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  remaining_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  settlement_status ENUM('open','partial','settled') NOT NULL DEFAULT 'settled',
+  settlement_due_date DATE NULL,
+  payment_method VARCHAR(40) NOT NULL DEFAULT 'Cash',
+  reference_note VARCHAR(255) NULL,
+  created_by INT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_advance_customer (customer_id),
+  INDEX idx_advance_order (order_id),
+  INDEX idx_advance_parent (parent_transaction_id),
+  INDEX idx_advance_created (created_at),
+  CONSTRAINT fk_advance_customer FOREIGN KEY (customer_id) REFERENCES customer_accounts(customer_id),
+  CONSTRAINT fk_advance_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE SET NULL,
+  CONSTRAINT fk_advance_user FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE order_items (
   order_item_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
