@@ -15,11 +15,13 @@ if (isset($_POST['complete_order'])) {
     if (!in_array($method, $methods, true)) $method = 'Cash';
     $conn->begin_transaction();
     try {
-        $oq = $conn->query("SELECT order_id,customer_id,total_amount FROM orders WHERE order_id=$order_id AND order_status='open' FOR UPDATE");
+        $oq = $conn->query("SELECT o.order_id,o.customer_id,o.total_amount,o.discount,o.service_charge,o.packaging_fee,(SELECT COALESCE(SUM(oi.line_total),0) FROM order_items oi WHERE oi.order_id=o.order_id) item_total FROM orders o WHERE o.order_id=$order_id AND o.order_status='open' FOR UPDATE");
         $order = $oq ? $oq->fetch_assoc() : null;
         if (!$order || (int)$order['customer_id'] <= 0) throw new Exception('This open customer order was not found.');
         $customer_id = (int)$order['customer_id'];
-        $total = round((float)$order['total_amount'], 2);
+        $total = (float)$order['total_amount'];
+        if ($total <= 0) $total = max(0, (float)$order['item_total'] + (float)$order['service_charge'] + (float)$order['packaging_fee'] - (float)$order['discount']);
+        $total = round($total, 2);
         $dq = $conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE order_id=$order_id AND customer_id=$customer_id AND transaction_type='deposit' AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
         $deposits = []; $advance_used = 0.0;
         while ($dq && $d = $dq->fetch_assoc()) { $deposits[] = $d; $advance_used += (float)$d['remaining_amount']; }
@@ -48,8 +50,9 @@ if (isset($_POST['complete_order'])) {
         }
         $change = max(0, round($received - $amount_due, 2));
         $stored_method = $advance_used >= $total && $total > 0 ? 'Credit' : $method;
-        $stmt=$conn->prepare("UPDATE orders SET advance_used=?,payment_method=?,cash_given=?,balance=?,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=? AND order_status='open'");
-        $stmt->bind_param('dsddi',$advance_used,$stored_method,$received,$change,$order_id);
+        $item_subtotal = round((float)$order['item_total'],2);
+        $stmt=$conn->prepare("UPDATE orders SET subtotal=?,total_amount=?,advance_used=?,payment_method=?,cash_given=?,balance=?,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=? AND order_status='open'");
+        $stmt->bind_param('dddsddi',$item_subtotal,$total,$advance_used,$stored_method,$received,$change,$order_id);
         if (!$stmt->execute() || $stmt->affected_rows !== 1) throw new Exception('The order could not be completed.');
         $stmt->close(); $conn->commit();
         header("Location: print_bill.php?order_id=$order_id"); exit;
@@ -103,10 +106,14 @@ $search = trim($_GET['search'] ?? '');
 $where = $search === '' ? '1=1' : "(c.customer_name LIKE '%".$conn->real_escape_string($search)."%' OR c.phone LIKE '%".$conn->real_escape_string($search)."%' OR c.account_number LIKE '%".$conn->real_escape_string($search)."%')";
 $customers = $conn->query("SELECT c.*,COUNT(t.transaction_id) transaction_count FROM customer_accounts c LEFT JOIN advance_payment_transactions t ON t.customer_id=c.customer_id WHERE $where GROUP BY c.customer_id ORDER BY c.customer_name");
 $select_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
-$transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,c.phone,u.full_name,o.order_number,o.order_status,o.total_amount,
+$transactions = $conn->query("SELECT t.*,c.account_number,c.customer_name,c.phone,u.full_name,o.order_number,o.order_status,o.total_amount,o.discount,o.service_charge,o.packaging_fee,
+    (SELECT COALESCE(SUM(oi.line_total),0) FROM order_items oi WHERE oi.order_id=COALESCE(t.order_id,o.order_id)) item_total,
     (SELECT COALESCE(SUM(x.remaining_amount),0) FROM advance_payment_transactions x WHERE x.order_id=COALESCE(t.order_id,o.order_id) AND x.customer_id=t.customer_id AND x.transaction_type='deposit') order_advance,
     COALESCE(t.order_id,(SELECT o2.order_id FROM orders o2 WHERE o2.customer_id=t.customer_id AND o2.order_status='open' ORDER BY o2.order_id DESC LIMIT 1)) settlement_order_id
     FROM advance_payment_transactions t JOIN customer_accounts c ON c.customer_id=t.customer_id LEFT JOIN users u ON u.user_id=t.created_by LEFT JOIN orders o ON o.order_id=t.order_id ORDER BY t.transaction_id DESC LIMIT 100");
+$order_payment_history = [];
+$history_q = $conn->query("SELECT order_id,receipt_number,amount,payment_method,created_at FROM advance_payment_transactions WHERE transaction_type='deposit' AND order_id IS NOT NULL ORDER BY created_at,transaction_id");
+while ($history_q && $h=$history_q->fetch_assoc()) $order_payment_history[(int)$h['order_id']][]=$h;
 $summary = $conn->query("SELECT COUNT(*) customers,COALESCE(SUM(advance_balance),0) balance FROM customer_accounts WHERE status=1")->fetch_assoc();
 $open_summary = $conn->query("SELECT COUNT(*) open_items,COALESCE(SUM(t.settlement_due_date<CURDATE()),0) overdue FROM advance_payment_transactions t JOIN orders o ON o.order_id=t.order_id WHERE t.transaction_type='deposit' AND o.order_status='open'")->fetch_assoc();
 ?>
