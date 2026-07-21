@@ -17,12 +17,19 @@ if (isset($_POST['add_product'])) {
     $sku=trim($_POST['sku']??''); $barcode=trim($_POST['barcode']??''); $serial=trim($_POST['serial_no']??''); $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??'pcs')?:'pcs';
     $cost=max(0,(float)($_POST['cost_price']??0)); $price=max(0,(float)($_POST['price']??0)); $wholesale=max(0,(float)($_POST['wholesale_price']??0));
     $min_qty=max(1,(int)($_POST['wholesale_min_qty']??1)); $stock=max(0,(float)($_POST['stock_qty']??0)); $reorder=max(0,(float)($_POST['reorder_level']??5)); $status=(int)($_POST['status']??1);
-    if($cat_name===''||$prod_name===''||$supplier_name===''||$price<=0||$stock<=0){$msg='Enter the supplier, category, product name, retail price and purchase quantity.';$msg_type='error';}
+    $invoice_pending=isset($_POST['new_product_invoice_pending']);
+    if($cat_name===''||$prod_name===''||(!$invoice_pending&&$supplier_name==='')||$price<=0||$stock<=0){$msg='Enter the category, product name, retail price and purchase quantity'.($invoice_pending?'.':', including the supplier.');$msg_type='error';}
     else{
         $conn->begin_transaction();
         try{
             $find=$conn->prepare("SELECT category_id FROM categories WHERE category_name=? LIMIT 1");$find->bind_param('s',$cat_name);$find->execute();$cat=$find->get_result()->fetch_assoc();$find->close();
             if($cat){$category_id=(int)$cat['category_id'];}else{$add=$conn->prepare("INSERT INTO categories(category_name,status) VALUES(?,1)");$add->bind_param('s',$cat_name);$add->execute();$category_id=$conn->insert_id;$add->close();}
+            if($invoice_pending){
+                $insert=$conn->prepare("INSERT INTO products(category_id,sku,barcode,serial_no,product_name,brand,unit,cost_price,price,wholesale_price,wholesale_min_qty,stock_qty,reorder_level,status) VALUES(?,NULLIF(?,''),NULLIF(?,''),NULLIF(?,''),?,NULLIF(?,''),?,?,?,?,?,?,?,?)");
+                $pending_cost=0.0;$insert->bind_param('issssssdddiddi',$category_id,$sku,$barcode,$serial,$prod_name,$brand,$unit,$pending_cost,$price,$wholesale,$min_qty,$stock,$reorder,$status);$insert->execute();$product_id=$conn->insert_id;$insert->close();
+                $uid=(int)$_SESSION['user_id'];$pending_note='New product received before supplier invoice';$invoice_status='pending';$log=$conn->prepare("INSERT INTO stock_adjustments(product_id,user_id,adjustment_type,quantity,stock_before,stock_after,unit_cost,total_cost,note,invoice_status) VALUES(?,?,'stock_in',?,0,?,0,0,?,?)");$log->bind_param('iiddss',$product_id,$uid,$stock,$stock,$pending_note,$invoice_status);$log->execute();$log->close();
+                $conn->commit();$msg='Product and physical stock added. Its supplier invoice is pending and can be completed below.';$msg_type='success';
+            }else{
             $supplier=null;
             if($supplier_code!==''){$find=$conn->prepare("SELECT supplier_id FROM suppliers WHERE supplier_code=? LIMIT 1");$find->bind_param('s',$supplier_code);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
             if(!$supplier){$find=$conn->prepare("SELECT supplier_id FROM suppliers WHERE supplier_name=? LIMIT 1");$find->bind_param('s',$supplier_name);$find->execute();$supplier=$find->get_result()->fetch_assoc();$find->close();}
@@ -36,6 +43,7 @@ if (isset($_POST['add_product'])) {
             $finish=$conn->prepare("UPDATE purchases SET subtotal=?,total_amount=?,status='received',received_by=?,received_at=NOW() WHERE purchase_id=?");$finish->bind_param('ddii',$line_total,$line_total,$uid,$purchase_id);$finish->execute();$finish->close();
             $note='Received from manual inventory entry - '.$purchase_number;$log=$conn->prepare("INSERT INTO stock_adjustments(product_id,user_id,adjustment_type,quantity,stock_before,stock_after,unit_cost,total_cost,note) VALUES(?,?,'stock_in',?,0,?,?,?,?)");$log->bind_param('iidddds',$product_id,$uid,$stock,$stock,$cost,$line_total,$note);$log->execute();$log->close();
             $conn->commit();$msg="Product, supplier purchase and stock added successfully ($purchase_number).";$msg_type='success';
+            }
         }catch(Throwable $e){$conn->rollback();$msg=$e->getCode()===1062?'The item code, barcode or serial number already exists.':$e->getMessage();$msg_type='error';}
     }
 }
