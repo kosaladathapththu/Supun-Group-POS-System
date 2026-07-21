@@ -410,8 +410,8 @@ if (isset($_POST['create_checkout_advance'])) {
         $customer_id = $conn->insert_id; $stmt->close();
 
         $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Advance received at POS checkout';
-        $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,?,?)");
-        $stmt->bind_param('sidssi', $receipt, $customer_id, $amount, $method, $note, $uid);
+        $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
+        $stmt->bind_param('siddssi', $receipt, $customer_id, $amount, $amount, $method, $note, $uid);
         if (!$stmt->execute()) throw new Exception($stmt->error);
         $advance_transaction_id = $conn->insert_id; $stmt->close();
 
@@ -515,9 +515,21 @@ if (isset($_POST["pay_order"])) {
             if ((float)$lock['advance_balance'] < $advance_used) throw new Exception('Customer advance balance changed. Please try again.');
             $stmt = $conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance-? WHERE customer_id=?');
             $stmt->bind_param('di', $advance_used, $customer_id); $stmt->execute(); $stmt->close();
-            $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Applied to POS order';
-            $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,payment_method,reference_note,created_by) VALUES (?,?,?,'sale_usage',?,'Advance Account',?,?)");
-            $stmt->bind_param('siidsi', $receipt, $customer_id, $order_id, $advance_used, $note, $uid); $stmt->execute(); $stmt->close();
+            $to_allocate = $advance_used; $uid = (int)$_SESSION['user_id']; $note = 'Applied to POS order';
+            $deposits = $conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
+            while ($to_allocate > 0.0001 && $deposit = $deposits->fetch_assoc()) {
+                $source_id = (int)$deposit['transaction_id'];
+                $applied = min($to_allocate, (float)$deposit['remaining_amount']);
+                $new_remaining = max(0, (float)$deposit['remaining_amount'] - $applied);
+                $new_status = $new_remaining <= 0.0001 ? 'settled' : 'partial';
+                $conn->query("UPDATE advance_payment_transactions SET remaining_amount=$new_remaining,settlement_status='$new_status' WHERE transaction_id=$source_id");
+                $receipt = nextAdvanceReceipt($conn);
+                $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)");
+                $stmt->bind_param('siiidsi', $receipt, $customer_id, $order_id, $source_id, $applied, $note, $uid);
+                if (!$stmt->execute()) throw new Exception($stmt->error);
+                $stmt->close(); $to_allocate -= $applied;
+            }
+            if ($to_allocate > 0.0001) throw new Exception('Advance deposit allocation could not be completed.');
         }
         $updated = $conn->query("UPDATE orders SET order_type='$order_type', subtotal=$subtotal, discount=$discount, service_charge=$service_charge, packaging_fee=$packaging_fee, total_amount=$total_amount, advance_used=$advance_used, payment_method='$pm_safe', cash_given=$cash_given, balance=$balance, order_status='paid', payment_status='paid', paid_at=NOW() WHERE order_id=$order_id AND order_status='open'");
         if (!$updated || $conn->affected_rows !== 1) throw new Exception('Order could not be completed.');

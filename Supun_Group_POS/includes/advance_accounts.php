@@ -35,6 +35,26 @@ function ensureAdvancePaymentSchema(mysqli $conn): void
         CONSTRAINT fk_advance_user FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    $advance_columns = [];
+    if ($result = $conn->query("SHOW COLUMNS FROM advance_payment_transactions")) {
+        while ($row = $result->fetch_assoc()) $advance_columns[$row['Field']] = true;
+    }
+    if (!isset($advance_columns['remaining_amount'])) {
+        $conn->query("ALTER TABLE advance_payment_transactions ADD remaining_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER amount");
+        $conn->query("UPDATE advance_payment_transactions SET remaining_amount=amount WHERE transaction_type='deposit'");
+    }
+    if (!isset($advance_columns['settlement_status'])) {
+        $conn->query("ALTER TABLE advance_payment_transactions ADD settlement_status ENUM('open','partial','settled') NOT NULL DEFAULT 'settled' AFTER remaining_amount");
+        $conn->query("UPDATE advance_payment_transactions SET settlement_status='open' WHERE transaction_type='deposit' AND remaining_amount>0");
+    }
+    if (!isset($advance_columns['settlement_due_date'])) {
+        $conn->query("ALTER TABLE advance_payment_transactions ADD settlement_due_date DATE NULL AFTER settlement_status");
+        $conn->query("UPDATE advance_payment_transactions SET settlement_due_date=DATE_ADD(DATE(created_at),INTERVAL 1 DAY) WHERE transaction_type='deposit' AND settlement_due_date IS NULL");
+    }
+    if (!isset($advance_columns['parent_transaction_id'])) {
+        $conn->query("ALTER TABLE advance_payment_transactions ADD parent_transaction_id BIGINT UNSIGNED NULL AFTER order_id, ADD INDEX idx_advance_parent (parent_transaction_id)");
+    }
+
     $columns = [];
     if ($result = $conn->query("SHOW COLUMNS FROM orders")) {
         while ($row = $result->fetch_assoc()) $columns[$row['Field']] = true;
@@ -62,4 +82,3 @@ function nextAdvanceReceipt(mysqli $conn): string
     } while ($exists && $exists->num_rows);
     return $number;
 }
-
