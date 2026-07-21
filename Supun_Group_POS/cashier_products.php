@@ -170,14 +170,14 @@ $products = $conn->query("
 <div class="box import-box">
     <div>
         <h2>Import Inventory from Excel</h2>
-        <p>Import product names, selling prices, categories and stock without exposing supplier, cost or purchase information.</p>
+        <p>Use the same complete workbook as the admin import so supplier, purchase, cost, pricing and stock reports remain accurate.</p>
     </div>
     <div class="import-actions">
         <?php
-        $import_url = 'cashier_product_import.php';
+        $import_url = 'admin/product_import.php?cashier_mode=1';
         ?>
         <a href="<?php echo $import_url; ?>" class="import-btn">Open Excel Import</a>
-        <span class="import-note">Restricted product details only</span>
+        <span class="import-note">Standalone import view</span>
     </div>
 </div>
 
