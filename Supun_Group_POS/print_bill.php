@@ -910,13 +910,6 @@ body.format-a4 .paid-seal small { font-size:9px; }
             <td class="sep-col">:</td>
             <td class="val"><?php echo htmlspecialchars($pm); ?></td>
         </tr>
-        <?php if (!empty($order['payment_reference'])): ?>
-        <tr>
-            <td class="lbl">Reference</td>
-            <td class="sep-col">:</td>
-            <td class="val"><?php echo htmlspecialchars($order['payment_reference']); ?></td>
-        </tr>
-        <?php endif; ?>
     </table>
 
     <div class="sep-eq">--------------------------------</div>
@@ -1033,6 +1026,13 @@ body.format-a4 .paid-seal small { font-size:9px; }
             </td>
         </tr>
     </table>
+
+    <?php if (!empty($order['payment_reference'])): ?>
+    <div style="margin-top:8px;padding:7px 8px;border:1px dashed #777;font-size:10.5px;line-height:1.35;overflow-wrap:anywhere;">
+        <strong>Payment Reference:</strong><br>
+        <?php echo nl2br(htmlspecialchars($order['payment_reference'])); ?>
+    </div>
+    <?php endif; ?>
 
     <?php if (strtolower($order['payment_status'] ?? '') === 'paid'): ?>
     <div class="paid-seal-wrap" aria-label="Paid">
