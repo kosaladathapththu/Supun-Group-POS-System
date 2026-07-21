@@ -13,8 +13,8 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['admin',
     <title>Customer Advances</title>
     <style>
         <?php include 'shared_style.php'; ?>
-        .advance-frame-wrap{height:calc(100vh - 102px);min-height:650px;background:#f6f7fb;overflow:hidden}
-        .advance-frame{display:block;width:100%;height:100%;border:0;background:#f6f7fb}
+        .advance-frame-wrap{width:100%;max-width:100%;height:calc(100vh - 102px);min-height:650px;background:#f6f7fb;overflow:hidden}
+        .advance-frame{display:block;width:100%;max-width:100%;height:100%;border:0;background:#f6f7fb;overflow-x:hidden}
         @media(max-width:760px){.advance-frame-wrap{height:calc(100vh - 86px);min-height:560px}}
     </style>
 </head>
