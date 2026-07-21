@@ -803,6 +803,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .advance-money{display:flex;align-items:center;width:100%;height:39px;border:1.5px solid #fdba74;border-radius:7px;background:#fff;overflow:hidden}.advance-money span{padding:0 9px;color:#c2410c;font-size:11px;font-weight:900;background:#fff7ed;height:100%;display:flex;align-items:center}.advance-money input{min-width:0;width:100%;height:100%;border:0;padding:0 9px;font:inherit;font-weight:900;outline:0}
 .advance-print-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 8px;padding:8px;border:1px solid #c2410c;border-radius:7px;background:#fff;color:#c2410c;text-decoration:none;font-size:10px;font-weight:900}.advance-print-btn:hover{background:#c2410c;color:#fff}
 .installment-box{border:1px solid #a7f3d0;border-radius:7px;background:#f0fdf4;padding:8px;margin-bottom:9px}.installment-box summary{cursor:pointer;color:#047857;font-size:11px;font-weight:900}.installment-box p{font-size:9px;color:var(--text-muted);margin:6px 0}
+.advance-auto-note{font-size:9px;line-height:1.35;color:#175cd3;background:#eff8ff;border-radius:6px;padding:7px;margin-top:6px;font-weight:800}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
@@ -1248,33 +1249,33 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                     </div>
 
                     <div class="advance-box">
-                        <div class="advance-title"><div><i class="fa-solid fa-wallet"></i> Advance Payment</div><small>Use a previous deposit or create one now</small></div>
+                        <div class="advance-title"><div><i class="fa-solid fa-wallet"></i> Customer Part Payments</div><small>Select customer → record payment → complete bill</small></div>
                         <?php if ($advance_created): ?><div class="advance-message ok"><i class="fa-solid fa-circle-check"></i> New advance account created and selected.</div><?php endif; ?>
                         <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Enter customer name and a valid advance amount.</div><?php endif; ?>
                         <div class="advance-tabs">
-                            <button type="button" class="advance-tab active" id="existingAdvanceTab" onclick="showAdvanceMode('existing')"><i class="fa-solid fa-users"></i> Select Existing</button>
-                            <button type="button" class="advance-tab" id="newAdvanceTab" onclick="showAdvanceMode('new')"><i class="fa-solid fa-user-plus"></i> Create New Advance</button>
+                            <button type="button" class="advance-tab active" id="existingAdvanceTab" onclick="showAdvanceMode('existing')"><i class="fa-solid fa-users"></i> Existing Customer</button>
+                            <button type="button" class="advance-tab" id="newAdvanceTab" onclick="showAdvanceMode('new')"><i class="fa-solid fa-user-plus"></i> New Customer + 1st Payment</button>
                         </div>
                         <div id="existingAdvancePanel">
                             <label class="advance-label">Customer account</label>
                             <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
-                                <option value="0" data-balance="0">Choose customer name / account</option>
+                                <option value="0" data-balance="0">Select customer</option>
                                 <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
                                 <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" data-receipt-id="<?php echo (int)($ac['latest_advance_receipt_id']??0); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
                                 <?php endwhile; endif; ?>
                             </select>
-                            <div class="advance-balance-row"><span id="advanceAvailable">Available balance: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></strong></span><span>Enter how much to use below</span></div>
+                            <div class="advance-balance-row"><span id="advanceAvailable">Total paid in advance: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></strong></span><span>Applied automatically</span></div>
                             <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Print Latest Advance Receipt</a>
-                            <details class="installment-box"><summary><i class="fa-solid fa-circle-plus"></i> Receive 2nd / 3rd Payment</summary><p>Record another payment for this same customer and order.</p><div class="advance-two"><div><label class="advance-label">Payment amount</label><div class="advance-money"><span>Rs.</span><input type="number" name="installment_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div></div><button type="submit" name="add_checkout_installment" class="create-advance-btn" formnovalidate><i class="fa-solid fa-floppy-disk"></i> Save This Payment &amp; Print Receipt</button></details>
-                            <label class="advance-label">Advance amount to use for this bill</label>
-                            <div class="advance-money"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" step="0.01" min="0" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00" placeholder="0.00" oninput="updateOrderFees()"></div>
-                            <div class="advance-due"><span>Remaining amount to pay</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                            <details class="installment-box"><summary><i class="fa-solid fa-circle-plus"></i> Add Next Payment</summary><p>Use this for the 2nd, 3rd, or any later payment.</p><div class="advance-two"><div><label class="advance-label">Amount received</label><div class="advance-money"><span>Rs.</span><input type="number" name="installment_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Received by</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div></div><button type="submit" name="add_checkout_installment" class="create-advance-btn" formnovalidate><i class="fa-solid fa-floppy-disk"></i> Save Payment &amp; Print Receipt</button></details>
+                            <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00">
+                            <div class="advance-due"><span>Balance to collect now</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                            <div class="advance-auto-note"><i class="fa-solid fa-circle-info"></i> Pay &amp; Print Bill will use all available advance and complete the sale.</div>
                         </div>
                         <div id="newAdvancePanel" style="display:none;">
-                            <p class="advance-help">Create a customer account and receive their advance deposit now. After saving, it will be selected for this sale.</p>
+                            <p class="advance-help">Enter the customer and their first payment. The receipt prints immediately, then you return to this order.</p>
                             <div class="advance-two"><div><label class="advance-label">Customer name *</label><input class="advance-control" name="advance_customer_name" placeholder="Customer / business name"></div><div><label class="advance-label">Phone</label><input class="advance-control" name="advance_customer_phone" placeholder="Phone number"></div></div>
                             <div class="advance-two"><div><label class="advance-label">Advance received *</label><div class="advance-money"><span>Rs.</span><input type="number" name="new_advance_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Received by</label><select class="advance-control" name="new_advance_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div></div>
-                            <button type="submit" name="create_checkout_advance" class="create-advance-btn" formnovalidate><i class="fa-solid fa-wallet"></i> Create Account &amp; Save Advance</button>
+                            <button type="submit" name="create_checkout_advance" class="create-advance-btn" formnovalidate><i class="fa-solid fa-wallet"></i> Save 1st Payment &amp; Print Receipt</button>
                         </div>
                     </div>
 
@@ -1512,8 +1513,8 @@ function selectAdvanceCustomer() {
     if (!select || !input) return;
     const balance = Math.max(0, parseFloat(select.options[select.selectedIndex]?.dataset.balance) || 0);
     input.max = balance.toFixed(2);
-    if ((parseFloat(input.value) || 0) > balance || select.value === '0') input.value = '0.00';
-    if (label) label.innerHTML = 'Available balance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
+    input.value = select.value === '0' ? '0.00' : Math.min(balance, GT).toFixed(2);
+    if (label) label.innerHTML = 'Total paid in advance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
     if (printLink) {
         printLink.href = receiptId > 0 ? 'print_advance.php?transaction_id=' + receiptId + '&return_order=<?php echo (int)$current_order_id; ?>' : '#';
