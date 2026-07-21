@@ -583,7 +583,7 @@ if ($search !== "")        $product_sql .= " AND product_name LIKE '%" . $conn->
 $product_sql .= " ORDER BY product_name ASC";
 $products = $conn->query($product_sql);
 
-$open_orders = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' ORDER BY o.order_id DESC");
+$open_orders = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0) ORDER BY o.order_id DESC");
 $advance_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
 $checkout_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,
     (SELECT t.transaction_id FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.transaction_type='deposit' ORDER BY t.transaction_id DESC LIMIT 1) latest_advance_receipt_id
@@ -613,7 +613,7 @@ if ($current_order_id > 0) {
 $user_role = $_SESSION["role"] ?? "cashier";
 
 // Count open orders for badge
-$open_count_q = $conn->query("SELECT COUNT(*) AS cnt FROM orders WHERE order_status='open'");
+$open_count_q = $conn->query("SELECT COUNT(*) AS cnt FROM orders o WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0)");
 $open_count   = ($open_count_q) ? (int)$open_count_q->fetch_assoc()["cnt"] : 0;
 
 $display_total = number_format($grand_total, 2, '.', '');

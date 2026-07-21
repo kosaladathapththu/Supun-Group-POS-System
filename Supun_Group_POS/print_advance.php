@@ -29,7 +29,7 @@ $bill_total=(float)($payment['order_total']??0)>0?(float)$payment['order_total']
 $remaining_balance=max(0,$bill_total-$total_paid);
 $payment_number=count($payment_history);
 
-$back_url = $return_order > 0 ? 'pos.php?order_id='.$return_order.'&advance_created=1' : 'advance_payments.php';
+$back_url = $return_order > 0 ? 'pos.php' : 'advance_payments.php';
 $is_deposit = $payment['transaction_type'] === 'deposit';
 $is_refund = $payment['transaction_type'] === 'refund';
 $title = $is_deposit ? 'ADVANCE PAYMENT RECEIPT' : ($is_refund ? 'ADVANCE SETTLEMENT RECEIPT' : 'ADVANCE USAGE RECEIPT');
