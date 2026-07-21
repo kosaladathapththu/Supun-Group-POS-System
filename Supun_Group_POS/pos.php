@@ -1248,7 +1248,30 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span class="total-amt">Rs. <span id="gt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
                     </div>
 
-                    <div class="advance-box">
+                    <div class="advance-box simple-payment-box">
+                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Payment</div><small>Search customer, then choose payment type</small></div>
+                        <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
+                        <label class="advance-label">1. Search customer</label>
+                        <input type="search" id="customerPaymentSearch" class="advance-control" placeholder="Name, phone or account number" oninput="filterPaymentCustomers()">
+                        <label class="advance-label">2. Select customer</label>
+                        <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
+                            <option value="0" data-balance="0">Walk-in / no customer</option>
+                            <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
+                            <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" data-receipt-id="<?php echo (int)($ac['latest_advance_receipt_id']??0); ?>" data-search="<?php echo htmlspecialchars(strtolower($ac['account_number'].' '.$ac['customer_name'].' '.$ac['phone']),ENT_QUOTES,'UTF-8'); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · '.$ac['phone']); ?></option>
+                            <?php endwhile; endif; ?>
+                        </select>
+                        <div class="advance-balance-row"><span id="advanceAvailable">Advance already paid: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
+                        <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
+                        <label class="advance-label">3. What is the customer paying?</label>
+                        <div class="payment-choice-grid">
+                            <button type="button" class="payment-choice advance-choice" onclick="openPaymentModal()"><i class="fa-solid fa-wallet"></i><strong>Advance / Part Payment</strong><small>Record payment and keep bill open</small></button>
+                            <button type="button" class="payment-choice full-choice" onclick="chooseFullPayment()"><i class="fa-solid fa-circle-check"></i><strong>Full Payment</strong><small>Collect balance and close bill</small></button>
+                        </div>
+                        <div class="advance-due"><span>Balance for full payment</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                        <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Reprint Latest Part-Payment Receipt</a>
+                    </div>
+
+                    <div class="advance-box legacy-advance-box" style="display:none;">
                         <div class="advance-title"><div><i class="fa-solid fa-wallet"></i> Customer Part Payments</div><small>Select customer → record payment → complete bill</small></div>
                         <?php if ($advance_created): ?><div class="advance-message ok"><i class="fa-solid fa-circle-check"></i> New advance account created and selected.</div><?php endif; ?>
                         <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Enter customer name and a valid advance amount.</div><?php endif; ?>
@@ -1318,6 +1341,28 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <?php endif; ?>
             </div>
 
+        </form>
+    </div>
+</div>
+
+<div class="overlay" id="paymentOverlay">
+    <div class="modal payment-modal">
+        <button class="mcl" type="button" onclick="closePaymentModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="m-head"><div class="m-icon"><i class="fa-solid fa-wallet"></i></div><h2>Advance / Part Payment</h2><p id="paymentModalCustomer">Select an existing customer or create a new one</p></div>
+        <div class="advance-tabs"><button type="button" class="advance-tab active" id="existingPaymentTab" onclick="setPaymentCustomerMode('existing')">Selected Customer</button><button type="button" class="advance-tab" id="newPaymentTab" onclick="setPaymentCustomerMode('new')">New Customer</button></div>
+        <form method="post" id="existingPaymentForm">
+            <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>"><input type="hidden" name="checkout_customer_id" id="modalCustomerId" value="0">
+            <div class="mf"><label>Amount received *</label><div class="advance-money"><span>Rs.</span><input type="number" name="installment_amount" min="0.01" step="0.01" required placeholder="0.00"></div></div>
+            <div class="mf"><label>Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div>
+            <button class="m-sub green" name="add_checkout_installment"><i class="fa-solid fa-floppy-disk"></i> Save Payment &amp; Print Receipt</button>
+        </form>
+        <form method="post" id="newPaymentForm" style="display:none;">
+            <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+            <div class="mf"><label>Customer name *</label><input class="advance-control" name="advance_customer_name" required placeholder="Customer / business name"></div>
+            <div class="mf"><label>Phone number</label><input class="advance-control" name="advance_customer_phone" placeholder="Phone number"></div>
+            <div class="mf"><label>First payment *</label><div class="advance-money"><span>Rs.</span><input type="number" name="new_advance_amount" min="0.01" step="0.01" required placeholder="0.00"></div></div>
+            <div class="mf"><label>Payment method</label><select class="advance-control" name="new_advance_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option></select></div>
+            <button class="m-sub green" name="create_checkout_advance"><i class="fa-solid fa-user-plus"></i> Create Customer &amp; Save Payment</button>
         </form>
     </div>
 </div>
