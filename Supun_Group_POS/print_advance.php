@@ -28,13 +28,21 @@ if (!empty($payment['order_id'])) {
 $bill_total=(float)($payment['order_total']??0)>0?(float)$payment['order_total']:$calculated_total;
 $remaining_balance=max(0,$bill_total-$total_paid);
 $payment_number=count($payment_history);
+function ordinalPayment(int $number): string {
+    $mod100=$number%100;
+    if($mod100>=11 && $mod100<=13) $suffix='th';
+    else $suffix=match($number%10){1=>'st',2=>'nd',3=>'rd',default=>'th'};
+    return $number.$suffix;
+}
+$payment_ordinal=$payment_number>0?ordinalPayment($payment_number):'';
 
 $back_url = $return_order > 0 ? 'pos.php' : 'advance_payments.php';
 $is_deposit = $payment['transaction_type'] === 'deposit';
 $is_refund = $payment['transaction_type'] === 'refund';
-$title = $is_deposit ? 'ADVANCE PAYMENT RECEIPT' : ($is_refund ? 'ADVANCE SETTLEMENT RECEIPT' : 'ADVANCE USAGE RECEIPT');
-$seal_main = $is_refund ? 'Advance Settled' : 'Advance Payment';
-$seal_small = $is_refund ? 'Refunded' : ($is_deposit ? 'Received' : 'Applied');
+$is_order_installment=$is_deposit && !empty($payment['order_id']) && $payment_number>0;
+$title = $is_order_installment ? strtoupper($payment_ordinal.' PAYMENT RECEIPT') : ($is_deposit ? 'ADVANCE PAYMENT RECEIPT' : ($is_refund ? 'ADVANCE SETTLEMENT RECEIPT' : 'ADVANCE USAGE RECEIPT'));
+$seal_main = $is_refund ? 'Advance Settled' : ($is_order_installment ? $payment_ordinal.' Payment' : 'Advance Payment');
+$seal_small = $is_refund ? 'Refunded' : ($is_deposit ? ($is_order_installment?'Installment Received':'Received') : 'Applied');
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo htmlspecialchars($title); ?></title>
 <style>
