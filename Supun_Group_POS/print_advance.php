@@ -19,7 +19,10 @@ if (!$payment) { http_response_code(404); die('Advance payment receipt not found
 
 $back_url = $return_order > 0 ? 'pos.php?order_id='.$return_order.'&advance_created=1' : 'advance_payments.php';
 $is_deposit = $payment['transaction_type'] === 'deposit';
-$title = $is_deposit ? 'ADVANCE PAYMENT RECEIPT' : 'ADVANCE USAGE RECEIPT';
+$is_refund = $payment['transaction_type'] === 'refund';
+$title = $is_deposit ? 'ADVANCE PAYMENT RECEIPT' : ($is_refund ? 'ADVANCE SETTLEMENT RECEIPT' : 'ADVANCE USAGE RECEIPT');
+$seal_main = $is_refund ? 'Advance Settled' : 'Advance Payment';
+$seal_small = $is_refund ? 'Refunded' : ($is_deposit ? 'Received' : 'Applied');
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo htmlspecialchars($title); ?></title>
 <style>
@@ -28,7 +31,7 @@ body.format-58 .receipt{width:220px;padding:12px 9px;font-size:9px}body.format-5
 body.format-a4 .receipt{width:190mm;min-height:267mm;padding:16mm 18mm;font-size:14px}body.format-a4 .logo{width:260px}body.format-a4 .meta td:first-child{width:30%}body.format-a4 .advance-seal{width:145px;height:145px}body.format-a4 .advance-seal strong{font-size:18px}
 @media print{@page thermal80{size:80mm auto;margin:0}@page thermal58{size:58mm auto;margin:0}@page advanceA4{size:A4 portrait;margin:10mm}body{background:#fff}.page{padding:0;display:block}.actions,.format-picker{display:none!important}body.format-80 .receipt{page:thermal80;width:76mm;box-shadow:none;margin:0 auto;padding:3mm}body.format-58 .receipt{page:thermal58;width:54mm;box-shadow:none;margin:0 auto;padding:2mm}body.format-a4 .receipt{page:advanceA4;width:190mm;min-height:267mm;box-shadow:none;margin:0 auto;padding:14mm 16mm}}
 </style></head><body class="format-80"><main class="page"><section class="receipt">
-<div class="seal-wrap"><div class="advance-seal"><strong>Advance<br>Payment</strong><small>Received</small></div></div>
+<div class="seal-wrap"><div class="advance-seal"><strong><?php echo htmlspecialchars($seal_main); ?></strong><small><?php echo htmlspecialchars($seal_small); ?></small></div></div>
 <div class="shop"><img class="logo" src="supun-logo.png" alt="Supun Group"><h1>SUPUN GROUP</h1><p>Retail &amp; Wholesale</p></div>
 <div class="divider"></div><div class="doc-title"><?php echo htmlspecialchars($title); ?></div><div class="divider"></div>
 <table class="meta">
@@ -41,7 +44,7 @@ body.format-a4 .receipt{width:190mm;min-height:267mm;padding:16mm 18mm;font-size
 <tr><td>Received By</td><td>: <?php echo htmlspecialchars($payment['cashier_name']??'-'); ?></td></tr>
 <?php if($payment['order_number']): ?><tr><td>Order</td><td>: <?php echo htmlspecialchars($payment['order_number']); ?></td></tr><?php endif; ?>
 </table>
-<div class="amount-box"><small><?php echo $is_deposit?'ADVANCE AMOUNT RECEIVED':'ADVANCE AMOUNT USED'; ?></small><strong>Rs. <?php echo number_format((float)$payment['amount'],2); ?></strong></div>
+<div class="amount-box"><small><?php echo $is_deposit?'ADVANCE AMOUNT RECEIVED':($is_refund?'ADVANCE AMOUNT REFUNDED':'ADVANCE AMOUNT USED'); ?></small><strong>Rs. <?php echo number_format((float)$payment['amount'],2); ?></strong></div>
 <div class="balance"><span>Current Advance Balance</span><span>Rs. <?php echo number_format((float)$payment['advance_balance'],2); ?></span></div>
 <?php if($payment['reference_note']): ?><div class="note"><strong>Reference:</strong> <?php echo htmlspecialchars($payment['reference_note']); ?></div><?php endif; ?>
 <div class="divider"></div><div class="footer">This receipt confirms an advance payment only.<br>Thank you for your business.</div>
