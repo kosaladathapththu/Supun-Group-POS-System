@@ -810,7 +810,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .advance-print-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 8px;padding:8px;border:1px solid #c2410c;border-radius:7px;background:#fff;color:#c2410c;text-decoration:none;font-size:10px;font-weight:900}.advance-print-btn:hover{background:#c2410c;color:#fff}
 .installment-box{border:1px solid #a7f3d0;border-radius:7px;background:#f0fdf4;padding:8px;margin-bottom:9px}.installment-box summary{cursor:pointer;color:#047857;font-size:11px;font-weight:900}.installment-box p{font-size:9px;color:var(--text-muted);margin:6px 0}
 .advance-auto-note{font-size:9px;line-height:1.35;color:#175cd3;background:#eff8ff;border-radius:6px;padding:7px;margin-top:6px;font-weight:800}
-.payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0}.payment-choice{min-height:72px;border:1.5px solid;border-radius:8px;padding:8px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:'Nunito',sans-serif}.payment-choice i{font-size:16px}.payment-choice strong{font-size:11px}.payment-choice small{font-size:8px;line-height:1.2}.advance-choice{background:#fff7ed;border-color:#fb923c;color:#c2410c}.full-choice{background:#ecfdf5;border-color:#34d399;color:#047857}.payment-choice:hover{filter:brightness(.97);transform:translateY(-1px)}.payment-modal{width:430px;max-height:94vh;overflow-y:auto}.simple-payment-box .advance-control{margin-bottom:4px}
+.payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0}.payment-choice{min-height:72px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:'Nunito',sans-serif;background:#f8fafc;color:#475467}.payment-choice i{font-size:16px}.payment-choice strong{font-size:11px}.payment-choice small{font-size:8px;line-height:1.2}.advance-choice{background:#fff7ed;border-color:#fb923c;color:#c2410c}.full-choice{background:#ecfdf5;border-color:#34d399;color:#047857}.payment-choice.active{box-shadow:0 0 0 3px rgba(15,118,110,.18);border-width:2px}.payment-choice:disabled{opacity:.45;cursor:not-allowed;transform:none}.payment-choice:not(:disabled):hover{filter:brightness(.97);transform:translateY(-1px)}.payment-modal{width:430px;max-height:94vh;overflow-y:auto}.simple-payment-box .advance-control{margin-bottom:4px}
 .payment-summary{background:#f8fafc;border:1px solid #dbe2ea;border-radius:8px;padding:8px;margin:9px 0}.payment-summary>div{display:flex;justify-content:space-between;gap:10px;padding:4px 2px;font-size:11px;color:var(--text-mid)}.payment-summary .remaining{border-top:1px dashed #94a3b8;margin-top:4px;padding-top:8px;color:#047857;font-size:13px;font-weight:900}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
@@ -1273,16 +1273,15 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             <?php endwhile; endif; ?>
                         </select>
                         <div class="advance-balance-row"><span id="advanceAvailable">Advance already paid: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
-                        <label style="display:flex;align-items:center;gap:8px;margin:9px 0;padding:9px;border:1px solid #fed7aa;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:800;">
-                            <input type="checkbox" name="apply_advance" id="useAdvanceToggle" value="1" onchange="toggleAdvanceUsage()" style="width:17px;height:17px;accent-color:#0f766e;">
-                            Use advance balance for this sale
-                        </label>
-                        <div class="field" id="advanceUseAmountWrap" style="display:none;margin-bottom:9px;"><label class="advance-label" for="advanceToUse">Advance amount to use</label><div class="advance-money"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" min="0" step="0.01" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00" disabled oninput="updateOrderFees()"></div></div>
-                        <label class="advance-label">2. What is the customer paying?</label>
+                        <input type="checkbox" name="apply_advance" id="useAdvanceToggle" value="1" style="display:none;">
+                        <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
+                        <label class="advance-label">2. Choose how to pay this bill</label>
                         <div class="payment-choice-grid">
-                            <button type="button" class="payment-choice advance-choice" onclick="openPaymentModal()"><i class="fa-solid fa-wallet"></i><strong>Advance / Part Payment</strong><small>Record payment and keep bill open</small></button>
-                            <button type="button" class="payment-choice full-choice" onclick="chooseFullPayment()"><i class="fa-solid fa-circle-check"></i><strong>Full Payment</strong><small>Collect balance and close bill</small></button>
+                            <button type="button" id="normalPaymentChoice" class="payment-choice full-choice active" onclick="chooseNormalPayment()"><i class="fa-solid fa-money-bill-wave"></i><strong>Pay Normally</strong><small>Keep advance money for later</small></button>
+                            <button type="button" id="useAdvanceChoice" class="payment-choice advance-choice" onclick="chooseAdvancePayment()"><i class="fa-solid fa-wallet"></i><strong>Use Advance Now</strong><small>Reduce this bill automatically</small></button>
+                            <button type="button" class="payment-choice" onclick="openPaymentModal()" style="grid-column:1/-1"><i class="fa-solid fa-circle-plus"></i><strong>Add Part Payment</strong><small>Receive more money and keep bill open</small></button>
                         </div>
+                        <div id="advanceDecision" class="hint" style="margin:7px 0;color:#027a48;font-weight:800;">Advance will be kept for a future purchase.</div>
                         <div class="advance-due"><span>Balance for full payment</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
                         <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Reprint Latest Part-Payment Receipt</a>
                     </div>
@@ -1584,9 +1583,12 @@ function selectAdvanceCustomer() {
     input.max = balance.toFixed(2);
     input.value = '0.00';
     if (toggle) { toggle.checked = false; toggle.disabled = select.value === '0' || balance <= 0; }
-    input.disabled = true;
-    const amountWrap = document.getElementById('advanceUseAmountWrap');
-    if (amountWrap) amountWrap.style.display = 'none';
+    document.getElementById('normalPaymentChoice')?.classList.add('active');
+    document.getElementById('useAdvanceChoice')?.classList.remove('active');
+    const useButton = document.getElementById('useAdvanceChoice');
+    if (useButton) useButton.disabled = select.value === '0' || balance <= 0;
+    const decision = document.getElementById('advanceDecision');
+    if (decision) decision.textContent = balance > 0 ? 'Advance will be kept for a future purchase.' : 'This customer has no advance balance available.';
     if (label) label.innerHTML = 'Total paid in advance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
     if (printLink) {
@@ -1596,16 +1598,28 @@ function selectAdvanceCustomer() {
     updateOrderFees();
 }
 
-function toggleAdvanceUsage() {
+function setAdvancePaymentChoice(useAdvance) {
     const toggle = document.getElementById('useAdvanceToggle');
     const input = document.getElementById('advanceToUse');
-    const amountWrap = document.getElementById('advanceUseAmountWrap');
     if (!toggle || !input) return;
-    const enabled = toggle.checked && !toggle.disabled;
-    input.disabled = !enabled;
+    const enabled = useAdvance && !toggle.disabled;
+    toggle.checked = enabled;
     input.value = enabled ? Math.min(Math.max(0, parseFloat(input.max) || 0), GT).toFixed(2) : '0.00';
-    if (amountWrap) amountWrap.style.display = enabled ? 'block' : 'none';
+    document.getElementById('normalPaymentChoice')?.classList.toggle('active', !enabled);
+    document.getElementById('useAdvanceChoice')?.classList.toggle('active', enabled);
+    const decision = document.getElementById('advanceDecision');
+    if (decision) decision.textContent = enabled ? 'Available advance will be deducted from this bill.' : 'Advance will be kept for a future purchase.';
     updateOrderFees();
+}
+
+function chooseNormalPayment() {
+    setAdvancePaymentChoice(false);
+    chooseFullPayment();
+}
+
+function chooseAdvancePayment() {
+    setAdvancePaymentChoice(true);
+    chooseFullPayment();
 }
 
 function filterPaymentCustomers() {
@@ -1726,8 +1740,7 @@ function updateOrderFees() {
     const advanceInput = document.getElementById('advanceToUse');
     const maxAdvance = Math.max(0, parseFloat(advanceInput?.max) || 0);
     const useAdvance = document.getElementById('useAdvanceToggle')?.checked === true;
-    let advanceUsed = useAdvance ? Math.max(0, parseFloat(advanceInput?.value) || 0) : 0;
-    advanceUsed = Math.min(advanceUsed, maxAdvance, GT);
+    let advanceUsed = useAdvance ? Math.min(maxAdvance, GT) : 0;
     if (advanceInput && parseFloat(advanceInput.value || 0) !== advanceUsed) advanceInput.value = advanceUsed.toFixed(2);
     AMOUNT_DUE = Math.max(0, GT - advanceUsed);
 
