@@ -37,8 +37,8 @@ function ordinalPayment(int $number): string {
 }
 $payment_ordinal=$payment_number>0?ordinalPayment($payment_number):'';
 
-$back_url = $return_order > 0 ? 'pos.php?order_id='.$return_order.'&settle=1' : 'advance_payments.php';
-$back_label = $return_order > 0 ? 'Back to Customer Order' : 'Back to Advance Payments';
+$back_url = $return_order > 0 ? 'pos.php' : 'advance_payments.php';
+$back_label = $return_order > 0 ? 'Back to POS' : 'Back to Advance Payments';
 $is_deposit = $payment['transaction_type'] === 'deposit';
 $is_refund = $payment['transaction_type'] === 'refund';
 $is_bill_refund = $is_refund && ($payment['order_status']??'') === 'cancelled';
