@@ -88,6 +88,18 @@ function ensureAdvancePaymentSchema(mysqli $conn): void
         CONSTRAINT fk_order_cancellation_refund FOREIGN KEY (refund_transaction_id) REFERENCES advance_payment_transactions(transaction_id) ON DELETE SET NULL,
         CONSTRAINT fk_order_cancellation_user FOREIGN KEY (cancelled_by) REFERENCES users(user_id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Account credit is strictly money not linked to a specific order.
+    // Rebuild the cached balance on every schema check so historical rows that
+    // incorrectly included installments are repaired automatically.
+    $conn->query("UPDATE customer_accounts c SET c.advance_balance=COALESCE((
+        SELECT SUM(t.remaining_amount)
+        FROM advance_payment_transactions t
+        WHERE t.customer_id=c.customer_id
+          AND t.transaction_type='deposit'
+          AND t.order_id IS NULL
+          AND t.remaining_amount>0
+    ),0)");
 }
 
 function nextAccountNumber(mysqli $conn): string
@@ -131,8 +143,6 @@ function reconcileClosedOrderAdvances(mysqli $conn): void
                 $stmt->close(); $capacity-=$applied; $applied_total+=$applied;
             }
             if($applied_total>0) {
-                $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance-?) WHERE customer_id=?');
-                $stmt->bind_param('di',$applied_total,$customer_id);$stmt->execute();$stmt->close();
                 $new_advance=(float)$order['advance_used']+$applied_total;
                 $new_cash=max(0,(float)$order['total_amount']-$new_advance);
                 $stmt=$conn->prepare('UPDATE orders SET advance_used=?,cash_given=?,balance=0 WHERE order_id=?');

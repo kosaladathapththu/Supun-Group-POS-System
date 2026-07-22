@@ -39,7 +39,7 @@ if (isset($_POST['edit_advance'])) {
         else {
             $conn->begin_transaction();
             try {
-                $stmt=$conn->prepare("SELECT t.customer_id,t.amount,t.remaining_amount,t.transaction_type,t.settlement_status,o.order_status,(SELECT COUNT(*) FROM advance_payment_transactions u WHERE u.parent_transaction_id=t.transaction_id AND u.transaction_type='sale_usage') usage_count FROM advance_payment_transactions t LEFT JOIN orders o ON o.order_id=t.order_id WHERE t.transaction_id=? FOR UPDATE");
+                $stmt=$conn->prepare("SELECT t.customer_id,t.order_id,t.amount,t.remaining_amount,t.transaction_type,t.settlement_status,o.order_status,(SELECT COUNT(*) FROM advance_payment_transactions u WHERE u.parent_transaction_id=t.transaction_id AND u.transaction_type='sale_usage') usage_count FROM advance_payment_transactions t LEFT JOIN orders o ON o.order_id=t.order_id WHERE t.transaction_id=? FOR UPDATE");
                 $stmt->bind_param('i',$transaction_id); $stmt->execute(); $payment=$stmt->get_result()->fetch_assoc(); $stmt->close();
                 if (!$payment || $payment['transaction_type']!=='deposit') throw new Exception('Advance payment was not found.');
                 if ((int)$payment['usage_count']>0 || abs((float)$payment['amount']-(float)$payment['remaining_amount'])>0.004 || $payment['order_status']==='paid') throw new Exception('This payment is already used or completed and is locked for audit safety.');
@@ -47,8 +47,10 @@ if (isset($_POST['edit_advance'])) {
                 $stmt=$conn->prepare('UPDATE advance_payment_transactions SET amount=?,remaining_amount=?,payment_method=?,reference_note=? WHERE transaction_id=?');
                 $stmt->bind_param('ddssi',$new_amount,$new_amount,$method,$note,$transaction_id);
                 if (!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
-                $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance+?) WHERE customer_id=?');
-                $stmt->bind_param('di',$difference,$customer_id); if(!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
+                if (empty($payment['order_id'])) {
+                    $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance+?) WHERE customer_id=?');
+                    $stmt->bind_param('di',$difference,$customer_id); if(!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
+                }
                 $conn->commit(); $message='Advance payment updated successfully.';
             } catch (Throwable $e) { $conn->rollback(); $message='Could not edit advance payment: '.$e->getMessage(); $message_type='error'; }
         }
@@ -75,8 +77,6 @@ if (isset($_POST['cancel_order_refund'])) {
                 if($refund_amount<=0) throw new Exception('No received payment is available to refund for this bill.');
 
                 if($available>0) {
-                    $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance-?) WHERE customer_id=?');
-                    $stmt->bind_param('di',$available,$customer_id); if(!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
                     $conn->query("UPDATE advance_payment_transactions SET remaining_amount=0,settlement_status='settled' WHERE order_id=$order_id AND customer_id=$customer_id AND transaction_type='deposit'");
                 }
 
@@ -135,8 +135,6 @@ if (isset($_POST['complete_order'])) {
             $stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$received,$received,$method,$note,$uid);
             if (!$stmt->execute()) throw new Exception($stmt->error);
             $installment_id=$conn->insert_id; $stmt->close();
-            $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance+? WHERE customer_id=?');
-            $stmt->bind_param('di',$received,$customer_id); $stmt->execute(); $stmt->close();
             $item_subtotal=round((float)$order['item_total'],2);
             $stmt=$conn->prepare('UPDATE orders SET subtotal=?,total_amount=? WHERE order_id=? AND order_status=\'open\'');
             $stmt->bind_param('ddi',$item_subtotal,$total,$order_id); $stmt->execute(); $stmt->close();
@@ -157,10 +155,6 @@ if (isset($_POST['complete_order'])) {
             $stmt->bind_param('siiidsi', $receipt,$customer_id,$order_id,$source_id,$applied,$note,$uid);
             if (!$stmt->execute()) throw new Exception($stmt->error);
             $stmt->close(); $to_allocate -= $applied;
-        }
-        if ($advance_used > 0) {
-            $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=GREATEST(0,advance_balance-?) WHERE customer_id=?');
-            $stmt->bind_param('di',$advance_used,$customer_id); $stmt->execute(); $stmt->close();
         }
         $change = max(0, round($received - $amount_due, 2));
         $stored_method = $advance_used >= $total && $total > 0 ? 'Credit' : $method;

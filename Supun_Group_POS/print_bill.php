@@ -10,7 +10,8 @@ if ($order_id <= 0) {
 }
 
 $order_stmt = $conn->prepare("
-    SELECT o.*, t.table_name, u.full_name, c.account_number, c.advance_balance AS customer_advance_balance
+    SELECT o.*, t.table_name, u.full_name, c.account_number,
+           (SELECT COALESCE(SUM(a.remaining_amount),0) FROM advance_payment_transactions a WHERE a.customer_id=o.customer_id AND a.transaction_type='deposit' AND a.order_id IS NULL AND a.remaining_amount>0) AS customer_advance_balance
     FROM orders o
     LEFT JOIN restaurant_tables t ON o.table_id = t.table_id
     LEFT JOIN customer_accounts c ON o.customer_id = c.customer_id
@@ -65,12 +66,18 @@ $advance_used = (float)($order['advance_used'] ?? 0);
 $remaining_advance = isset($order['customer_advance_balance']) ? (float)$order['customer_advance_balance'] : null;
 
 $payment_history = [];
-$payment_stmt = $conn->prepare("SELECT COALESCE(d.receipt_number,u.receipt_number) receipt_number,u.amount,COALESCE(d.payment_method,u.payment_method) payment_method,COALESCE(d.created_at,u.created_at) created_at
+$installment_paid = 0.0;
+$account_credit_used = 0.0;
+$payment_stmt = $conn->prepare("SELECT COALESCE(d.receipt_number,u.receipt_number) receipt_number,u.amount,COALESCE(d.payment_method,u.payment_method) payment_method,COALESCE(d.created_at,u.created_at) created_at,d.order_id source_order_id
     FROM advance_payment_transactions u LEFT JOIN advance_payment_transactions d ON d.transaction_id=u.parent_transaction_id
     WHERE u.order_id=? AND u.transaction_type='sale_usage' ORDER BY COALESCE(d.created_at,u.created_at),u.transaction_id");
 $payment_stmt->bind_param('i',$order_id); $payment_stmt->execute();
 $payment_result=$payment_stmt->get_result();
-while($payment_row=$payment_result->fetch_assoc()) $payment_history[]=$payment_row;
+while($payment_row=$payment_result->fetch_assoc()) {
+    $payment_history[]=$payment_row;
+    if ($payment_row['source_order_id'] === null) $account_credit_used += (float)$payment_row['amount'];
+    else $installment_paid += (float)$payment_row['amount'];
+}
 $payment_stmt->close();
 if (($order['payment_status'] ?? '') === 'paid') {
     $final_payment=max(0,$total-$advance_used);
@@ -1025,10 +1032,8 @@ body.format-a4 .paid-seal small { font-size:9px; }
 
     <table class="summ">
         <?php if ($advance_used > 0): ?>
-        <tr class="c-row">
-            <td class="sl">Paid from Advance</td>
-            <td class="sr">Rs <?php echo fmt($advance_used); ?></td>
-        </tr>
+        <?php if ($installment_paid > 0): ?><tr class="c-row"><td class="sl">Paid by Order Installments</td><td class="sr">Rs <?php echo fmt($installment_paid); ?></td></tr><?php endif; ?>
+        <?php if ($account_credit_used > 0): ?><tr class="c-row"><td class="sl">Paid from Account Credit</td><td class="sr">Rs <?php echo fmt($account_credit_used); ?></td></tr><?php endif; ?>
         <?php if ($remaining_advance !== null): ?>
         <tr class="c-row">
             <td class="sl">Remaining Advance Balance</td>

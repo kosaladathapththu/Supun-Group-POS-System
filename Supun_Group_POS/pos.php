@@ -408,7 +408,6 @@ if (isset($_POST['add_checkout_installment'])) {
         $customer_result=$conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE");
         $customer=$customer_result?$customer_result->fetch_assoc():null;
         if(!$customer) throw new Exception('Customer account not found.');
-        $stmt=$conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance+? WHERE customer_id=?');$stmt->bind_param('di',$amount,$customer_id);$stmt->execute();$stmt->close();
         $receipt=nextAdvanceReceipt($conn);$uid=(int)$_SESSION['user_id'];$note='Additional installment received at POS';
         $stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
         $stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$amount,$amount,$method,$note,$uid);
@@ -436,8 +435,8 @@ if (isset($_POST['create_checkout_advance'])) {
     $conn->begin_transaction();
     try {
         $account = nextAccountNumber($conn);
-        $stmt = $conn->prepare('INSERT INTO customer_accounts (account_number,customer_name,phone,advance_balance) VALUES (?,?,?,?)');
-        $stmt->bind_param('sssd', $account, $name, $phone, $amount);
+        $stmt = $conn->prepare('INSERT INTO customer_accounts (account_number,customer_name,phone,advance_balance) VALUES (?,?,?,0)');
+        $stmt->bind_param('sss', $account, $name, $phone);
         if (!$stmt->execute()) throw new Exception($stmt->error);
         $customer_id = $conn->insert_id; $stmt->close();
 
@@ -521,8 +520,8 @@ if (isset($_POST["pay_order"])) {
     $total_amount = max(0, $subtotal + $service_charge + $packaging_fee - $discount);
     $advance_used = 0.0;
     if ($requested_advance > 0 && $customer_id > 0) {
-        $aq = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1");
-        $available_advance = $aq && $aq->num_rows ? (float)$aq->fetch_assoc()['advance_balance'] : 0;
+        $aq = $conn->query("SELECT COALESCE(SUM(remaining_amount),0) advance_balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0");
+        $available_advance = $aq ? (float)$aq->fetch_assoc()['advance_balance'] : 0;
         $advance_used = min($requested_advance, $available_advance, $total_amount);
     }
     $amount_due = max(0, $total_amount - $advance_used);
@@ -549,7 +548,7 @@ if (isset($_POST["pay_order"])) {
             $stmt = $conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance-? WHERE customer_id=?');
             $stmt->bind_param('di', $advance_used, $customer_id); $stmt->execute(); $stmt->close();
             $to_allocate = $advance_used; $uid = (int)$_SESSION['user_id']; $note = 'Applied to POS order';
-            $deposits = $conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
+            $deposits = $conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
             while ($to_allocate > 0.0001 && $deposit = $deposits->fetch_assoc()) {
                 $source_id = (int)$deposit['transaction_id'];
                 $applied = min($to_allocate, (float)$deposit['remaining_amount']);
@@ -591,9 +590,9 @@ $products = $conn->query($product_sql);
 $open_orders = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0) ORDER BY o.order_id DESC");
 $advance_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
 $checkout_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,
-    (SELECT t.transaction_id FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.transaction_type='deposit' ORDER BY t.transaction_id DESC LIMIT 1) latest_advance_receipt_id
+    (SELECT t.transaction_id FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.transaction_type='deposit' AND t.order_id IS NULL ORDER BY t.transaction_id DESC LIMIT 1) latest_advance_receipt_id
     FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name");
-$modal_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
+$modal_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,(SELECT COALESCE(SUM(t.amount),0) FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.order_id=$current_order_id AND t.transaction_type='deposit') installment_paid FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name");
 
 /* =========================================================
    LOAD CURRENT ORDER
@@ -1276,7 +1275,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" data-receipt-id="<?php echo (int)($ac['latest_advance_receipt_id']??0); ?>" data-search="<?php echo htmlspecialchars(strtolower($ac['account_number'].' '.$ac['customer_name'].' '.$ac['phone']),ENT_QUOTES,'UTF-8'); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · '.$ac['phone']); ?></option>
                             <?php endwhile; endif; ?>
                         </select>
-                        <div class="advance-balance-row"><span id="advanceAvailable">Advance already paid: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
+                        <div class="advance-balance-row"><span id="advanceAvailable">Available account credit: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
                         <input type="checkbox" name="apply_advance" id="useAdvanceToggle" value="1" style="display:none;">
                         <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
                         <label class="advance-label">2. Choose how to pay this bill</label>
@@ -1377,7 +1376,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <form method="post" id="existingPaymentForm">
             <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
             <div class="mf"><label>Search customer</label><input type="search" id="modalCustomerSearch" class="advance-control" placeholder="Name, phone or account number" oninput="filterModalCustomers()"></div>
-            <div class="mf"><label>Select customer *</label><select name="checkout_customer_id" id="modalCustomerId" class="advance-control" required onchange="selectModalCustomer()"><option value="">Choose customer</option><?php if($modal_customers): while($mc=$modal_customers->fetch_assoc()): ?><option value="<?php echo (int)$mc['customer_id']; ?>" data-balance="<?php echo number_format((float)$mc['advance_balance'],2,'.',''); ?>" data-search="<?php echo htmlspecialchars(strtolower($mc['account_number'].' '.$mc['customer_name'].' '.$mc['phone']),ENT_QUOTES,'UTF-8'); ?>"><?php echo htmlspecialchars($mc['account_number'].' · '.$mc['customer_name'].' · '.$mc['phone']); ?></option><?php endwhile; endif; ?></select><small id="modalCustomerMatches" style="display:block;margin-top:4px;color:var(--text-muted);font-size:10px;"></small></div>
+            <div class="mf"><label>Select customer *</label><select name="checkout_customer_id" id="modalCustomerId" class="advance-control" required onchange="selectModalCustomer()"><option value="">Choose customer</option><?php if($modal_customers): while($mc=$modal_customers->fetch_assoc()): ?><option value="<?php echo (int)$mc['customer_id']; ?>" data-installments="<?php echo number_format((float)$mc['installment_paid'],2,'.',''); ?>" data-search="<?php echo htmlspecialchars(strtolower($mc['account_number'].' '.$mc['customer_name'].' '.$mc['phone']),ENT_QUOTES,'UTF-8'); ?>"><?php echo htmlspecialchars($mc['account_number'].' · '.$mc['customer_name'].' · '.$mc['phone']); ?></option><?php endwhile; endif; ?></select><small id="modalCustomerMatches" style="display:block;margin-top:4px;color:var(--text-muted);font-size:10px;"></small></div>
             <div class="mf"><label>Amount received *</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalInstallmentAmount" name="installment_amount" min="0.01" step="0.01" required placeholder="0.00" oninput="updatePaymentModalSummary()"></div></div>
             <div class="mf"><label>Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option><option>Cheque</option></select></div>
             <div class="payment-summary"><div><span>Bill total</span><strong>Rs. <span data-modal-bill-total>0.00</span></strong></div><div><span>Previously paid</span><strong>Rs. <span data-modal-previous>0.00</span></strong></div><div><span>This payment</span><strong>Rs. <span data-modal-current>0.00</span></strong></div><div class="remaining"><span>Remaining after payment</span><strong>Rs. <span data-modal-remaining>0.00</span></strong></div></div>
@@ -1601,7 +1600,7 @@ function selectAdvanceCustomer() {
     if (afterAmount) afterAmount.textContent = balance.toFixed(2);
     const launchText = document.getElementById('customerAdvanceLaunchText');
     if (launchText) launchText.textContent = select.value === '0' ? 'Optional' : (balance > 0 ? 'Rs. ' + balance.toFixed(2) + ' available' : 'Customer selected');
-    if (label) label.innerHTML = 'Total paid in advance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
+    if (label) label.innerHTML = 'Available account credit: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
     if (printLink) {
         printLink.href = receiptId > 0 ? 'print_advance.php?transaction_id=' + receiptId + '&return_order=<?php echo (int)$current_order_id; ?>' : '#';
@@ -1679,7 +1678,7 @@ function setPaymentCustomerMode(mode) {
 
 function updatePaymentModalSummary() {
     const select = document.getElementById('modalCustomerId');
-    const previous = Math.min(GT, Math.max(0, parseFloat(select?.options[select.selectedIndex]?.dataset.balance) || 0));
+    const previous = Math.min(GT, Math.max(0, parseFloat(select?.options[select.selectedIndex]?.dataset.installments) || 0));
     document.querySelectorAll('.payment-summary').forEach(summary => {
         const isNew = summary.closest('form')?.id === 'newPaymentForm';
         const paidBefore = isNew ? 0 : previous;
