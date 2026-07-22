@@ -812,6 +812,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0}.payment-choice{min-height:72px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:'Nunito',sans-serif;background:#f8fafc;color:#475467}.payment-choice i{font-size:16px}.payment-choice strong{font-size:11px}.payment-choice small{font-size:8px;line-height:1.2}.advance-choice{background:#fff7ed;border-color:#fb923c;color:#c2410c}.full-choice{background:#ecfdf5;border-color:#34d399;color:#047857}.payment-choice.active{box-shadow:0 0 0 3px rgba(15,118,110,.18);border-width:2px}.payment-choice:disabled{opacity:.45;cursor:not-allowed;transform:none}.payment-choice:not(:disabled):hover{filter:brightness(.97);transform:translateY(-1px)}.payment-modal{width:430px;max-height:94vh;overflow-y:auto}.simple-payment-box .advance-control{margin-bottom:4px}
 .customer-advance-launch{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;padding:10px 12px;border:1.5px solid #fdba74;border-radius:9px;background:#fff7ed;color:#c2410c;font-family:'Nunito',sans-serif;font-weight:900;cursor:pointer}.customer-advance-launch span{display:flex;align-items:center;gap:8px}.customer-advance-launch small{font-size:9px;color:#9a3412;font-weight:800}.customer-payment-backdrop{display:none;position:fixed;inset:0;background:rgba(16,24,40,.62);z-index:180}.customer-payment-backdrop.open{display:block}.simple-payment-box{display:none!important;position:fixed;z-index:181;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,calc(100vw - 24px));max-height:calc(100vh - 30px);overflow-y:auto;margin:0!important;padding:18px!important;box-shadow:0 24px 70px rgba(16,24,40,.35)}.simple-payment-box.open{display:block!important}.customer-payment-close{border:0;background:#ffedd5;color:#9a3412;border-radius:7px;width:32px;height:32px;cursor:pointer;flex:0 0 auto}.simple-payment-box .advance-title{align-items:center}.simple-payment-box .advance-title>div:first-child{font-size:16px}.simple-payment-box .advance-control{margin-bottom:4px}
 .payment-summary{background:#f8fafc;border:1px solid #dbe2ea;border-radius:8px;padding:8px;margin:9px 0}.payment-summary>div{display:flex;justify-content:space-between;gap:10px;padding:4px 2px;font-size:11px;color:var(--text-mid)}.payment-summary .remaining{border-top:1px dashed #94a3b8;margin-top:4px;padding-top:8px;color:#047857;font-size:13px;font-weight:900}
+#paymentOverlay .advance-tabs{display:none!important}#existingPaymentForm>.mf:nth-of-type(1),#existingPaymentForm>.mf:nth-of-type(2){display:none!important}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
 .pm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;}
@@ -1728,7 +1729,8 @@ function openPaymentModal() {
     const select = document.getElementById('checkoutCustomerId');
     const customerId = parseInt(select?.value || '0',10);
     document.getElementById('modalCustomerId').value = customerId > 0 ? String(customerId) : '';
-    document.getElementById('paymentModalCustomer').textContent = customerId > 0 ? select.options[select.selectedIndex].textContent : 'Search and select a customer';
+    document.querySelector('#paymentOverlay .m-head h2').textContent = 'Add Installment Payment';
+    document.getElementById('paymentModalCustomer').textContent = customerId > 0 ? select.options[select.selectedIndex].textContent : '';
     setPaymentCustomerMode('existing');
     updatePaymentModalSummary();
     document.getElementById('paymentOverlay').classList.add('show');
@@ -1736,6 +1738,7 @@ function openPaymentModal() {
 
 function openNewCustomerInstallment() {
     closeCustomerPaymentPopup();
+    document.querySelector('#paymentOverlay .m-head h2').textContent = 'New Customer Installment';
     document.getElementById('paymentModalCustomer').textContent = 'Create customer account and receive the first installment';
     setPaymentCustomerMode('new');
     updatePaymentModalSummary();
