@@ -885,7 +885,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         </button>
 
         <a class="tb-btn btn-new" href="advance_payments.php">
-            <i class="fa-solid fa-wallet"></i> Advance Payment
+            <i class="fa-solid fa-wallet"></i> Account Credit
+        </a>
+        <a class="tb-btn btn-new" href="installment_payments.php">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Installments
         </a>
 
         <?php if (in_array($user_role, ['admin', 'accountant'], true)): ?>

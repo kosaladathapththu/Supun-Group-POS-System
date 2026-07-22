@@ -36,7 +36,10 @@ $admin_prefix = $nav_from_root ? 'admin/' : '';
             <i class="fa-solid fa-money-bill-trend-up"></i> Expenses
         </a>
         <a class="nav-item <?php echo $current=='advances.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>advances.php">
-            <i class="fa-solid fa-wallet"></i> Customer Advances
+            <i class="fa-solid fa-wallet"></i> Account Credit
+        </a>
+        <a class="nav-item <?php echo $current=='installments.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>installments.php">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Installments
         </a>
 
         <div class="nav-group-label">Inventory &amp; Management</div>
