@@ -41,6 +41,9 @@ $admin_prefix = $nav_from_root ? 'admin/' : '';
         <a class="nav-item <?php echo $current=='installments.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>installments.php">
             <i class="fa-solid fa-file-invoice-dollar"></i> Installments
         </a>
+        <a class="nav-item <?php echo $current=='payment_reports.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>payment_reports.php">
+            <i class="fa-solid fa-chart-column"></i> Credit / Installment Report
+        </a>
 
         <div class="nav-group-label">Inventory &amp; Management</div>
         <a class="nav-item <?php echo in_array($current,['products.php','product_import.php'])?'active':''; ?>" href="<?php echo $admin_prefix; ?>products.php">
