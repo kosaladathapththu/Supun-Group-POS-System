@@ -811,6 +811,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .installment-box{border:1px solid #a7f3d0;border-radius:7px;background:#f0fdf4;padding:8px;margin-bottom:9px}.installment-box summary{cursor:pointer;color:#047857;font-size:11px;font-weight:900}.installment-box p{font-size:9px;color:var(--text-muted);margin:6px 0}
 .advance-auto-note{font-size:9px;line-height:1.35;color:#175cd3;background:#eff8ff;border-radius:6px;padding:7px;margin-top:6px;font-weight:800}
 .payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0}.payment-choice{min-height:72px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:'Nunito',sans-serif;background:#f8fafc;color:#475467}.payment-choice i{font-size:16px}.payment-choice strong{font-size:11px}.payment-choice small{font-size:8px;line-height:1.2}.advance-choice{background:#fff7ed;border-color:#fb923c;color:#c2410c}.full-choice{background:#ecfdf5;border-color:#34d399;color:#047857}.payment-choice.active{box-shadow:0 0 0 3px rgba(15,118,110,.18);border-width:2px}.payment-choice:disabled{opacity:.45;cursor:not-allowed;transform:none}.payment-choice:not(:disabled):hover{filter:brightness(.97);transform:translateY(-1px)}.payment-modal{width:430px;max-height:94vh;overflow-y:auto}.simple-payment-box .advance-control{margin-bottom:4px}
+.customer-advance-launch{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;padding:10px 12px;border:1.5px solid #fdba74;border-radius:9px;background:#fff7ed;color:#c2410c;font-family:'Nunito',sans-serif;font-weight:900;cursor:pointer}.customer-advance-launch span{display:flex;align-items:center;gap:8px}.customer-advance-launch small{font-size:9px;color:#9a3412;font-weight:800}.customer-payment-backdrop{display:none;position:fixed;inset:0;background:rgba(16,24,40,.62);z-index:180}.customer-payment-backdrop.open{display:block}.simple-payment-box{display:none!important;position:fixed;z-index:181;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,calc(100vw - 24px));max-height:calc(100vh - 30px);overflow-y:auto;margin:0!important;padding:18px!important;box-shadow:0 24px 70px rgba(16,24,40,.35)}.simple-payment-box.open{display:block!important}.customer-payment-close{border:0;background:#ffedd5;color:#9a3412;border-radius:7px;width:32px;height:32px;cursor:pointer;flex:0 0 auto}.simple-payment-box .advance-title{align-items:center}.simple-payment-box .advance-title>div:first-child{font-size:16px}.simple-payment-box .advance-control{margin-bottom:4px}
 .payment-summary{background:#f8fafc;border:1px solid #dbe2ea;border-radius:8px;padding:8px;margin:9px 0}.payment-summary>div{display:flex;justify-content:space-between;gap:10px;padding:4px 2px;font-size:11px;color:var(--text-mid)}.payment-summary .remaining{border-top:1px dashed #94a3b8;margin-top:4px;padding-top:8px;color:#047857;font-size:13px;font-weight:900}
 .advance-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.advance-help{font-size:10px;color:var(--text-muted);line-height:1.35;margin-bottom:5px}.create-advance-btn{width:100%;margin-top:9px;padding:9px;border:0;border-radius:7px;background:#c2410c;color:#fff;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.advance-message{padding:7px;border-radius:6px;font-size:10px;font-weight:800;margin-bottom:7px}.advance-message.ok{background:#ecfdf3;color:#027a48}.advance-message.err{background:#fef3f2;color:#b42318}
 .pm-lbl{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:5px;}
@@ -1262,8 +1263,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span class="total-amt">Rs. <span id="gt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
                     </div>
 
+                    <button type="button" class="customer-advance-launch" onclick="openCustomerPaymentPopup()"><span><i class="fa-solid fa-wallet"></i> Customer / Advance</span><small id="customerAdvanceLaunchText">Optional</small></button>
+                    <div class="customer-payment-backdrop" id="customerPaymentBackdrop" onclick="closeCustomerPaymentPopup()"></div>
                     <div class="advance-box simple-payment-box">
-                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Payment</div><small>Search customer, then choose payment type</small></div>
+                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer / Advance</div><button type="button" class="customer-payment-close" onclick="closeCustomerPaymentPopup()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
                         <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
                         <label class="advance-label">1. Select customer</label>
                         <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
@@ -1589,6 +1592,8 @@ function selectAdvanceCustomer() {
     if (useButton) useButton.disabled = select.value === '0' || balance <= 0;
     const decision = document.getElementById('advanceDecision');
     if (decision) decision.textContent = balance > 0 ? 'Advance will be kept for a future purchase.' : 'This customer has no advance balance available.';
+    const launchText = document.getElementById('customerAdvanceLaunchText');
+    if (launchText) launchText.textContent = select.value === '0' ? 'Optional' : (balance > 0 ? 'Rs. ' + balance.toFixed(2) + ' available' : 'Customer selected');
     if (label) label.innerHTML = 'Total paid in advance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
     if (printLink) {
@@ -1596,6 +1601,16 @@ function selectAdvanceCustomer() {
         printLink.style.display = receiptId > 0 ? 'flex' : 'none';
     }
     updateOrderFees();
+}
+
+function openCustomerPaymentPopup() {
+    document.querySelector('.simple-payment-box')?.classList.add('open');
+    document.getElementById('customerPaymentBackdrop')?.classList.add('open');
+}
+
+function closeCustomerPaymentPopup() {
+    document.querySelector('.simple-payment-box')?.classList.remove('open');
+    document.getElementById('customerPaymentBackdrop')?.classList.remove('open');
 }
 
 function setAdvancePaymentChoice(useAdvance) {
@@ -1609,16 +1624,20 @@ function setAdvancePaymentChoice(useAdvance) {
     document.getElementById('useAdvanceChoice')?.classList.toggle('active', enabled);
     const decision = document.getElementById('advanceDecision');
     if (decision) decision.textContent = enabled ? 'Available advance will be deducted from this bill.' : 'Advance will be kept for a future purchase.';
+    const launchText = document.getElementById('customerAdvanceLaunchText');
+    if (launchText) launchText.textContent = enabled ? 'Using Rs. ' + Number(input.value).toFixed(2) : (Number(input.max) > 0 ? 'Advance kept for later' : 'Customer selected');
     updateOrderFees();
 }
 
 function chooseNormalPayment() {
     setAdvancePaymentChoice(false);
+    closeCustomerPaymentPopup();
     chooseFullPayment();
 }
 
 function chooseAdvancePayment() {
     setAdvancePaymentChoice(true);
+    closeCustomerPaymentPopup();
     chooseFullPayment();
 }
 
@@ -1687,6 +1706,7 @@ function selectModalCustomer() {
 }
 
 function openPaymentModal() {
+    closeCustomerPaymentPopup();
     const select = document.getElementById('checkoutCustomerId');
     const customerId = parseInt(select?.value || '0',10);
     document.getElementById('modalCustomerId').value = customerId > 0 ? String(customerId) : '';
