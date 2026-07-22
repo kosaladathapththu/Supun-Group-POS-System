@@ -1784,10 +1784,21 @@ function updateOrderFees() {
 
     const pm = document.getElementById('pm_val')?.value || 'Cash';
     const ci = document.getElementById('cash_given');
-    if (ci && pm !== 'Cash') {
-        ci.value = AMOUNT_DUE.toFixed(2);
-    } else if (ci && AMOUNT_DUE === 0) {
+    const fullyPaidByAdvance = useAdvance && AMOUNT_DUE <= 0.004;
+    if (ci && fullyPaidByAdvance) {
+        ci.readOnly = true;
+        ci.dataset.advanceLocked = '1';
         ci.value = '0.00';
+        ci.placeholder = 'Fully paid by advance';
+    } else if (ci && pm !== 'Cash') {
+        ci.readOnly = true;
+        delete ci.dataset.advanceLocked;
+        ci.value = AMOUNT_DUE.toFixed(2);
+    } else if (ci) {
+        if (ci.dataset.advanceLocked === '1') ci.value = '';
+        ci.readOnly = false;
+        delete ci.dataset.advanceLocked;
+        ci.placeholder = 'Enter cash amount…';
     }
 
     calcBal();
@@ -1850,8 +1861,15 @@ function selMethod(m) {
     const ci = document.getElementById('cash_given');
     if (!ci) return;
 
-    if (m === 'Cash') {
+    const fullyPaidByAdvance = document.getElementById('useAdvanceToggle')?.checked === true && AMOUNT_DUE <= 0.004;
+    if (fullyPaidByAdvance) {
+        ci.readOnly = true;
+        ci.dataset.advanceLocked = '1';
+        ci.value = '0.00';
+        ci.placeholder = 'Fully paid by advance';
+    } else if (m === 'Cash') {
         ci.readOnly = false;
+        delete ci.dataset.advanceLocked;
         ci.value = '';
         ci.placeholder = 'Enter cash amount…';
     } else {
