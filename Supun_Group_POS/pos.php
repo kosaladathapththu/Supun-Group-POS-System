@@ -1269,7 +1269,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                     <button type="button" class="customer-advance-launch" onclick="openCustomerPaymentPopup()"><span><i class="fa-solid fa-wallet"></i> Credit / Installments</span><small id="customerAdvanceLaunchText">Optional</small></button>
                     <div class="customer-payment-backdrop" id="customerPaymentBackdrop" onclick="closeCustomerPaymentPopup()"></div>
                     <div class="advance-box simple-payment-box">
-                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Credit / Installments</div><button type="button" class="customer-payment-close" onclick="closeCustomerPaymentPopup()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Payment Options</div><button type="button" class="customer-payment-close" onclick="closeCustomerPaymentPopup()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
                         <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
                         <label class="advance-label">1. Select customer</label>
                         <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
@@ -1281,16 +1281,14 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <div class="advance-balance-row"><span id="advanceAvailable">Available account credit: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
                         <input type="checkbox" name="apply_advance" id="useAdvanceToggle" value="1" style="display:none;">
                         <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
-                        <label class="advance-label">2. Choose how to pay this bill</label>
+                        <label class="advance-label">2. Choose one option</label>
                         <div class="payment-choice-grid">
-                            <button type="button" id="normalPaymentChoice" class="payment-choice full-choice active" onclick="chooseNormalPayment()"><i class="fa-solid fa-money-bill-wave"></i><strong>Pay Normally</strong><small>Keep advance money for later</small></button>
-                            <button type="button" id="useAdvanceChoice" class="payment-choice advance-choice" onclick="chooseAdvancePayment()"><i class="fa-solid fa-wallet"></i><strong>Use Advance Now</strong><small>Reduce this bill automatically</small></button>
-                            <button type="button" class="payment-choice" onclick="openPaymentModal()"><i class="fa-solid fa-circle-plus"></i><strong>Existing Customer Installment</strong><small>Add another payment and keep bill open</small></button>
-                            <button type="button" class="payment-choice" onclick="openNewCustomerInstallment()"><i class="fa-solid fa-user-plus"></i><strong>New Customer Installment</strong><small>Create account and receive first payment</small></button>
+                            <button type="button" id="useAdvanceChoice" class="payment-choice advance-choice" onclick="chooseAdvancePayment()"><i class="fa-solid fa-wallet"></i><strong>Use Account Credit</strong><small>Deduct available credit from this sale</small></button>
+                            <button type="button" class="payment-choice" onclick="openSimpleInstallment()"><i class="fa-solid fa-calendar-check"></i><strong>Pay by Installments</strong><small>Receive part payment and keep bill open</small></button>
                         </div>
-                        <div id="advanceDecision" class="hint" style="margin:7px 0;color:#027a48;font-weight:800;">Advance will be kept for a future purchase.</div>
-                        <div class="advance-due"><span>Balance for full payment</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
-                        <div class="advance-due" id="customerAdvanceAfterRow" style="background:#fff7ed;color:#9a3412;"><span>Customer advance remaining after sale</span><strong>Rs. <span id="customerAdvanceAfter">0.00</span></strong></div>
+                        <div id="advanceDecision" class="hint" style="margin:7px 0;color:#667085;font-weight:800;">Close this window to continue with a normal payment.</div>
+                        <div class="advance-due"><span>Amount to pay now</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                        <div class="advance-due" id="customerAdvanceAfterRow" style="display:none;background:#fff7ed;color:#9a3412;"><span>Account credit left</span><strong>Rs. <span id="customerAdvanceAfter">0.00</span></strong></div>
                         <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Reprint Latest Part-Payment Receipt</a>
                     </div>
 
@@ -1596,10 +1594,10 @@ function selectAdvanceCustomer() {
     const useButton = document.getElementById('useAdvanceChoice');
     if (useButton) useButton.disabled = select.value === '0' || balance <= 0;
     const decision = document.getElementById('advanceDecision');
-    if (decision) decision.textContent = balance > 0 ? 'Advance will be kept for a future purchase.' : 'This customer has no advance balance available.';
+    if (decision) decision.textContent = balance > 0 ? 'Choose Use Account Credit, or close this window for normal payment.' : (select.value === '0' ? 'Select a customer to use credit or start an installment.' : 'No account credit available. You can still start an installment.');
     const afterRow = document.getElementById('customerAdvanceAfterRow');
     const afterAmount = document.getElementById('customerAdvanceAfter');
-    if (afterRow) afterRow.style.display = select.value === '0' ? 'none' : 'flex';
+    if (afterRow) afterRow.style.display = 'none';
     if (afterAmount) afterAmount.textContent = balance.toFixed(2);
     const launchText = document.getElementById('customerAdvanceLaunchText');
     if (launchText) launchText.textContent = select.value === '0' ? 'Optional' : (balance > 0 ? 'Rs. ' + balance.toFixed(2) + ' available' : 'Customer selected');
@@ -1633,7 +1631,9 @@ function setAdvancePaymentChoice(useAdvance) {
     document.getElementById('normalPaymentChoice')?.classList.toggle('active', !enabled);
     document.getElementById('useAdvanceChoice')?.classList.toggle('active', enabled);
     const decision = document.getElementById('advanceDecision');
-    if (decision) decision.textContent = enabled ? 'Available advance will be deducted from this bill.' : 'Advance will be kept for a future purchase.';
+    if (decision) decision.textContent = enabled ? 'Account credit will be deducted from this sale.' : 'Close this window to continue with a normal payment.';
+    const afterRow = document.getElementById('customerAdvanceAfterRow');
+    if (afterRow) afterRow.style.display = enabled ? 'flex' : 'none';
     const launchText = document.getElementById('customerAdvanceLaunchText');
     if (launchText) launchText.textContent = enabled ? 'Using Rs. ' + Number(input.value).toFixed(2) : (Number(input.max) > 0 ? 'Advance kept for later' : 'Customer selected');
     updateOrderFees();
@@ -1649,6 +1649,14 @@ function chooseAdvancePayment() {
     setAdvancePaymentChoice(true);
     closeCustomerPaymentPopup();
     chooseFullPayment();
+}
+
+function openSimpleInstallment() {
+    const customerId = parseInt(document.getElementById('checkoutCustomerId')?.value || '0', 10);
+    setAdvancePaymentChoice(false);
+    closeCustomerPaymentPopup();
+    if (customerId > 0) openPaymentModal();
+    else openNewCustomerInstallment();
 }
 
 function filterPaymentCustomers() {
