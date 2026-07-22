@@ -843,21 +843,21 @@ body.format-a4 .paid-seal small { font-size:9px; }
     body.format-a4 .paid-seal { width:34mm !important;height:34mm !important;border-width:1.2mm !important; }
     /* Keep the complete invoice, payment history, reference and footer on one A4 sheet. */
     html:has(body.format-a4),body.format-a4 { width:190mm !important;min-width:190mm !important;max-width:190mm !important;height:auto !important;min-height:0 !important;overflow:visible !important; }
-    body.format-a4 .receipt { box-sizing:border-box !important;width:190mm !important;max-width:190mm !important;min-height:0 !important;height:auto !important;margin:0 !important;padding:7mm 10mm !important;font-size:11.5px !important;line-height:1.28 !important;page-break-inside:avoid !important;break-inside:avoid-page !important;page-break-after:avoid !important; }
-    body.format-a4 .logo { width:55mm !important;height:auto !important;max-height:24mm !important; }
-    body.format-a4 .shop-name { font-size:24px !important;margin:0 !important; }
-    body.format-a4 .shop-sub { font-size:9px !important;margin:0 !important; }
-    body.format-a4 .shop-addr,body.format-a4 .meta,body.format-a4 .itbl,body.format-a4 .summ { font-size:10.5px !important;line-height:1.22 !important; }
-    body.format-a4 .meta td,body.format-a4 .itbl td,body.format-a4 .itbl th,body.format-a4 .summ td { padding-top:2px !important;padding-bottom:2px !important; }
-    body.format-a4 .itbl th { font-size:9.5px !important; }
-    body.format-a4 .iname { font-size:10.5px !important;line-height:1.18 !important; }
-    body.format-a4 .g-row td { font-size:18px !important;padding:4px 0 !important; }
-    body.format-a4 .sep-eq { margin:3px 0 !important;line-height:1 !important; }
-    body.format-a4 .ftr { font-size:9.5px !important;line-height:1.25 !important; }
-    body.format-a4 .ftr .ft1 { font-size:13px !important; }
-    body.format-a4 .ftr .ft3,body.format-a4 .ref-line,body.format-a4 .dev-credit { font-size:8.5px !important;line-height:1.2 !important; }
-    body.format-a4 .paid-seal-wrap { top:50% !important;right:10% !important; }
-    body.format-a4 .paid-seal { width:26mm !important;height:26mm !important;border-width:1mm !important; }
+    body.format-a4 .receipt { box-sizing:border-box !important;width:190mm !important;max-width:190mm !important;min-height:0 !important;height:auto !important;margin:0 !important;padding:11mm 14mm !important;font-size:14px !important;line-height:1.35 !important;page-break-inside:avoid !important;break-inside:avoid-page !important;page-break-after:avoid !important; }
+    body.format-a4 .logo { width:70mm !important;height:auto !important;max-height:30mm !important; }
+    body.format-a4 .shop-name { font-size:30px !important;margin:1px 0 !important; }
+    body.format-a4 .shop-sub { font-size:11px !important;margin:1px 0 !important; }
+    body.format-a4 .shop-addr,body.format-a4 .meta,body.format-a4 .itbl,body.format-a4 .summ { font-size:13px !important;line-height:1.3 !important; }
+    body.format-a4 .meta td,body.format-a4 .itbl td,body.format-a4 .itbl th,body.format-a4 .summ td { padding-top:4px !important;padding-bottom:4px !important; }
+    body.format-a4 .itbl th { font-size:11px !important; }
+    body.format-a4 .iname { font-size:13px !important;line-height:1.25 !important; }
+    body.format-a4 .g-row td { font-size:22px !important;padding:7px 0 !important; }
+    body.format-a4 .sep-eq { margin:7px 0 !important;line-height:1.1 !important; }
+    body.format-a4 .ftr { font-size:11px !important;line-height:1.35 !important; }
+    body.format-a4 .ftr .ft1 { font-size:16px !important; }
+    body.format-a4 .ftr .ft3,body.format-a4 .ref-line,body.format-a4 .dev-credit { font-size:10px !important;line-height:1.25 !important; }
+    body.format-a4 .paid-seal-wrap { top:52% !important;right:9% !important; }
+    body.format-a4 .paid-seal { width:32mm !important;height:32mm !important;border-width:1mm !important; }
     /* Remove every non-invoice element from print layout and take the invoice
        out of normal document flow. This prevents Chrome creating a trailing
        blank sheet from flex-body/control dimensions. */
