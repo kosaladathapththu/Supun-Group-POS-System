@@ -7,7 +7,8 @@ ensureAdvancePaymentSchema($conn);
 
 $from=preg_match('/^\d{4}-\d{2}-\d{2}$/',$_GET['from']??'')?$_GET['from']:date('Y-m-01');
 $to=preg_match('/^\d{4}-\d{2}-\d{2}$/',$_GET['to']??'')?$_GET['to']:date('Y-m-d');
-$type=in_array($_GET['type']??'all',['all','credit','installment'],true)?$_GET['type']:'all';
+$requested_type=$_GET['type']??'all';
+$type=in_array($requested_type,['all','credit','installment'],true)?$requested_type:'all';
 $method=trim($_GET['method']??'');$customer=trim($_GET['customer']??'');
 $from_sql=$conn->real_escape_string($from);$to_sql=$conn->real_escape_string($to);$method_sql=$conn->real_escape_string($method);$customer_sql=$conn->real_escape_string($customer);
 $filters=["DATE(t.created_at) BETWEEN '$from_sql' AND '$to_sql'","t.transaction_type='deposit'"];
