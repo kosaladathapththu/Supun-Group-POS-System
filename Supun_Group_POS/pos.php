@@ -400,22 +400,26 @@ if (isset($_GET["clear"]) && $current_order_id > 0) {
 if (isset($_POST['add_checkout_installment'])) {
     $order_id=(int)($_POST['order_id']??0); $customer_id=(int)($_POST['checkout_customer_id']??0);
     $amount=round((float)($_POST['installment_amount']??0),2); $method=trim($_POST['installment_method']??'Cash');
+    $use_credit=isset($_POST['use_account_credit_to_close'])&&$_POST['use_account_credit_to_close']==='1';
     $allowed_advance_methods=['Cash','Card','QR','Bank Transfer','Cheque'];
     if(!in_array($method,$allowed_advance_methods,true)) $method='Cash';
-    if($order_id<=0||$customer_id<=0||$amount<=0){header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
+    if($order_id<=0||$customer_id<=0||$amount<0||($amount<=0&&!$use_credit)){header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
     $conn->begin_transaction();
     try{
         $customer_result=$conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE");
         $customer=$customer_result?$customer_result->fetch_assoc():null;
         if(!$customer) throw new Exception('Customer account not found.');
-        $receipt=nextAdvanceReceipt($conn);$uid=(int)$_SESSION['user_id'];$note='Additional installment received at POS';
-        $stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
-        $stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$amount,$amount,$method,$note,$uid);
-        if(!$stmt->execute()) throw new Exception($stmt->error);
-        $transaction_id=$conn->insert_id;$stmt->close();
+        $order_q=$conn->query("SELECT o.order_status,COALESCE(NULLIF(o.total_amount,0),(SELECT SUM(oi.line_total) FROM order_items oi WHERE oi.order_id=o.order_id),0) bill_total,(SELECT COALESCE(SUM(d.remaining_amount),0) FROM advance_payment_transactions d WHERE d.order_id=o.order_id AND d.customer_id=$customer_id AND d.transaction_type='deposit') installment_paid FROM orders o WHERE o.order_id=$order_id FOR UPDATE");
+        $order=$order_q?$order_q->fetch_assoc():null;if(!$order||$order['order_status']!=='open')throw new Exception('Open order not found.');
+        $bill_total=round((float)$order['bill_total'],2);$installment_paid=round((float)$order['installment_paid'],2);$credit_needed=max(0,round($bill_total-$installment_paid-$amount,2));
+        $available_credit=(float)($conn->query("SELECT COALESCE(SUM(remaining_amount),0) balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0")->fetch_assoc()['balance']??0);
+        if($use_credit&&($credit_needed<=0||$available_credit+0.0001<$credit_needed))throw new Exception('Account credit cannot close this bill.');
+        $uid=(int)$_SESSION['user_id'];$transaction_id=0;
+        if($amount>0){$receipt=nextAdvanceReceipt($conn);$note='Additional installment received at POS';$stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");$stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$amount,$amount,$method,$note,$uid);if(!$stmt->execute())throw new Exception($stmt->error);$transaction_id=$conn->insert_id;$stmt->close();}
+        if($use_credit){$left=$credit_needed;$deposits=$conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");while($left>0.0001&&$deposit=$deposits->fetch_assoc()){$take=min($left,(float)$deposit['remaining_amount']);$source=(int)$deposit['transaction_id'];$new_remaining=(float)$deposit['remaining_amount']-$take;$status=$new_remaining>0.0001?'open':'settled';$stmt=$conn->prepare('UPDATE advance_payment_transactions SET remaining_amount=?,settlement_status=? WHERE transaction_id=?');$stmt->bind_param('dsi',$new_remaining,$status,$source);$stmt->execute();$stmt->close();$usage_receipt=nextAdvanceReceipt($conn);$usage_note='Account credit used to complete installment bill';$stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)");$stmt->bind_param('siiidsi',$usage_receipt,$customer_id,$order_id,$source,$take,$usage_note,$uid);if(!$stmt->execute())throw new Exception($stmt->error);$stmt->close();$left-=$take;}if($left>0.0001)throw new Exception('Account credit allocation failed.');}
         $name_safe=esc($conn,$customer['customer_name']);
-        $conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'");
-        $conn->commit();header("Location: print_advance.php?transaction_id=$transaction_id&return_order=$order_id");exit;
+        if($use_credit){$stored_method=$amount>0?'Mixed':'Credit';$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe',total_amount=$bill_total,advance_used=$credit_needed,payment_method='$stored_method',cash_given=$amount,balance=0,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=$order_id AND order_status='open'");}else{$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'");}
+        $conn->commit();if($use_credit){reconcileClosedOrderAdvances($conn);header("Location: print_bill.php?order_id=$order_id");}else{header("Location: print_advance.php?transaction_id=$transaction_id&return_order=$order_id");}exit;
     }catch(Throwable $e){$conn->rollback();header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
 }
 
@@ -1379,7 +1383,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
             <div class="mf"><label>Search customer</label><input type="search" id="modalCustomerSearch" class="advance-control" placeholder="Name, phone or account number" oninput="filterModalCustomers()"></div>
             <div class="mf"><label>Select customer *</label><select name="checkout_customer_id" id="modalCustomerId" class="advance-control" required onchange="selectModalCustomer()"><option value="">Choose customer</option><?php if($modal_customers): while($mc=$modal_customers->fetch_assoc()): ?><option value="<?php echo (int)$mc['customer_id']; ?>" data-installments="<?php echo number_format((float)$mc['installment_paid'],2,'.',''); ?>" data-search="<?php echo htmlspecialchars(strtolower($mc['account_number'].' '.$mc['customer_name'].' '.$mc['phone']),ENT_QUOTES,'UTF-8'); ?>"><?php echo htmlspecialchars($mc['account_number'].' · '.$mc['customer_name'].' · '.$mc['phone']); ?></option><?php endwhile; endif; ?></select><small id="modalCustomerMatches" style="display:block;margin-top:4px;color:var(--text-muted);font-size:10px;"></small></div>
-            <div class="mf"><label>Amount received *</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalInstallmentAmount" name="installment_amount" min="0.01" step="0.01" required placeholder="0.00" oninput="updatePaymentModalSummary()"></div></div>
+            <div class="mf"><label>Amount received today</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalInstallmentAmount" name="installment_amount" min="0" step="0.01" value="0.00" oninput="updatePaymentModalSummary()"></div></div>
             <div class="mf"><label>Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option><option>Cheque</option></select></div>
             <label id="installmentCreditOption" style="display:none;align-items:flex-start;gap:9px;padding:10px;border:1px solid #a7f3d0;border-radius:8px;background:#f0fdf4;margin-bottom:10px;cursor:pointer"><input type="checkbox" name="use_account_credit_to_close" id="useInstallmentCredit" value="1" onchange="updatePaymentModalSummary()" style="margin-top:3px"><span><strong style="display:block;color:#047857;font-size:12px">Use account credit to close this bill</strong><small id="installmentCreditHelp" style="color:#667085">Available account credit will be used only if it can complete the bill.</small></span></label>
             <div class="payment-summary"><div><span>Bill total</span><strong>Rs. <span data-modal-bill-total>0.00</span></strong></div><div><span>Previously paid</span><strong>Rs. <span data-modal-previous>0.00</span></strong></div><div><span>This payment</span><strong>Rs. <span data-modal-current>0.00</span></strong></div><div class="remaining"><span>Remaining after payment</span><strong>Rs. <span data-modal-remaining>0.00</span></strong></div></div>
@@ -1692,6 +1696,19 @@ function setPaymentCustomerMode(mode) {
 function updatePaymentModalSummary() {
     const select = document.getElementById('modalCustomerId');
     const previous = Math.min(GT, Math.max(0, parseFloat(select?.options[select.selectedIndex]?.dataset.installments) || 0));
+    const mainSelect=document.getElementById('checkoutCustomerId');
+    const availableCredit=Math.max(0,parseFloat(mainSelect?.options[mainSelect.selectedIndex]?.dataset.balance)||0);
+    const installmentAmount=Math.max(0,parseFloat(document.getElementById('modalInstallmentAmount')?.value)||0);
+    const dueAfterCash=Math.max(0,GT-previous-installmentAmount);
+    const creditToggle=document.getElementById('useInstallmentCredit');
+    const creditOption=document.getElementById('installmentCreditOption');
+    const canCloseWithCredit=availableCredit>0&&availableCredit+0.0001>=dueAfterCash;
+    if(creditOption)creditOption.style.display=availableCredit>0?'flex':'none';
+    if(creditToggle){creditToggle.disabled=!canCloseWithCredit;if(!canCloseWithCredit)creditToggle.checked=false;}
+    const creditHelp=document.getElementById('installmentCreditHelp');
+    if(creditHelp)creditHelp.textContent='Available: Rs. '+availableCredit.toFixed(2)+' · Needed to close: Rs. '+dueAfterCash.toFixed(2)+(canCloseWithCredit?'':' · Enter a larger payment first');
+    const saveButton=document.querySelector('#existingPaymentForm button[name="add_checkout_installment"]');
+    if(saveButton)saveButton.innerHTML=creditToggle?.checked&&canCloseWithCredit?'<i class="fa-solid fa-circle-check"></i> Use Credit & Print Final Bill':'<i class="fa-solid fa-floppy-disk"></i> Save Payment & Print Receipt';
     document.querySelectorAll('.payment-summary').forEach(summary => {
         const isNew = summary.closest('form')?.id === 'newPaymentForm';
         const paidBefore = isNew ? 0 : previous;
@@ -1702,7 +1719,8 @@ function updatePaymentModalSummary() {
         summary.querySelector('[data-modal-bill-total]').textContent = GT.toFixed(2);
         summary.querySelector('[data-modal-previous]').textContent = paidBefore.toFixed(2);
         summary.querySelector('[data-modal-current]').textContent = current.toFixed(2);
-        summary.querySelector('[data-modal-remaining]').textContent = Math.max(0, dueBefore - current).toFixed(2);
+        const useCredit=!isNew&&Boolean(creditToggle?.checked)&&canCloseWithCredit;
+        summary.querySelector('[data-modal-remaining]').textContent = (useCredit?0:Math.max(0, dueBefore - current)).toFixed(2);
     });
 }
 
