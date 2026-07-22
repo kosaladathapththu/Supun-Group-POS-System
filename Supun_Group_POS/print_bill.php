@@ -1,5 +1,7 @@
 <?php
 include 'db.php';
+require_once 'includes/advance_accounts.php';
+ensureAdvancePaymentSchema($conn);
 
 $order_id = isset($_GET["order_id"]) ? (int) $_GET["order_id"] : 0;
 $from_advance = ($_GET['from'] ?? '') === 'advance';

@@ -1263,10 +1263,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <span class="total-amt">Rs. <span id="gt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
                     </div>
 
-                    <button type="button" class="customer-advance-launch" onclick="openCustomerPaymentPopup()"><span><i class="fa-solid fa-wallet"></i> Customer / Advance</span><small id="customerAdvanceLaunchText">Optional</small></button>
+                    <button type="button" class="customer-advance-launch" onclick="openCustomerPaymentPopup()"><span><i class="fa-solid fa-wallet"></i> Credit / Installments</span><small id="customerAdvanceLaunchText">Optional</small></button>
                     <div class="customer-payment-backdrop" id="customerPaymentBackdrop" onclick="closeCustomerPaymentPopup()"></div>
                     <div class="advance-box simple-payment-box">
-                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer / Advance</div><button type="button" class="customer-payment-close" onclick="closeCustomerPaymentPopup()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+                        <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Credit / Installments</div><button type="button" class="customer-payment-close" onclick="closeCustomerPaymentPopup()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
                         <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
                         <label class="advance-label">1. Select customer</label>
                         <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
@@ -1371,7 +1371,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 <div class="overlay" id="paymentOverlay">
     <div class="modal payment-modal">
         <button class="mcl" type="button" onclick="closePaymentModal()"><i class="fa-solid fa-xmark"></i></button>
-        <div class="m-head"><div class="m-icon"><i class="fa-solid fa-wallet"></i></div><h2>Advance / Part Payment</h2><p id="paymentModalCustomer">Select an existing customer or create a new one</p></div>
+        <div class="m-head"><div class="m-icon"><i class="fa-solid fa-wallet"></i></div><h2>Order Installment</h2><p id="paymentModalCustomer">Select an existing customer or create a new one</p></div>
         <div class="advance-tabs"><button type="button" class="advance-tab active" id="existingPaymentTab" onclick="setPaymentCustomerMode('existing')">Selected Customer</button><button type="button" class="advance-tab" id="newPaymentTab" onclick="setPaymentCustomerMode('new')">New Customer</button></div>
         <form method="post" id="existingPaymentForm">
             <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
