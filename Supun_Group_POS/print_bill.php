@@ -10,9 +10,10 @@ if ($order_id <= 0) {
 }
 
 $order_stmt = $conn->prepare("
-    SELECT o.*, t.table_name, u.full_name
+    SELECT o.*, t.table_name, u.full_name, c.account_number, c.advance_balance AS customer_advance_balance
     FROM orders o
     LEFT JOIN restaurant_tables t ON o.table_id = t.table_id
+    LEFT JOIN customer_accounts c ON o.customer_id = c.customer_id
     JOIN users u ON o.user_id = u.user_id
     WHERE o.order_id = ?
     LIMIT 1
@@ -61,6 +62,7 @@ $service_charge = $saved_service_charge > 0
     : max(0, $total - $subtotal + $discount - $packaging_fee);
 $pm = $order['payment_method'] ?? 'Cash';
 $advance_used = (float)($order['advance_used'] ?? 0);
+$remaining_advance = isset($order['customer_advance_balance']) ? (float)$order['customer_advance_balance'] : null;
 
 $payment_history = [];
 $payment_stmt = $conn->prepare("SELECT COALESCE(d.receipt_number,u.receipt_number) receipt_number,u.amount,COALESCE(d.payment_method,u.payment_method) payment_method,COALESCE(d.created_at,u.created_at) created_at
@@ -1027,6 +1029,12 @@ body.format-a4 .paid-seal small { font-size:9px; }
             <td class="sl">Paid from Advance</td>
             <td class="sr">Rs <?php echo fmt($advance_used); ?></td>
         </tr>
+        <?php if ($remaining_advance !== null): ?>
+        <tr class="c-row">
+            <td class="sl">Remaining Advance Balance</td>
+            <td class="sr">Rs <?php echo fmt($remaining_advance); ?></td>
+        </tr>
+        <?php endif; ?>
         <?php endif; ?>
         <?php if ($is_cash): ?>
         <tr class="c-row">
