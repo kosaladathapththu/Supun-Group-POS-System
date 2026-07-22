@@ -1287,6 +1287,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         </div>
                         <div id="advanceDecision" class="hint" style="margin:7px 0;color:#027a48;font-weight:800;">Advance will be kept for a future purchase.</div>
                         <div class="advance-due"><span>Balance for full payment</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                        <div class="advance-due" id="customerAdvanceAfterRow" style="background:#fff7ed;color:#9a3412;"><span>Customer advance remaining after sale</span><strong>Rs. <span id="customerAdvanceAfter">0.00</span></strong></div>
                         <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Reprint Latest Part-Payment Receipt</a>
                     </div>
 
@@ -1593,6 +1594,10 @@ function selectAdvanceCustomer() {
     if (useButton) useButton.disabled = select.value === '0' || balance <= 0;
     const decision = document.getElementById('advanceDecision');
     if (decision) decision.textContent = balance > 0 ? 'Advance will be kept for a future purchase.' : 'This customer has no advance balance available.';
+    const afterRow = document.getElementById('customerAdvanceAfterRow');
+    const afterAmount = document.getElementById('customerAdvanceAfter');
+    if (afterRow) afterRow.style.display = select.value === '0' ? 'none' : 'flex';
+    if (afterAmount) afterAmount.textContent = balance.toFixed(2);
     const launchText = document.getElementById('customerAdvanceLaunchText');
     if (launchText) launchText.textContent = select.value === '0' ? 'Optional' : (balance > 0 ? 'Rs. ' + balance.toFixed(2) + ' available' : 'Customer selected');
     if (label) label.innerHTML = 'Total paid in advance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
@@ -1781,6 +1786,8 @@ function updateOrderFees() {
     if (discountSummary) discountSummary.style.display = discount > 0 ? 'flex' : 'none';
     const remainingEl = document.getElementById('remainingAfterAdvance');
     if (remainingEl) remainingEl.textContent = AMOUNT_DUE.toFixed(2);
+    const customerAdvanceAfter = document.getElementById('customerAdvanceAfter');
+    if (customerAdvanceAfter) customerAdvanceAfter.textContent = Math.max(0, maxAdvance - advanceUsed).toFixed(2);
 
     const pm = document.getElementById('pm_val')?.value || 'Cash';
     const ci = document.getElementById('cash_given');
