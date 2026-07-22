@@ -18,6 +18,8 @@ $titles  = [
     'suppliers.php' => 'Suppliers',
     'advances.php' => 'Customer Advances',
     'payment_reports.php' => 'Credit & Installment Report',
+    'account_credit_report.php' => 'Account Credit Report',
+    'installment_report.php' => 'Installment Payment Report',
 ];
 $page_title = $titles[$current] ?? 'Admin';
 ?>

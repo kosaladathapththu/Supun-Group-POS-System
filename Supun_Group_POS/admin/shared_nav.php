@@ -41,8 +41,11 @@ $admin_prefix = $nav_from_root ? 'admin/' : '';
         <a class="nav-item <?php echo $current=='installments.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>installments.php">
             <i class="fa-solid fa-file-invoice-dollar"></i> Installments
         </a>
-        <a class="nav-item <?php echo $current=='payment_reports.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>payment_reports.php">
-            <i class="fa-solid fa-chart-column"></i> Credit / Installment Report
+        <a class="nav-item <?php echo $current=='account_credit_report.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>account_credit_report.php">
+            <i class="fa-solid fa-chart-column"></i> Account Credit Report
+        </a>
+        <a class="nav-item <?php echo $current=='installment_report.php'?'active':''; ?>" href="<?php echo $admin_prefix; ?>installment_report.php">
+            <i class="fa-solid fa-chart-line"></i> Installment Report
         </a>
 
         <div class="nav-group-label">Inventory &amp; Management</div>
