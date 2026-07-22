@@ -472,7 +472,8 @@ if (isset($_POST["pay_order"])) {
     $apply_service_charge = isset($_POST["apply_service_charge"]) && $_POST["apply_service_charge"] === "1";
     $apply_packaging_fee = isset($_POST["apply_packaging_fee"]) && $_POST["apply_packaging_fee"] === "1";
     $packaging_fee = $apply_packaging_fee ? max(0, round((float)($_POST["packaging_fee"] ?? 0), 2)) : 0;
-    $requested_advance = max(0, round((float)($_POST['advance_to_use'] ?? 0), 2));
+    $apply_advance = isset($_POST['apply_advance']) && $_POST['apply_advance'] === '1';
+    $requested_advance = $apply_advance ? max(0, round((float)($_POST['advance_to_use'] ?? 0), 2)) : 0.0;
     $selected_customer_id = (int)($_POST['checkout_customer_id'] ?? 0);
 
     $allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer", "Cheque"];
@@ -519,11 +520,6 @@ if (isset($_POST["pay_order"])) {
     $discount = min($subtotal + $service_charge + $packaging_fee, $discount);
     $total_amount = max(0, $subtotal + $service_charge + $packaging_fee - $discount);
     $advance_used = 0.0;
-    if ($customer_id > 0) {
-        $linked_q = $conn->query("SELECT COALESCE(SUM(remaining_amount),0) linked_balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND order_id=$order_id AND transaction_type='deposit' AND remaining_amount>0");
-        $linked_advance = $linked_q ? (float)$linked_q->fetch_assoc()['linked_balance'] : 0;
-        $requested_advance = max($requested_advance, min($linked_advance, $total_amount));
-    }
     if ($requested_advance > 0 && $customer_id > 0) {
         $aq = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1");
         $available_advance = $aq && $aq->num_rows ? (float)$aq->fetch_assoc()['advance_balance'] : 0;
@@ -1277,7 +1273,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             <?php endwhile; endif; ?>
                         </select>
                         <div class="advance-balance-row"><span id="advanceAvailable">Advance already paid: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
-                        <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
+                        <label style="display:flex;align-items:center;gap:8px;margin:9px 0;padding:9px;border:1px solid #fed7aa;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:800;">
+                            <input type="checkbox" name="apply_advance" id="useAdvanceToggle" value="1" onchange="toggleAdvanceUsage()" style="width:17px;height:17px;accent-color:#0f766e;">
+                            Use advance balance for this sale
+                        </label>
+                        <div class="field" id="advanceUseAmountWrap" style="display:none;margin-bottom:9px;"><label class="advance-label" for="advanceToUse">Advance amount to use</label><div class="advance-money"><span>Rs.</span><input type="number" name="advance_to_use" id="advanceToUse" min="0" step="0.01" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00" disabled oninput="updateOrderFees()"></div></div>
                         <label class="advance-label">2. What is the customer paying?</label>
                         <div class="payment-choice-grid">
                             <button type="button" class="payment-choice advance-choice" onclick="openPaymentModal()"><i class="fa-solid fa-wallet"></i><strong>Advance / Part Payment</strong><small>Record payment and keep bill open</small></button>
@@ -1578,16 +1578,33 @@ function selectAdvanceCustomer() {
     const input = document.getElementById('advanceToUse');
     const label = document.getElementById('advanceAvailable');
     const printLink = document.getElementById('printAdvanceReceipt');
+    const toggle = document.getElementById('useAdvanceToggle');
     if (!select || !input) return;
     const balance = Math.max(0, parseFloat(select.options[select.selectedIndex]?.dataset.balance) || 0);
     input.max = balance.toFixed(2);
-    input.value = select.value === '0' ? '0.00' : Math.min(balance, GT).toFixed(2);
+    input.value = '0.00';
+    if (toggle) { toggle.checked = false; toggle.disabled = select.value === '0' || balance <= 0; }
+    input.disabled = true;
+    const amountWrap = document.getElementById('advanceUseAmountWrap');
+    if (amountWrap) amountWrap.style.display = 'none';
     if (label) label.innerHTML = 'Total paid in advance: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
     if (printLink) {
         printLink.href = receiptId > 0 ? 'print_advance.php?transaction_id=' + receiptId + '&return_order=<?php echo (int)$current_order_id; ?>' : '#';
         printLink.style.display = receiptId > 0 ? 'flex' : 'none';
     }
+    updateOrderFees();
+}
+
+function toggleAdvanceUsage() {
+    const toggle = document.getElementById('useAdvanceToggle');
+    const input = document.getElementById('advanceToUse');
+    const amountWrap = document.getElementById('advanceUseAmountWrap');
+    if (!toggle || !input) return;
+    const enabled = toggle.checked && !toggle.disabled;
+    input.disabled = !enabled;
+    input.value = enabled ? Math.min(Math.max(0, parseFloat(input.max) || 0), GT).toFixed(2) : '0.00';
+    if (amountWrap) amountWrap.style.display = enabled ? 'block' : 'none';
     updateOrderFees();
 }
 
@@ -1708,7 +1725,8 @@ function updateOrderFees() {
     GT = Math.max(0, beforeDiscount - discount);
     const advanceInput = document.getElementById('advanceToUse');
     const maxAdvance = Math.max(0, parseFloat(advanceInput?.max) || 0);
-    let advanceUsed = Math.max(0, parseFloat(advanceInput?.value) || 0);
+    const useAdvance = document.getElementById('useAdvanceToggle')?.checked === true;
+    let advanceUsed = useAdvance ? Math.max(0, parseFloat(advanceInput?.value) || 0) : 0;
     advanceUsed = Math.min(advanceUsed, maxAdvance, GT);
     if (advanceInput && parseFloat(advanceInput.value || 0) !== advanceUsed) advanceInput.value = advanceUsed.toFixed(2);
     AMOUNT_DUE = Math.max(0, GT - advanceUsed);
