@@ -819,6 +819,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .pmb{padding:7px 3px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text-mid);font-size:11px;font-weight:800;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Nunito',sans-serif;transition:.14s;}
 .pmb:hover{border-color:var(--primary);color:var(--primary);}
 .pmb.active{background:var(--primary-lt);border-color:var(--primary);color:var(--primary);}
+.pmb:disabled{opacity:.42;cursor:not-allowed;background:var(--bg);border-color:var(--border);color:var(--text-muted);transform:none;}
 .cash-wrap{position:relative;margin-bottom:6px;}
 .cash-pfx{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:900;color:var(--text-muted);}
 .cash-inp{padding-left:40px;background:var(--white);}
@@ -1787,11 +1788,21 @@ function updateOrderFees() {
     const remainingEl = document.getElementById('remainingAfterAdvance');
     if (remainingEl) remainingEl.textContent = AMOUNT_DUE.toFixed(2);
     const customerAdvanceAfter = document.getElementById('customerAdvanceAfter');
-    if (customerAdvanceAfter) customerAdvanceAfter.textContent = Math.max(0, maxAdvance - advanceUsed).toFixed(2);
+    const advanceRemaining = Math.max(0, maxAdvance - advanceUsed);
+    if (customerAdvanceAfter) customerAdvanceAfter.textContent = advanceRemaining.toFixed(2);
 
     const pm = document.getElementById('pm_val')?.value || 'Cash';
     const ci = document.getElementById('cash_given');
     const fullyPaidByAdvance = useAdvance && AMOUNT_DUE <= 0.004;
+    document.querySelectorAll('.pmb').forEach(button => {
+        button.disabled = fullyPaidByAdvance;
+        if (fullyPaidByAdvance) button.classList.remove('active');
+        else button.classList.toggle('active', button.dataset.method === pm);
+    });
+    const paymentMethodLabel = document.querySelector('.pm-lbl');
+    if (paymentMethodLabel) paymentMethodLabel.textContent = fullyPaidByAdvance ? 'Payment Method — Not required (paid by advance)' : 'Payment Method';
+    const launchText = document.getElementById('customerAdvanceLaunchText');
+    if (launchText && useAdvance) launchText.textContent = 'Using Rs. ' + advanceUsed.toFixed(2) + ' · Left Rs. ' + advanceRemaining.toFixed(2);
     if (ci && fullyPaidByAdvance) {
         ci.readOnly = true;
         ci.dataset.advanceLocked = '1';
