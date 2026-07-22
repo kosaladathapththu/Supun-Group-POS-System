@@ -1282,7 +1282,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                         <div class="payment-choice-grid">
                             <button type="button" id="normalPaymentChoice" class="payment-choice full-choice active" onclick="chooseNormalPayment()"><i class="fa-solid fa-money-bill-wave"></i><strong>Pay Normally</strong><small>Keep advance money for later</small></button>
                             <button type="button" id="useAdvanceChoice" class="payment-choice advance-choice" onclick="chooseAdvancePayment()"><i class="fa-solid fa-wallet"></i><strong>Use Advance Now</strong><small>Reduce this bill automatically</small></button>
-                            <button type="button" class="payment-choice" onclick="openPaymentModal()" style="grid-column:1/-1"><i class="fa-solid fa-circle-plus"></i><strong>Add Part Payment</strong><small>Receive more money and keep bill open</small></button>
+                            <button type="button" class="payment-choice" onclick="openPaymentModal()"><i class="fa-solid fa-circle-plus"></i><strong>Existing Customer Installment</strong><small>Add another payment and keep bill open</small></button>
+                            <button type="button" class="payment-choice" onclick="openNewCustomerInstallment()"><i class="fa-solid fa-user-plus"></i><strong>New Customer Installment</strong><small>Create account and receive first payment</small></button>
                         </div>
                         <div id="advanceDecision" class="hint" style="margin:7px 0;color:#027a48;font-weight:800;">Advance will be kept for a future purchase.</div>
                         <div class="advance-due"><span>Balance for full payment</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
@@ -1617,7 +1618,8 @@ function setAdvancePaymentChoice(useAdvance) {
     const toggle = document.getElementById('useAdvanceToggle');
     const input = document.getElementById('advanceToUse');
     if (!toggle || !input) return;
-    const enabled = useAdvance && !toggle.disabled;
+    const available = Math.max(0, parseFloat(input.max) || 0);
+    const enabled = useAdvance && !toggle.disabled && available > 0;
     toggle.checked = enabled;
     input.value = enabled ? Math.min(Math.max(0, parseFloat(input.max) || 0), GT).toFixed(2) : '0.00';
     document.getElementById('normalPaymentChoice')?.classList.toggle('active', !enabled);
@@ -1712,6 +1714,14 @@ function openPaymentModal() {
     document.getElementById('modalCustomerId').value = customerId > 0 ? String(customerId) : '';
     document.getElementById('paymentModalCustomer').textContent = customerId > 0 ? select.options[select.selectedIndex].textContent : 'Search and select a customer';
     setPaymentCustomerMode('existing');
+    updatePaymentModalSummary();
+    document.getElementById('paymentOverlay').classList.add('show');
+}
+
+function openNewCustomerInstallment() {
+    closeCustomerPaymentPopup();
+    document.getElementById('paymentModalCustomer').textContent = 'Create customer account and receive the first installment';
+    setPaymentCustomerMode('new');
     updatePaymentModalSummary();
     document.getElementById('paymentOverlay').classList.add('show');
 }

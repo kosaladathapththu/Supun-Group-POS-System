@@ -37,7 +37,8 @@ function ordinalPayment(int $number): string {
 }
 $payment_ordinal=$payment_number>0?ordinalPayment($payment_number):'';
 
-$back_url = 'advance_payments.php';
+$back_url = $return_order > 0 ? 'pos.php?order_id='.$return_order.'&settle=1' : 'advance_payments.php';
+$back_label = $return_order > 0 ? 'Back to Customer Order' : 'Back to Advance Payments';
 $is_deposit = $payment['transaction_type'] === 'deposit';
 $is_refund = $payment['transaction_type'] === 'refund';
 $is_bill_refund = $is_refund && ($payment['order_status']??'') === 'cancelled';
@@ -91,5 +92,5 @@ body.format-a4 .seal-wrap{top:55%!important;right:8%!important}body.format-a4 .a
 <?php else: ?><div class="balance"><span>Total Paid</span><span>Rs. <?php echo number_format($total_paid,2); ?></span></div><div class="balance due"><span>Remaining Balance</span><span>Rs. <?php echo number_format($remaining_balance,2); ?></span></div><?php endif; ?>
 <?php if($payment['reference_note']): ?><div class="note"><strong>Reference:</strong> <?php echo htmlspecialchars($payment['reference_note']); ?></div><?php endif; ?>
 <div class="divider"></div><div class="footer"><?php echo $is_bill_refund?'This receipt confirms the bill cancellation and customer refund.':'This receipt confirms an advance payment only.'; ?><br>Thank you for your business.</div>
-</section><div class="format-picker"><label for="printFormat">Paper size</label><select id="printFormat" onchange="setPrintFormat(this.value)"><option value="80">Thermal 80mm</option><option value="58">Thermal 58mm</option><option value="a4">A4 Page</option></select></div><div class="actions"><button class="print" onclick="window.print()">Print Advance Bill</button><a class="back" href="<?php echo htmlspecialchars($back_url); ?>">&larr; Back to Advance Payments</a></div></main>
+</section><div class="format-picker"><label for="printFormat">Paper size</label><select id="printFormat" onchange="setPrintFormat(this.value)"><option value="80">Thermal 80mm</option><option value="58">Thermal 58mm</option><option value="a4">A4 Page</option></select></div><div class="actions"><button class="print" onclick="window.print()">Print Advance Bill</button><a class="back" href="<?php echo htmlspecialchars($back_url); ?>">&larr; <?php echo htmlspecialchars($back_label); ?></a></div></main>
 <script>function setPrintFormat(format){document.body.className='format-'+format;localStorage.setItem('advancePrintFormat',format)}window.addEventListener('load',()=>{const saved=localStorage.getItem('advancePrintFormat')||'a4';document.getElementById('printFormat').value=saved;setPrintFormat(saved)});</script></body></html>
