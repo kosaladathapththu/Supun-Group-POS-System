@@ -24,6 +24,13 @@ function esc($conn, $value) {
 /* =========================================================
    ADMIN LOGIN
 ========================================================= */
+if(isset($_POST['accountant_dashboard_submit'])){
+    $password=$_POST['accountant_password']??'';
+    $stmt=$conn->prepare("SELECT password FROM users WHERE user_id=? AND role='accountant' AND status=1 LIMIT 1");
+    $stmt->bind_param('i',$user_id);$stmt->execute();$accountant=$stmt->get_result()->fetch_assoc();$stmt->close();
+    if($accountant&&password_verify($password,$accountant['password'])){$_SESSION['dashboard_verified_at']=time();header('Location: dashboard.php');exit;}
+    $admin_error='Incorrect accountant password.';
+}
 if (isset($_POST["admin_login_submit"])) {
     $au = trim($_POST["admin_username"] ?? "");
     $ap = $_POST["admin_password"] ?? "";
@@ -896,10 +903,14 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <i class="fa-solid fa-file-invoice-dollar"></i> Installments
         </a>
 
-        <?php if (in_array($user_role, ['admin', 'accountant'], true)): ?>
+        <?php if ($user_role === 'admin'): ?>
         <a class="tb-btn btn-owner" href="dashboard.php">
             <i class="fa-solid fa-gauge-high"></i> Dashboard
         </a>
+        <?php elseif ($user_role === 'accountant'): ?>
+        <button class="tb-btn btn-owner" type="button" onclick="openAdminModal()">
+            <i class="fa-solid fa-lock"></i> Dashboard
+        </button>
         <?php else: ?>
         <button class="tb-btn btn-owner" type="button" onclick="openAdminModal()">
             <i class="fa-solid fa-lock"></i> Admin
@@ -1498,14 +1509,21 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
         <div class="m-head">
             <div class="m-icon"><i class="fa-solid fa-shield-halved"></i></div>
-            <h2>Owner Access</h2>
-            <p>Enter credentials to open the dashboard</p>
+            <h2><?php echo $user_role==='accountant'?'Accountant Verification':'Owner Access'; ?></h2>
+            <p><?php echo $user_role==='accountant'?'Enter your password again to open the dashboard':'Enter credentials to open the dashboard'; ?></p>
         </div>
 
         <?php if (!empty($admin_error)): ?>
             <div class="m-err"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo htmlspecialchars($admin_error); ?></div>
         <?php endif; ?>
 
+        <?php if($user_role==='accountant'): ?>
+        <form method="POST">
+            <div class="mf"><label>Your password</label><div class="miw"><i class="fa-solid fa-lock"></i><input type="password" name="accountant_password" class="minp" placeholder="Accountant password" required autocomplete="current-password"></div></div>
+            <button type="submit" name="accountant_dashboard_submit" class="m-sub"><i class="fa-solid fa-shield-halved"></i> Verify &amp; Open Dashboard</button>
+        </form>
+        <p class="m-note">Verification is required when entering from the POS.</p>
+        <?php else: ?>
         <form method="POST">
             <div class="mf">
                 <label>Username</label>
@@ -1526,6 +1544,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             </button>
         </form>
         <p class="m-note">Owner / Admin access only</p>
+        <?php endif; ?>
     </div>
 </div>
 
