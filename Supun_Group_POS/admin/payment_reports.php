@@ -5,6 +5,9 @@ require_once '../includes/advance_accounts.php';
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['admin','accountant'], true)) { header('Location: ../login.php'); exit; }
 ensureAdvancePaymentSchema($conn);
 
+/* -------------------------------------------------------------------------
+ * Report filters
+ * ---------------------------------------------------------------------- */
 $from=preg_match('/^\d{4}-\d{2}-\d{2}$/',$_GET['from']??'')?$_GET['from']:date('Y-m-01');
 $to=preg_match('/^\d{4}-\d{2}-\d{2}$/',$_GET['to']??'')?$_GET['to']:date('Y-m-d');
 $requested_type=$_GET['type']??'all';
@@ -21,6 +24,9 @@ if($method!=='')$filters[]="t.payment_method='$method_sql'";
 if($customer!=='')$filters[]="(c.customer_name LIKE '%$customer_sql%' OR c.account_number LIKE '%$customer_sql%' OR c.phone LIKE '%$customer_sql%')";
 $where=implode(' AND ',$filters);
 
+/* -------------------------------------------------------------------------
+ * Transaction rows and report totals
+ * ---------------------------------------------------------------------- */
 $rows=[];$result=$conn->query("SELECT t.transaction_id,t.created_at,t.receipt_number,t.order_id,t.amount,t.remaining_amount,t.payment_method,t.reference_note,t.settlement_status,c.account_number,c.customer_name,c.phone,o.order_number,o.order_status,u.full_name received_by FROM advance_payment_transactions t JOIN customer_accounts c ON c.customer_id=t.customer_id LEFT JOIN orders o ON o.order_id=t.order_id LEFT JOIN users u ON u.user_id=t.created_by WHERE $where ORDER BY t.created_at DESC,t.transaction_id DESC");
 while($result&&$row=$result->fetch_assoc())$rows[]=$row;
 $credit_received=0;$installment_received=0;foreach($rows as $row){if($row['order_id']===null)$credit_received+=(float)$row['amount'];else$installment_received+=(float)$row['amount'];}
@@ -28,6 +34,7 @@ $credit_used=(float)($conn->query("SELECT COALESCE(SUM(u.amount),0) total FROM a
 $liability=(float)($conn->query("SELECT COALESCE(SUM(remaining_amount),0) total FROM advance_payment_transactions WHERE transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0")->fetch_assoc()['total']??0);
 $open=(array)$conn->query("SELECT COUNT(DISTINCT o.order_id) orders,COALESCE(SUM(GREATEST(0,(CASE WHEN o.total_amount>0 THEN o.total_amount ELSE (SELECT COALESCE(SUM(oi.line_total),0) FROM order_items oi WHERE oi.order_id=o.order_id) END)-(SELECT COALESCE(SUM(d.remaining_amount),0) FROM advance_payment_transactions d WHERE d.order_id=o.order_id AND d.transaction_type='deposit'))),0) outstanding FROM orders o WHERE o.order_status='open' AND EXISTS(SELECT 1 FROM advance_payment_transactions x WHERE x.order_id=o.order_id AND x.transaction_type='deposit')")->fetch_assoc();
 
+/* CSV uses the same filtered rows shown in the HTML report. */
 if(($_GET['export']??'')==='csv'){
     header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="payment-report-'.$from.'-to-'.$to.'.csv"');$out=fopen('php://output','w');fputcsv($out,['Type','Date','Receipt','Account','Customer','Order','Method','Amount','Remaining','Status','Purpose','Received By']);foreach($rows as $row)fputcsv($out,[$row['order_id']===null?'Account Credit':'Order Installment',$row['created_at'],$row['receipt_number'],$row['account_number'],$row['customer_name'],$row['order_number']?:'-',$row['payment_method'],$row['amount'],$row['order_id']===null?$row['remaining_amount']:max(0,(float)$row['amount']-(float)$row['remaining_amount']),$row['order_status']?:$row['settlement_status'],$row['reference_note'],$row['received_by']]);fclose($out);exit;
 }
