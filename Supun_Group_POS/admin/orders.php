@@ -1,31 +1,47 @@
 <?php
 session_start();
-include '../db.php';
+include "../db.php";
 
-if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) {
-    header("Location: ../login.php"); exit;
+if (
+    !isset($_SESSION["user_id"]) ||
+    !in_array($_SESSION["role"], ["admin", "accountant"], true)
+) {
+    header("Location: ../login.php");
+    exit();
 }
 
 /* ── FILTERS ── */
-$search      = trim($_GET["search"]         ?? "");
-$filter_type = trim($_GET["order_type"]     ?? "");
-$filter_pm   = trim($_GET["payment_method"] ?? "");
-$filter_date = trim($_GET["date"]           ?? "");
-$page        = max(1, (int)($_GET["page"]   ?? 1));
-$per_page    = 20;
-$offset      = ($page - 1) * $per_page;
+$search = trim($_GET["search"] ?? "");
+$filter_type = trim($_GET["order_type"] ?? "");
+$filter_pm = trim($_GET["payment_method"] ?? "");
+$filter_date = trim($_GET["date"] ?? "");
+$page = max(1, (int) ($_GET["page"] ?? 1));
+$per_page = 20;
+$offset = ($page - 1) * $per_page;
 
 $where = ["1=1"];
 if ($search !== "") {
     $ss = $conn->real_escape_string($search);
     $where[] = "(o.order_id LIKE '%$ss%' OR u.full_name LIKE '%$ss%' OR o.payment_method LIKE '%$ss%')";
 }
-if ($filter_type !== "") $where[] = "o.order_type='"     . $conn->real_escape_string($filter_type) . "'";
-if ($filter_pm   !== "") $where[] = "o.payment_method='" . $conn->real_escape_string($filter_pm)   . "'";
-if ($filter_date !== "") $where[] = "DATE(o.created_at)='" . $conn->real_escape_string($filter_date) . "'";
+if ($filter_type !== "") {
+    $where[] = "o.order_type='" . $conn->real_escape_string($filter_type) . "'";
+}
+if ($filter_pm !== "") {
+    $where[] =
+        "o.payment_method='" . $conn->real_escape_string($filter_pm) . "'";
+}
+if ($filter_date !== "") {
+    $where[] =
+        "DATE(o.created_at)='" . $conn->real_escape_string($filter_date) . "'";
+}
 $ws = implode(" AND ", $where);
 
-$total_rows  = $conn->query("SELECT COUNT(*) AS c FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE $ws")->fetch_assoc()["c"];
+$total_rows = $conn
+    ->query(
+        "SELECT COUNT(*) AS c FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE $ws",
+    )
+    ->fetch_assoc()["c"];
 $total_pages = max(1, ceil($total_rows / $per_page));
 
 $orders_q = $conn->query("
@@ -37,18 +53,22 @@ $orders_q = $conn->query("
     LIMIT $per_page OFFSET $offset
 ");
 
-$sum_q = $conn->query("
+$sum_q = $conn
+    ->query(
+        "
     SELECT COALESCE(SUM(o.total_amount),0) AS total, COUNT(*) AS cnt
     FROM orders o LEFT JOIN users u ON o.user_id=u.user_id
     WHERE $ws
-")->fetch_assoc();
+",
+    )
+    ->fetch_assoc();
 
-$pm_map  = [
-    'Cash'          => ['b-green',  'fa-money-bill-wave'],
-    'Card'          => ['b-indigo', 'fa-credit-card'],
-    'QR'            => ['b-amber',  'fa-qrcode'],
-    'Bank Transfer' => ['b-sky',    'fa-building-columns'],
-    'Cheque'        => ['b-amber',  'fa-money-check-dollar'],
+$pm_map = [
+    "Cash" => ["b-green", "fa-money-bill-wave"],
+    "Card" => ["b-indigo", "fa-credit-card"],
+    "QR" => ["b-amber", "fa-qrcode"],
+    "Bank Transfer" => ["b-sky", "fa-building-columns"],
+    "Cheque" => ["b-amber", "fa-money-check-dollar"],
 ];
 ?>
 <!DOCTYPE html>
@@ -60,7 +80,7 @@ $pm_map  = [
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-<?php include 'shared_style.php'; ?>
+<?php include "shared_style.php"; ?>
 
 /* ── Orders-specific ── */
 .summary-grid {
@@ -226,9 +246,9 @@ $pm_map  = [
 </style>
 </head>
 <body>
-<?php include 'shared_nav.php'; ?>
+<?php include "shared_nav.php"; ?>
 <div class="main">
-<?php include 'shared_topbar.php'; ?>
+<?php include "shared_topbar.php"; ?>
 <div class="content">
 
     <!-- Page Header -->
@@ -248,14 +268,19 @@ $pm_map  = [
             <div class="sc-icon" style="background:var(--indigo-lt);color:var(--indigo);">
                 <i class="fa-solid fa-receipt"></i>
             </div>
-            <div class="sc-val" style="color:var(--indigo);"><?php echo number_format($sum_q['cnt']); ?></div>
+            <div class="sc-val" style="color:var(--indigo);"><?php echo number_format(
+                $sum_q["cnt"],
+            ); ?></div>
             <div class="sc-lbl">Filtered Orders</div>
         </div>
         <div class="sum-card sc-primary">
             <div class="sc-icon" style="background:var(--primary-lt);color:var(--primary);">
                 <i class="fa-solid fa-sack-dollar"></i>
             </div>
-            <div class="sc-val" style="color:var(--primary);">Rs. <?php echo number_format($sum_q['total'], 2); ?></div>
+            <div class="sc-val" style="color:var(--primary);">Rs. <?php echo number_format(
+                $sum_q["total"],
+                2,
+            ); ?></div>
             <div class="sc-lbl">Filtered Revenue</div>
         </div>
         <div class="sum-card sc-green">
@@ -263,7 +288,9 @@ $pm_map  = [
                 <i class="fa-solid fa-chart-simple"></i>
             </div>
             <div class="sc-val" style="color:var(--green);">
-                Rs. <?php echo $sum_q['cnt'] > 0 ? number_format($sum_q['total'] / $sum_q['cnt'], 2) : '0.00'; ?>
+                Rs. <?php echo $sum_q["cnt"] > 0
+                    ? number_format($sum_q["total"] / $sum_q["cnt"], 2)
+                    : "0.00"; ?>
             </div>
             <div class="sc-lbl">Avg Order Value</div>
         </div>
@@ -288,8 +315,13 @@ $pm_map  = [
                 <label>Order Type</label>
                 <select name="order_type">
                     <option value="">All Types</option>
-                    <option value="retail" <?php echo $filter_type=='retail'?'selected':''; ?>>Retail</option>
-                    <option value="wholesale" <?php echo $filter_type=='wholesale'?'selected':''; ?>>Wholesale</option>
+                    <option value="retail" <?php echo $filter_type == "retail"
+                        ? "selected"
+                        : ""; ?>>Retail</option>
+                    <option value="wholesale" <?php echo $filter_type ==
+                    "wholesale"
+                        ? "selected"
+                        : ""; ?>>Wholesale</option>
                 </select>
             </div>
 
@@ -297,17 +329,33 @@ $pm_map  = [
                 <label>Payment</label>
                 <select name="payment_method">
                     <option value="">All Payments</option>
-                    <option value="Cash"          <?php echo $filter_pm=='Cash'?'selected':''; ?>>Cash</option>
-                    <option value="Card"          <?php echo $filter_pm=='Card'?'selected':''; ?>>Card</option>
-                    <option value="QR"            <?php echo $filter_pm=='QR'?'selected':''; ?>>QR</option>
-                    <option value="Bank Transfer" <?php echo $filter_pm=='Bank Transfer'?'selected':''; ?>>Bank Transfer</option>
-                    <option value="Cheque"        <?php echo $filter_pm=='Cheque'?'selected':''; ?>>Cheque</option>
+                    <option value="Cash"          <?php echo $filter_pm ==
+                    "Cash"
+                        ? "selected"
+                        : ""; ?>>Cash</option>
+                    <option value="Card"          <?php echo $filter_pm ==
+                    "Card"
+                        ? "selected"
+                        : ""; ?>>Card</option>
+                    <option value="QR"            <?php echo $filter_pm == "QR"
+                        ? "selected"
+                        : ""; ?>>QR</option>
+                    <option value="Bank Transfer" <?php echo $filter_pm ==
+                    "Bank Transfer"
+                        ? "selected"
+                        : ""; ?>>Bank Transfer</option>
+                    <option value="Cheque"        <?php echo $filter_pm ==
+                    "Cheque"
+                        ? "selected"
+                        : ""; ?>>Cheque</option>
                 </select>
             </div>
 
             <div class="ff-group">
                 <label>Date</label>
-                <input type="date" name="date" value="<?php echo htmlspecialchars($filter_date); ?>">
+                <input type="date" name="date" value="<?php echo htmlspecialchars(
+                    $filter_date,
+                ); ?>">
             </div>
 
             <button type="submit" class="btn-primary" style="align-self:flex-end;">
@@ -353,67 +401,106 @@ $pm_map  = [
                 <tbody>
                     <?php if ($orders_q && $orders_q->num_rows > 0):
                         while ($o = $orders_q->fetch_assoc()):
-                            $pm_c = $pm_map[$o['payment_method']] ?? ['b-green','fa-money-bill'];
-                            $bal  = (float)$o['balance'];
-                    ?>
+
+                            $pm_c = $pm_map[$o["payment_method"]] ?? [
+                                "b-green",
+                                "fa-money-bill",
+                            ];
+                            $bal = (float) $o["balance"];
+                            ?>
                     <tr>
-                        <td><strong style="color:var(--text);">#<?php echo $o['order_id']; ?></strong></td>
+                        <td><strong style="color:var(--text);">#<?php echo $o[
+                            "order_id"
+                        ]; ?></strong></td>
 
                         <td style="white-space:nowrap;">
-                            <div style="font-weight:800;color:var(--text);"><?php echo date('d M Y', strtotime($o['created_at'])); ?></div>
-                            <div style="font-size:11px;color:var(--text-muted);"><?php echo date('h:i A', strtotime($o['created_at'])); ?></div>
+                            <div style="font-weight:800;color:var(--text);"><?php echo date(
+                                "d M Y",
+                                strtotime($o["created_at"]),
+                            ); ?></div>
+                            <div style="font-size:11px;color:var(--text-muted);"><?php echo date(
+                                "h:i A",
+                                strtotime($o["created_at"]),
+                            ); ?></div>
                         </td>
 
                         <td>
                             <div style="display:flex;align-items:center;gap:7px;">
                                 <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#fff;flex-shrink:0;">
-                                    <?php echo strtoupper(substr($o['cashier'] ?? 'U', 0, 1)); ?>
+                                    <?php echo strtoupper(
+                                        substr($o["cashier"] ?? "U", 0, 1),
+                                    ); ?>
                                 </div>
-                                <?php echo htmlspecialchars($o['cashier'] ?? 'N/A'); ?>
+                                <?php echo htmlspecialchars(
+                                    $o["cashier"] ?? "N/A",
+                                ); ?>
                             </div>
                         </td>
 
                         <td>
-                            <?php if ($o['order_type'] === 'retail'): ?>
+                            <?php if ($o["order_type"] === "retail"): ?>
                                 <span class="badge b-orange"><i class="fa-solid fa-basket-shopping"></i> Retail</span>
                             <?php else: ?>
                                 <span class="badge b-amber"><i class="fa-solid fa-boxes-stacked"></i> Wholesale</span>
                             <?php endif; ?>
                         </td>
 
-                        <td>Rs. <?php echo number_format($o['subtotal'], 2); ?></td>
+                        <td>Rs. <?php echo number_format(
+                            $o["subtotal"],
+                            2,
+                        ); ?></td>
 
                         <td>
-                            <?php if ($o['discount'] > 0): ?>
-                                <span class="badge b-red">- Rs.<?php echo number_format($o['discount'], 2); ?></span>
+                            <?php if ($o["discount"] > 0): ?>
+                                <span class="badge b-red">- Rs.<?php echo number_format(
+                                    $o["discount"],
+                                    2,
+                                ); ?></span>
                             <?php else: ?>
                                 <span style="color:var(--text-muted);">—</span>
                             <?php endif; ?>
                         </td>
 
-                        <td><strong style="color:var(--primary);">Rs. <?php echo number_format($o['total_amount'], 2); ?></strong></td>
+                        <td><strong style="color:var(--primary);">Rs. <?php echo number_format(
+                            $o["total_amount"],
+                            2,
+                        ); ?></strong></td>
 
                         <td>
                             <span class="badge <?php echo $pm_c[0]; ?>">
                                 <i class="fa-solid <?php echo $pm_c[1]; ?>"></i>
-                                <?php echo htmlspecialchars($o['payment_method']); ?>
+                                <?php echo htmlspecialchars(
+                                    $o["payment_method"],
+                                ); ?>
                             </span>
                         </td>
 
-                        <td>Rs. <?php echo number_format($o['cash_given'], 2); ?></td>
+                        <td>Rs. <?php echo number_format(
+                            $o["cash_given"],
+                            2,
+                        ); ?></td>
 
                         <td>
                             <?php if ($bal > 0): ?>
-                                <span class="badge b-green">+Rs.<?php echo number_format($bal, 2); ?></span>
+                                <span class="badge b-green">+Rs.<?php echo number_format(
+                                    $bal,
+                                    2,
+                                ); ?></span>
                             <?php elseif ($bal < 0): ?>
-                                <span class="badge b-red">-Rs.<?php echo number_format(abs($bal), 2); ?></span>
+                                <span class="badge b-red">-Rs.<?php echo number_format(
+                                    abs($bal),
+                                    2,
+                                ); ?></span>
                             <?php else: ?>
                                 <span style="color:var(--text-muted);">—</span>
                             <?php endif; ?>
                         </td>
 
                         <td>
-                            <?php if (strtolower($o['payment_status'] ?? '') === 'paid'): ?>
+                            <?php if (
+                                strtolower($o["payment_status"] ?? "") ===
+                                "paid"
+                            ): ?>
                                 <span class="badge b-green"><i class="fa-solid fa-check"></i> Paid</span>
                             <?php else: ?>
                                 <span class="badge b-amber"><i class="fa-solid fa-clock"></i> Pending</span>
@@ -423,61 +510,89 @@ $pm_map  = [
                         <td>
                             <div class="action-btns">
                                 <button class="btn-edit"
-                                        onclick="viewOrder(<?php echo $o['order_id']; ?>, '<?php echo date('d M Y h:i A', strtotime($o['created_at'])); ?>')">
+                                        onclick="viewOrder(<?php echo $o[
+                                            "order_id"
+                                        ]; ?>, '<?php echo date(
+    "d M Y h:i A",
+    strtotime($o["created_at"]),
+); ?>')">
                                     <i class="fa-solid fa-eye"></i> View
                                 </button>
-                                <a href="../print_bill.php?order_id=<?php echo $o['order_id']; ?>"
+                                <a href="../print_bill.php?order_id=<?php echo $o[
+                                    "order_id"
+                                ]; ?>"
                                    target="_blank" class="btn-bill">
                                     <i class="fa-solid fa-print"></i> Bill
                                 </a>
                             </div>
                         </td>
                     </tr>
-                    <?php endwhile; else: ?>
+                    <?php
+                        endwhile;
+                    else:
+                         ?>
                     <tr>
                         <td colspan="12" class="empty-row">
                             <i class="fa-solid fa-receipt" style="font-size:24px;color:var(--border-dk);display:block;margin-bottom:8px;"></i>
                             No orders found matching your filters.
                         </td>
                     </tr>
-                    <?php endif; ?>
+                    <?php
+                    endif; ?>
                 </tbody>
             </table>
         </div>
 
         <!-- Pagination -->
         <?php if ($total_pages > 1):
-            $qs = http_build_query(array_filter([
-                'search'         => $search,
-                'order_type'     => $filter_type,
-                'payment_method' => $filter_pm,
-                'date'           => $filter_date,
-            ]));
-            $qs = $qs ? '&' . $qs : '';
-        ?>
+
+            $qs = http_build_query(
+                array_filter([
+                    "search" => $search,
+                    "order_type" => $filter_type,
+                    "payment_method" => $filter_pm,
+                    "date" => $filter_date,
+                ]),
+            );
+            $qs = $qs ? "&" . $qs : "";
+            ?>
         <div class="pagination no-print">
-            <a href="?page=<?php echo max(1, $page-1) . $qs; ?>"
-               class="pag-btn <?php echo $page==1?'disabled':''; ?>">
+            <a href="?page=<?php echo max(1, $page - 1) . $qs; ?>"
+               class="pag-btn <?php echo $page == 1 ? "disabled" : ""; ?>">
                 <i class="fa-solid fa-chevron-left"></i>
             </a>
 
             <?php if ($page > 3): ?>
                 <a href="?page=1<?php echo $qs; ?>" class="pag-btn">1</a>
-                <?php if ($page > 4): ?><span style="color:var(--text-muted);padding:0 4px;">…</span><?php endif; ?>
+                <?php if (
+                    $page > 4
+                ): ?><span style="color:var(--text-muted);padding:0 4px;">…</span><?php endif; ?>
             <?php endif; ?>
 
-            <?php for ($p = max(1,$page-2); $p <= min($total_pages,$page+2); $p++): ?>
+            <?php for (
+                $p = max(1, $page - 2);
+                $p <= min($total_pages, $page + 2);
+                $p++
+            ): ?>
             <a href="?page=<?php echo $p . $qs; ?>"
-               class="pag-btn <?php echo $p==$page?'active':''; ?>"><?php echo $p; ?></a>
+               class="pag-btn <?php echo $p == $page
+                   ? "active"
+                   : ""; ?>"><?php echo $p; ?></a>
             <?php endfor; ?>
 
             <?php if ($page < $total_pages - 2): ?>
-                <?php if ($page < $total_pages - 3): ?><span style="color:var(--text-muted);padding:0 4px;">…</span><?php endif; ?>
-                <a href="?page=<?php echo $total_pages . $qs; ?>" class="pag-btn"><?php echo $total_pages; ?></a>
+                <?php if (
+                    $page <
+                    $total_pages - 3
+                ): ?><span style="color:var(--text-muted);padding:0 4px;">…</span><?php endif; ?>
+                <a href="?page=<?php echo $total_pages .
+                    $qs; ?>" class="pag-btn"><?php echo $total_pages; ?></a>
             <?php endif; ?>
 
-            <a href="?page=<?php echo min($total_pages, $page+1) . $qs; ?>"
-               class="pag-btn <?php echo $page==$total_pages?'disabled':''; ?>">
+            <a href="?page=<?php echo min($total_pages, $page + 1) . $qs; ?>"
+               class="pag-btn <?php echo $page == $total_pages
+                   ? "disabled"
+                   : ""; ?>">
                 <i class="fa-solid fa-chevron-right"></i>
             </a>
 
@@ -485,7 +600,8 @@ $pm_map  = [
                 <?php echo number_format($total_rows); ?> total
             </span>
         </div>
-        <?php endif; ?>
+        <?php
+        endif; ?>
     </div>
 
 </div><!-- /content -->

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
       <style>
-          <?php include 'shared_style.php'; ?>
+          <?php include "shared_style.php"; ?>
         .btn-danger{
             display:inline-flex;
             align-items:center;
@@ -34,9 +34,9 @@
 </head>
 <body>
 
-<?php include 'shared_nav.php'; ?>
+<?php include "shared_nav.php"; ?>
 
 <div class="main">
-    <?php include 'shared_topbar.php'; ?>
+    <?php include "shared_topbar.php"; ?>
 
     <div class="content">

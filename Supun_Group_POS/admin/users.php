@@ -1,43 +1,59 @@
 <?php
 session_start();
-include '../db.php';
+include "../db.php";
 
 if (!isset($_SESSION["user_id"]) || $_SESSION["role"] != "admin") {
-    header("Location: ../login.php"); exit;
+    header("Location: ../login.php");
+    exit();
 }
 
-$msg = ""; $msg_type = "";
+$msg = "";
+$msg_type = "";
 
 /* ── ADD ── */
 if (isset($_POST["add_user"])) {
-    $full  = trim($_POST["full_name"]);
+    $full = trim($_POST["full_name"]);
     $uname = trim($_POST["username"]);
-    $pass  = $_POST["password"];
-    $role  = in_array($_POST["role"], ['admin','accountant','cashier']) ? $_POST["role"] : 'cashier';
-    $stat  = (int)($_POST["status"] ?? 1);
+    $pass = $_POST["password"];
+    $role = in_array($_POST["role"], ["admin", "accountant", "cashier"])
+        ? $_POST["role"]
+        : "cashier";
+    $stat = (int) ($_POST["status"] ?? 1);
 
     if ($full && $uname && $pass) {
         $us = $conn->real_escape_string($uname);
-        if ($conn->query("SELECT user_id FROM users WHERE username='$us'")->num_rows > 0) {
-            $msg = "Username '$uname' already exists."; $msg_type = "error";
+        if (
+            $conn->query("SELECT user_id FROM users WHERE username='$us'")
+                ->num_rows > 0
+        ) {
+            $msg = "Username '$uname' already exists.";
+            $msg_type = "error";
         } else {
             $hash = password_hash($pass, PASSWORD_DEFAULT);
             $fs = $conn->real_escape_string($full);
             $hs = $conn->real_escape_string($hash);
             $rs = $conn->real_escape_string($role);
-            $conn->query("INSERT INTO users (full_name, username, password, role, status) VALUES ('$fs','$us','$hs','$rs',$stat)");
-            $msg = "User '$uname' created successfully."; $msg_type = "success";
+            $conn->query(
+                "INSERT INTO users (full_name, username, password, role, status) VALUES ('$fs','$us','$hs','$rs',$stat)",
+            );
+            $msg = "User '$uname' created successfully.";
+            $msg_type = "success";
         }
-    } else { $msg = "All fields are required."; $msg_type = "error"; }
+    } else {
+        $msg = "All fields are required.";
+        $msg_type = "error";
+    }
 }
 
 /* ── EDIT ── */
 if (isset($_POST["edit_user"])) {
-    $id    = (int)$_POST["user_id"];
-    $full  = trim($_POST["full_name"]);
+    $id = (int) $_POST["user_id"];
+    $full = trim($_POST["full_name"]);
     $uname = trim($_POST["username"]);
-    $role  = in_array($_POST["role"], ['admin','accountant','cashier']) ? $_POST["role"] : 'cashier';
-    $stat  = (int)($_POST["status"] ?? 1);
+    $role = in_array($_POST["role"], ["admin", "accountant", "cashier"])
+        ? $_POST["role"]
+        : "cashier";
+    $stat = (int) ($_POST["status"] ?? 1);
     $npass = trim($_POST["new_password"] ?? "");
 
     if ($full && $uname) {
@@ -45,59 +61,90 @@ if (isset($_POST["edit_user"])) {
         $us = $conn->real_escape_string($uname);
         $rs = $conn->real_escape_string($role);
 
-        if ($conn->query("SELECT user_id FROM users WHERE username='$us' AND user_id != $id")->num_rows > 0) {
-            $msg = "Username already taken."; $msg_type = "error";
+        if (
+            $conn->query(
+                "SELECT user_id FROM users WHERE username='$us' AND user_id != $id",
+            )->num_rows > 0
+        ) {
+            $msg = "Username already taken.";
+            $msg_type = "error";
         } else {
             if ($npass !== "") {
-                $hash = $conn->real_escape_string(password_hash($npass, PASSWORD_DEFAULT));
-                $conn->query("UPDATE users SET full_name='$fs', username='$us', password='$hash', role='$rs', status=$stat WHERE user_id=$id");
+                $hash = $conn->real_escape_string(
+                    password_hash($npass, PASSWORD_DEFAULT),
+                );
+                $conn->query(
+                    "UPDATE users SET full_name='$fs', username='$us', password='$hash', role='$rs', status=$stat WHERE user_id=$id",
+                );
             } else {
-                $conn->query("UPDATE users SET full_name='$fs', username='$us', role='$rs', status=$stat WHERE user_id=$id");
+                $conn->query(
+                    "UPDATE users SET full_name='$fs', username='$us', role='$rs', status=$stat WHERE user_id=$id",
+                );
             }
-            $msg = "User updated successfully."; $msg_type = "success";
+            $msg = "User updated successfully.";
+            $msg_type = "success";
         }
-    } else { $msg = "Name and username are required."; $msg_type = "error"; }
+    } else {
+        $msg = "Name and username are required.";
+        $msg_type = "error";
+    }
 }
 
 /* ── DELETE ── */
 if (isset($_GET["delete"])) {
-    $id = (int)$_GET["delete"];
+    $id = (int) $_GET["delete"];
     if ($id == $_SESSION["user_id"]) {
-        $msg = "You cannot delete your own account."; $msg_type = "error";
+        $msg = "You cannot delete your own account.";
+        $msg_type = "error";
     } else {
         $conn->query("DELETE FROM users WHERE user_id=$id");
-        $msg = "User deleted."; $msg_type = "warning";
+        $msg = "User deleted.";
+        $msg_type = "warning";
     }
 }
 
 /* ── TOGGLE ── */
 if (isset($_GET["toggle"])) {
-    $id = (int)$_GET["toggle"];
-    if ($id != $_SESSION["user_id"])
-        $conn->query("UPDATE users SET status=IF(status=1,0,1) WHERE user_id=$id");
-    header("Location: users.php"); exit;
+    $id = (int) $_GET["toggle"];
+    if ($id != $_SESSION["user_id"]) {
+        $conn->query(
+            "UPDATE users SET status=IF(status=1,0,1) WHERE user_id=$id",
+        );
+    }
+    header("Location: users.php");
+    exit();
 }
 
 /* ── FETCH ── */
 $search = trim($_GET["search"] ?? "");
-$sql    = "SELECT * FROM users";
+$sql = "SELECT * FROM users";
 if ($search !== "") {
-    $ss   = $conn->real_escape_string($search);
+    $ss = $conn->real_escape_string($search);
     $sql .= " WHERE full_name LIKE '%$ss%' OR username LIKE '%$ss%' OR role LIKE '%$ss%'";
 }
-$sql  .= " ORDER BY role ASC, user_id DESC";
+$sql .= " ORDER BY role ASC, user_id DESC";
 $users = $conn->query($sql);
 
 $edit_user = null;
 if (isset($_GET["edit"])) {
-    $eid = (int)$_GET["edit"];
-    $edit_user = $conn->query("SELECT * FROM users WHERE user_id=$eid")->fetch_assoc();
+    $eid = (int) $_GET["edit"];
+    $edit_user = $conn
+        ->query("SELECT * FROM users WHERE user_id=$eid")
+        ->fetch_assoc();
 }
 
-$total_users    = $conn->query("SELECT COUNT(*) AS v FROM users WHERE status=1")->fetch_assoc()['v'];
-$total_admin    = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='admin'")->fetch_assoc()['v'];
-$total_accountant = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='accountant'")->fetch_assoc()['v'];
-$total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cashier'")->fetch_assoc()['v'];
+$total_users = $conn
+    ->query("SELECT COUNT(*) AS v FROM users WHERE status=1")
+    ->fetch_assoc()["v"];
+$total_admin = $conn
+    ->query("SELECT COUNT(*) AS v FROM users WHERE role='admin'")
+    ->fetch_assoc()["v"];
+$total_accountant = $conn
+    ->query("SELECT COUNT(*) AS v FROM users WHERE role='accountant'")
+    ->fetch_assoc()["v"];
+$total_cashier = $conn
+    ->query("SELECT COUNT(*) AS v FROM users WHERE role='cashier'")
+    ->fetch_assoc()["v"];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -108,14 +155,14 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-<?php include 'shared_style.php'; ?>
+<?php include "shared_style.php"; ?>
 .form-sticky { position: sticky; top: calc(var(--topbar-h) + 16px); }
 </style>
 </head>
 <body>
-<?php include 'shared_nav.php'; ?>
+<?php include "shared_nav.php"; ?>
 <div class="main">
-<?php include 'shared_topbar.php'; ?>
+<?php include "shared_topbar.php"; ?>
 <div class="content">
 
     <!-- Page Header -->
@@ -129,7 +176,11 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
     <!-- Alert -->
     <?php if ($msg): ?>
     <div class="alert alert-<?php echo $msg_type; ?>">
-        <i class="fa-solid <?php echo $msg_type=='success'?'fa-circle-check':($msg_type=='warning'?'fa-triangle-exclamation':'fa-circle-exclamation'); ?>"></i>
+        <i class="fa-solid <?php echo $msg_type == "success"
+            ? "fa-circle-check"
+            : ($msg_type == "warning"
+                ? "fa-triangle-exclamation"
+                : "fa-circle-exclamation"); ?>"></i>
         <?php echo htmlspecialchars($msg); ?>
     </div>
     <?php endif; ?>
@@ -161,14 +212,18 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
         <div class="card form-sticky">
             <div class="card-header">
                 <h3>
-                    <i class="fa-solid fa-<?php echo $edit_user ? 'user-pen' : 'user-plus'; ?>"></i>
-                    <?php echo $edit_user ? 'Edit User' : 'Add New User'; ?>
+                    <i class="fa-solid fa-<?php echo $edit_user
+                        ? "user-pen"
+                        : "user-plus"; ?>"></i>
+                    <?php echo $edit_user ? "Edit User" : "Add New User"; ?>
                 </h3>
             </div>
             <div class="card-body">
                 <form method="POST">
                     <?php if ($edit_user): ?>
-                        <input type="hidden" name="user_id" value="<?php echo $edit_user['user_id']; ?>">
+                        <input type="hidden" name="user_id" value="<?php echo $edit_user[
+                            "user_id"
+                        ]; ?>">
                     <?php endif; ?>
 
                     <div class="field">
@@ -177,7 +232,9 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                             <i class="fa-solid fa-id-card"></i>
                             <input type="text" name="full_name" class="inp" style="padding-left:34px;"
                                    placeholder="e.g. John Silva"
-                                   value="<?php echo htmlspecialchars($edit_user['full_name'] ?? ''); ?>" required>
+                                   value="<?php echo htmlspecialchars(
+                                       $edit_user["full_name"] ?? "",
+                                   ); ?>" required>
                         </div>
                     </div>
 
@@ -187,7 +244,9 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                             <i class="fa-solid fa-user"></i>
                             <input type="text" name="username" class="inp" style="padding-left:34px;"
                                    placeholder="Login username"
-                                   value="<?php echo htmlspecialchars($edit_user['username'] ?? ''); ?>" required>
+                                   value="<?php echo htmlspecialchars(
+                                       $edit_user["username"] ?? "",
+                                   ); ?>" required>
                         </div>
                     </div>
 
@@ -217,13 +276,22 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                         <div class="field">
                             <label>Role</label>
                             <select name="role" class="inp">
-                                <option value="cashier" <?php echo (!$edit_user || $edit_user['role']=='cashier')?'selected':''; ?>>
+                                <option value="cashier" <?php echo !$edit_user ||
+                                $edit_user["role"] == "cashier"
+                                    ? "selected"
+                                    : ""; ?>>
                                     Cashier
                                 </option>
-                                <option value="admin" <?php echo ($edit_user && $edit_user['role']=='admin')?'selected':''; ?>>
+                                <option value="admin" <?php echo $edit_user &&
+                                $edit_user["role"] == "admin"
+                                    ? "selected"
+                                    : ""; ?>>
                                     Admin (Owner)
                                 </option>
-                                <option value="accountant" <?php echo ($edit_user && $edit_user['role']=='accountant')?'selected':''; ?>>
+                                <option value="accountant" <?php echo $edit_user &&
+                                $edit_user["role"] == "accountant"
+                                    ? "selected"
+                                    : ""; ?>>
                                     Accountant
                                 </option>
                             </select>
@@ -231,18 +299,30 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                         <div class="field">
                             <label>Status</label>
                             <select name="status" class="inp">
-                                <option value="1" <?php echo (!$edit_user || $edit_user['status']==1)?'selected':''; ?>>Active</option>
-                                <option value="0" <?php echo ($edit_user && $edit_user['status']==0)?'selected':''; ?>>Inactive</option>
+                                <option value="1" <?php echo !$edit_user ||
+                                $edit_user["status"] == 1
+                                    ? "selected"
+                                    : ""; ?>>Active</option>
+                                <option value="0" <?php echo $edit_user &&
+                                $edit_user["status"] == 0
+                                    ? "selected"
+                                    : ""; ?>>Inactive</option>
                             </select>
                         </div>
                     </div>
 
                     <div style="display:flex;gap:8px;margin-top:4px;">
                         <button type="submit"
-                                name="<?php echo $edit_user ? 'edit_user' : 'add_user'; ?>"
+                                name="<?php echo $edit_user
+                                    ? "edit_user"
+                                    : "add_user"; ?>"
                                 class="btn-primary" style="flex:1;justify-content:center;">
-                            <i class="fa-solid fa-<?php echo $edit_user ? 'floppy-disk' : 'user-plus'; ?>"></i>
-                            <?php echo $edit_user ? 'Update User' : 'Add User'; ?>
+                            <i class="fa-solid fa-<?php echo $edit_user
+                                ? "floppy-disk"
+                                : "user-plus"; ?>"></i>
+                            <?php echo $edit_user
+                                ? "Update User"
+                                : "Add User"; ?>
                         </button>
                         <?php if ($edit_user): ?>
                         <a href="users.php" class="btn-secondary" style="padding:9px 14px;">
@@ -295,66 +375,93 @@ $total_cashier  = $conn->query("SELECT COUNT(*) AS v FROM users WHERE role='cash
                         <?php if ($users && $users->num_rows > 0):
                             while ($u = $users->fetch_assoc()): ?>
                         <tr>
-                            <td style="color:var(--text-muted);font-size:12px;"><?php echo $u['user_id']; ?></td>
+                            <td style="color:var(--text-muted);font-size:12px;"><?php echo $u[
+                                "user_id"
+                            ]; ?></td>
                             <td>
                                 <div style="display:flex;align-items:center;gap:9px;">
                                     <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0;">
-                                        <?php echo strtoupper(substr($u['full_name'], 0, 1)); ?>
+                                        <?php echo strtoupper(
+                                            substr($u["full_name"], 0, 1),
+                                        ); ?>
                                     </div>
-                                    <strong style="color:var(--text);"><?php echo htmlspecialchars($u['full_name']); ?></strong>
-                                    <?php if ($u['user_id'] == $_SESSION['user_id']): ?>
+                                    <strong style="color:var(--text);"><?php echo htmlspecialchars(
+                                        $u["full_name"],
+                                    ); ?></strong>
+                                    <?php if (
+                                        $u["user_id"] == $_SESSION["user_id"]
+                                    ): ?>
                                         <span class="badge b-green" style="font-size:9px;">You</span>
                                     <?php endif; ?>
                                 </div>
                             </td>
                             <td>
                                 <code style="background:var(--bg);padding:3px 8px;border-radius:5px;font-size:12px;border:1px solid var(--border);">
-                                    <?php echo htmlspecialchars($u['username']); ?>
+                                    <?php echo htmlspecialchars(
+                                        $u["username"],
+                                    ); ?>
                                 </code>
                             </td>
                             <td>
-                                <?php if ($u['role'] === 'admin'): ?>
+                                <?php if ($u["role"] === "admin"): ?>
                                     <span class="badge b-orange"><i class="fa-solid fa-shield-halved"></i> Owner</span>
-                                <?php elseif ($u['role'] === 'accountant'): ?>
+                                <?php elseif ($u["role"] === "accountant"): ?>
                                     <span class="badge b-green"><i class="fa-solid fa-calculator"></i> Accountant</span>
                                 <?php else: ?>
                                     <span class="badge b-indigo"><i class="fa-solid fa-cash-register"></i> Cashier</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if ($u['user_id'] != $_SESSION['user_id']): ?>
-                                    <a href="users.php?toggle=<?php echo $u['user_id']; ?>" title="Click to toggle" style="text-decoration:none;">
+                                <?php if (
+                                    $u["user_id"] != $_SESSION["user_id"]
+                                ): ?>
+                                    <a href="users.php?toggle=<?php echo $u[
+                                        "user_id"
+                                    ]; ?>" title="Click to toggle" style="text-decoration:none;">
                                 <?php endif; ?>
-                                    <?php if ($u['status'] == 1): ?>
+                                    <?php if ($u["status"] == 1): ?>
                                         <span class="badge b-green"><i class="fa-solid fa-circle"></i> Active</span>
                                     <?php else: ?>
                                         <span class="badge b-red"><i class="fa-regular fa-circle"></i> Inactive</span>
                                     <?php endif; ?>
-                                <?php if ($u['user_id'] != $_SESSION['user_id']): ?>
+                                <?php if (
+                                    $u["user_id"] != $_SESSION["user_id"]
+                                ): ?>
                                     </a>
                                 <?php endif; ?>
                             </td>
                             <td>
                                 <div class="action-btns">
-                                    <a href="users.php?edit=<?php echo $u['user_id']; ?>" class="btn-edit">
+                                    <a href="users.php?edit=<?php echo $u[
+                                        "user_id"
+                                    ]; ?>" class="btn-edit">
                                         <i class="fa-solid fa-pen"></i> Edit
                                     </a>
-                                    <?php if ($u['user_id'] != $_SESSION['user_id']): ?>
-                                    <a href="users.php?delete=<?php echo $u['user_id']; ?>"
+                                    <?php if (
+                                        $u["user_id"] != $_SESSION["user_id"]
+                                    ): ?>
+                                    <a href="users.php?delete=<?php echo $u[
+                                        "user_id"
+                                    ]; ?>"
                                        class="btn-del"
-                                       onclick="return confirm('Delete user \'<?php echo addslashes(htmlspecialchars($u['username'])); ?>\'?')">
+                                       onclick="return confirm('Delete user \'<?php echo addslashes(
+                                           htmlspecialchars($u["username"]),
+                                       ); ?>\'?')">
                                         <i class="fa-solid fa-trash"></i>
                                     </a>
                                     <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
-                        <?php endwhile; else: ?>
+                        <?php endwhile;
+                        else:
+                             ?>
                         <tr><td colspan="6" class="empty-row">
                             <i class="fa-solid fa-users" style="font-size:22px;color:var(--border-dk);display:block;margin-bottom:8px;"></i>
                             No users found.
                         </td></tr>
-                        <?php endif; ?>
+                        <?php
+                        endif; ?>
                     </tbody>
                 </table>
             </div>

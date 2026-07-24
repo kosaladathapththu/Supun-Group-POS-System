@@ -1,12 +1,14 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit();
 }
-if (!in_array($_SESSION['role'] ?? '', ['cashier', 'accountant', 'admin'], true)) {
+if (
+    !in_array($_SESSION["role"] ?? "", ["cashier", "accountant", "admin"], true)
+) {
     http_response_code(403);
-    exit('Access denied.');
+    exit("Access denied.");
 }
-header('Location: admin/product_import.php?cashier_mode=1');
-exit;
+header("Location: admin/product_import.php?cashier_mode=1");
+exit();

@@ -1,11 +1,24 @@
 <?php
 session_start();
-include '../db.php';
-if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) { echo "Unauthorized"; exit; }
+include "../db.php";
+if (
+    !isset($_SESSION["user_id"]) ||
+    !in_array($_SESSION["role"], ["admin", "accountant"], true)
+) {
+    echo "Unauthorized";
+    exit();
+}
 
-$id = (int)($_GET["id"] ?? 0);
-$o  = $conn->query("SELECT o.*, u.full_name AS cashier FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE o.order_id=$id")->fetch_assoc();
-if (!$o) { echo '<p style="color:red;padding:20px;">Order not found.</p>'; exit; }
+$id = (int) ($_GET["id"] ?? 0);
+$o = $conn
+    ->query(
+        "SELECT o.*, u.full_name AS cashier FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE o.order_id=$id",
+    )
+    ->fetch_assoc();
+if (!$o) {
+    echo '<p style="color:red;padding:20px;">Order not found.</p>';
+    exit();
+}
 
 $items = $conn->query("
     SELECT oi.*, COALESCE(p.product_name, oi.custom_item_name, 'Custom Item') AS item_name
@@ -14,8 +27,20 @@ $items = $conn->query("
     WHERE oi.order_id = $id
 ");
 
-$pm_cls = ['Cash'=>'bp-cash','Card'=>'bp-card','QR'=>'bp-qr','Bank Transfer'=>'bp-bank','Cheque'=>'bp-bank'];
-$pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns','Cheque'=>'fa-money-check-dollar'];
+$pm_cls = [
+    "Cash" => "bp-cash",
+    "Card" => "bp-card",
+    "QR" => "bp-qr",
+    "Bank Transfer" => "bp-bank",
+    "Cheque" => "bp-bank",
+];
+$pm_ico = [
+    "Cash" => "fa-money-bill-wave",
+    "Card" => "fa-credit-card",
+    "QR" => "fa-qrcode",
+    "Bank Transfer" => "fa-building-columns",
+    "Cheque" => "fa-money-check-dollar",
+];
 ?>
 <style>
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
@@ -35,20 +60,25 @@ $pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcod
 <div class="detail-grid">
   <div class="dg-item">
     <div class="dg-lbl">Order ID</div>
-    <div class="dg-val">#<?php echo $o['order_id']; ?></div>
+    <div class="dg-val">#<?php echo $o["order_id"]; ?></div>
   </div>
   <div class="dg-item">
     <div class="dg-lbl">Date &amp; Time</div>
-    <div class="dg-val" style="font-size:12px;"><?php echo date('d M Y, h:i A', strtotime($o['created_at'])); ?></div>
+    <div class="dg-val" style="font-size:12px;"><?php echo date(
+        "d M Y, h:i A",
+        strtotime($o["created_at"]),
+    ); ?></div>
   </div>
   <div class="dg-item">
     <div class="dg-lbl">Cashier</div>
-    <div class="dg-val"><?php echo htmlspecialchars($o['cashier'] ?? '—'); ?></div>
+    <div class="dg-val"><?php echo htmlspecialchars(
+        $o["cashier"] ?? "—",
+    ); ?></div>
   </div>
   <div class="dg-item">
     <div class="dg-lbl">Order Type</div>
     <div class="dg-val">
-      <?php if ($o['order_type']=='retail'): ?>
+      <?php if ($o["order_type"] == "retail"): ?>
         <span class="badge-pill bp-dine"><i class="fa-solid fa-basket-shopping"></i> Retail</span>
       <?php else: ?>
         <span class="badge-pill bp-take"><i class="fa-solid fa-boxes-stacked"></i> Wholesale</span>
@@ -58,15 +88,20 @@ $pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcod
   <div class="dg-item">
     <div class="dg-lbl">Payment Method</div>
     <div class="dg-val">
-      <span class="badge-pill <?php echo $pm_cls[$o['payment_method']] ?? 'bp-cash'; ?>">
-        <i class="fa-solid <?php echo $pm_ico[$o['payment_method']] ?? 'fa-money-bill'; ?>"></i>
-        <?php echo htmlspecialchars($o['payment_method']); ?>
+      <span class="badge-pill <?php echo $pm_cls[$o["payment_method"]] ??
+          "bp-cash"; ?>">
+        <i class="fa-solid <?php echo $pm_ico[$o["payment_method"]] ??
+            "fa-money-bill"; ?>"></i>
+        <?php echo htmlspecialchars($o["payment_method"]); ?>
       </span>
     </div>
   </div>
   <div class="dg-item">
     <div class="dg-lbl">Cash Given / Balance</div>
-    <div class="dg-val">Rs. <?php echo number_format($o['cash_given'],2); ?> / Rs. <?php echo number_format($o['balance'],2); ?></div>
+    <div class="dg-val">Rs. <?php echo number_format(
+        $o["cash_given"],
+        2,
+    ); ?> / Rs. <?php echo number_format($o["balance"], 2); ?></div>
   </div>
 </div>
 
@@ -78,49 +113,77 @@ $pm_ico = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcod
   <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Line Total</th></tr></thead>
   <tbody>
     <?php if ($items && $items->num_rows > 0):
-      while ($item = $items->fetch_assoc()): ?>
+        while ($item = $items->fetch_assoc()): ?>
     <tr>
       <td>
-        <?php echo htmlspecialchars($item['item_name']); ?>
-        <?php if (!$item['product_id']): ?>
+        <?php echo htmlspecialchars($item["item_name"]); ?>
+        <?php if (!$item["product_id"]): ?>
           <span style="font-size:10px;background:#fffbeb;color:#d97706;border:1px solid #fde68a;padding:1px 6px;border-radius:40px;margin-left:4px;font-weight:900;">Custom</span>
         <?php endif; ?>
       </td>
-      <td><?php echo $item['quantity']; ?></td>
-      <td>Rs. <?php echo number_format($item['unit_price'],2); ?></td>
-      <td><strong style="color:#d95c2b;">Rs. <?php echo number_format($item['line_total'],2); ?></strong></td>
+      <td><?php echo $item["quantity"]; ?></td>
+      <td>Rs. <?php echo number_format($item["unit_price"], 2); ?></td>
+      <td><strong style="color:#d95c2b;">Rs. <?php echo number_format(
+          $item["line_total"],
+          2,
+      ); ?></strong></td>
     </tr>
-    <?php endwhile; else: ?>
+    <?php endwhile;
+    else:
+         ?>
     <tr><td colspan="4" style="text-align:center;color:#8e94b0;padding:16px;font-weight:700;">No items found.</td></tr>
-    <?php endif; ?>
+    <?php
+    endif; ?>
   </tbody>
 </table>
 
 <div class="items-total">
-  <span>Subtotal</span><span>Rs. <?php echo number_format($o['subtotal'],2); ?></span>
+  <span>Subtotal</span><span>Rs. <?php echo number_format(
+      $o["subtotal"],
+      2,
+  ); ?></span>
 </div>
-<?php if ($o['discount'] > 0): ?>
+<?php if ($o["discount"] > 0): ?>
 <div class="items-total" style="color:var(--green);border-top:none;padding-top:0;">
-  <span>Discount</span><span>- Rs. <?php echo number_format($o['discount'],2); ?></span>
+  <span>Discount</span><span>- Rs. <?php echo number_format(
+      $o["discount"],
+      2,
+  ); ?></span>
 </div>
 <?php endif; ?>
 <?php
-$packaging_fee = (float)($o['packaging_fee'] ?? 0);
-$saved_service_charge = (float)($o['service_charge'] ?? 0);
-$service_charge = $saved_service_charge > 0
-  ? $saved_service_charge
-  : max(0, (float)$o['total_amount'] - (float)$o['subtotal'] + (float)$o['discount'] - $packaging_fee);
+$packaging_fee = (float) ($o["packaging_fee"] ?? 0);
+$saved_service_charge = (float) ($o["service_charge"] ?? 0);
+$service_charge =
+    $saved_service_charge > 0
+        ? $saved_service_charge
+        : max(
+            0,
+            (float) $o["total_amount"] -
+                (float) $o["subtotal"] +
+                (float) $o["discount"] -
+                $packaging_fee,
+        );
 ?>
 <?php if ($service_charge > 0): ?>
 <div class="items-total" style="color:var(--primary);border-top:none;padding-top:0;">
-  <span>Service Charge 10%</span><span>Rs. <?php echo number_format($service_charge,2); ?></span>
+  <span>Service Charge 10%</span><span>Rs. <?php echo number_format(
+      $service_charge,
+      2,
+  ); ?></span>
 </div>
 <?php endif; ?>
 <?php if ($packaging_fee > 0): ?>
 <div class="items-total" style="color:var(--primary);border-top:none;padding-top:0;">
-  <span>Packaging Fee</span><span>Rs. <?php echo number_format($packaging_fee,2); ?></span>
+  <span>Packaging Fee</span><span>Rs. <?php echo number_format(
+      $packaging_fee,
+      2,
+  ); ?></span>
 </div>
 <?php endif; ?>
 <div class="items-total" style="font-size:17px;">
-  <span>Grand Total</span><span>Rs. <?php echo number_format($o['total_amount'],2); ?></span>
+  <span>Grand Total</span><span>Rs. <?php echo number_format(
+      $o["total_amount"],
+      2,
+  ); ?></span>
 </div>

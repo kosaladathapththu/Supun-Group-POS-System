@@ -1,27 +1,27 @@
 <?php
 /* shared_topbar.php — top bar for all admin pages */
-$current = basename($_SERVER['PHP_SELF']);
-$titles  = [
-    'categories.php'  => 'Categories',
-    'users.php'       => 'Staff & Users',
-    'orders.php'      => 'All Orders',
-    'sales.php'       => 'Sales Report',
-    'products.php'    => 'Products',
-    'product_import.php' => 'Import Inventory',
-    'daily_product_sales.php' => 'Product Sales Report',
-    'view_sale.php'   => 'Sale Details',
-    'expenses.php'    => 'Expenses',
-    'expense_report.php' => 'Expense Report',
-    'purchases.php' => 'Purchasing',
-    'purchase_view.php' => 'Purchase Details',
-    'purchase_import.php' => 'Existing Stock Purchase Import',
-    'suppliers.php' => 'Suppliers',
-    'advances.php' => 'Customer Advances',
-    'payment_reports.php' => 'Credit & Installment Report',
-    'account_credit_report.php' => 'Account Credit Report',
-    'installment_report.php' => 'Installment Payment Report',
+$current = basename($_SERVER["PHP_SELF"]);
+$titles = [
+    "categories.php" => "Categories",
+    "users.php" => "Staff & Users",
+    "orders.php" => "All Orders",
+    "sales.php" => "Sales Report",
+    "products.php" => "Products",
+    "product_import.php" => "Import Inventory",
+    "daily_product_sales.php" => "Product Sales Report",
+    "view_sale.php" => "Sale Details",
+    "expenses.php" => "Expenses",
+    "expense_report.php" => "Expense Report",
+    "purchases.php" => "Purchasing",
+    "purchase_view.php" => "Purchase Details",
+    "purchase_import.php" => "Existing Stock Purchase Import",
+    "suppliers.php" => "Suppliers",
+    "advances.php" => "Customer Advances",
+    "payment_reports.php" => "Credit & Installment Report",
+    "account_credit_report.php" => "Account Credit Report",
+    "installment_report.php" => "Installment Payment Report",
 ];
-$page_title = $titles[$current] ?? 'Admin';
+$page_title = $titles[$current] ?? "Admin";
 ?>
 <div class="topbar">
     <div class="topbar-left">
@@ -39,7 +39,9 @@ $page_title = $titles[$current] ?? 'Admin';
         </div>
     </div>
     <div class="topbar-right">
-        <div class="date-badge"><i class="fa-regular fa-calendar"></i><?php echo date('d M Y'); ?></div>
+        <div class="date-badge"><i class="fa-regular fa-calendar"></i><?php echo date(
+            "d M Y",
+        ); ?></div>
         <a href="../pos.php" class="btn-primary"><i class="fa-solid fa-cash-register"></i> Go to POS</a>
     </div>
 </div>

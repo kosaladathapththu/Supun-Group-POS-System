@@ -1,19 +1,19 @@
 <?php
-include '../includes/auth.php';
-include '../db.php';
+include "../includes/auth.php";
+include "../db.php";
 
-$from_date = $_GET['from_date'] ?? date('Y-m-d');
-$to_date   = $_GET['to_date'] ?? date('Y-m-d');
-$report_type = $_GET['report_type'] ?? 'full';
-$allowedReportTypes = ['daily', 'weekly', 'monthly', 'full'];
+$from_date = $_GET["from_date"] ?? date("Y-m-d");
+$to_date = $_GET["to_date"] ?? date("Y-m-d");
+$report_type = $_GET["report_type"] ?? "full";
+$allowedReportTypes = ["daily", "weekly", "monthly", "full"];
 if (!in_array($report_type, $allowedReportTypes, true)) {
-    $report_type = 'full';
+    $report_type = "full";
 }
 $reportNames = [
-    'daily' => 'Daily Sales Report',
-    'weekly' => 'Weekly Sales Report',
-    'monthly' => 'Monthly Sales Report',
-    'full' => 'Full Product Sales Report',
+    "daily" => "Daily Sales Report",
+    "weekly" => "Weekly Sales Report",
+    "monthly" => "Monthly Sales Report",
+    "full" => "Full Product Sales Report",
 ];
 $reportName = $reportNames[$report_type];
 
@@ -41,56 +41,71 @@ $sales = [];
 $dateTotals = [];
 
 while ($row = $result->fetch_assoc()) {
-    $date = $row['sale_date'];
+    $date = $row["sale_date"];
     $sales[$date][] = $row;
 
     if (!isset($dateTotals[$date])) {
         $dateTotals[$date] = 0;
     }
 
-    $dateTotals[$date] += $row['total_amount'];
+    $dateTotals[$date] += $row["total_amount"];
 }
 
 /* Build the separately printable daily, weekly and monthly views from the
-   date-level result, keeping each product visible inside its period. */
+ date-level result, keeping each product visible inside its period. */
 $groupedSales = [];
-if ($report_type !== 'full') {
+if ($report_type !== "full") {
     foreach ($sales as $date => $items) {
         $dateObject = new DateTime($date);
-        if ($report_type === 'weekly') {
+        if ($report_type === "weekly") {
             $periodStart = clone $dateObject;
-            $periodStart->modify('monday this week');
+            $periodStart->modify("monday this week");
             $periodEnd = clone $periodStart;
-            $periodEnd->modify('+6 days');
-            $groupKey = $periodStart->format('Y-m-d');
-            $groupLabel = 'Week: ' . $periodStart->format('d M Y') . ' - ' . $periodEnd->format('d M Y');
-        } elseif ($report_type === 'monthly') {
-            $groupKey = $dateObject->format('Y-m-01');
-            $groupLabel = $dateObject->format('F Y');
+            $periodEnd->modify("+6 days");
+            $groupKey = $periodStart->format("Y-m-d");
+            $groupLabel =
+                "Week: " .
+                $periodStart->format("d M Y") .
+                " - " .
+                $periodEnd->format("d M Y");
+        } elseif ($report_type === "monthly") {
+            $groupKey = $dateObject->format("Y-m-01");
+            $groupLabel = $dateObject->format("F Y");
         } else {
             $groupKey = $date;
-            $groupLabel = $dateObject->format('d M Y');
+            $groupLabel = $dateObject->format("d M Y");
         }
 
         if (!isset($groupedSales[$groupKey])) {
-            $groupedSales[$groupKey] = ['label' => $groupLabel, 'items' => [], 'total' => 0, 'qty' => 0];
+            $groupedSales[$groupKey] = [
+                "label" => $groupLabel,
+                "items" => [],
+                "total" => 0,
+                "qty" => 0,
+            ];
         }
         foreach ($items as $item) {
-            $productName = $item['product_name'];
-            if (!isset($groupedSales[$groupKey]['items'][$productName])) {
-                $groupedSales[$groupKey]['items'][$productName] = ['product_name' => $productName, 'total_qty' => 0, 'total_amount' => 0];
+            $productName = $item["product_name"];
+            if (!isset($groupedSales[$groupKey]["items"][$productName])) {
+                $groupedSales[$groupKey]["items"][$productName] = [
+                    "product_name" => $productName,
+                    "total_qty" => 0,
+                    "total_amount" => 0,
+                ];
             }
-            $groupedSales[$groupKey]['items'][$productName]['total_qty'] += (float)$item['total_qty'];
-            $groupedSales[$groupKey]['items'][$productName]['total_amount'] += (float)$item['total_amount'];
-            $groupedSales[$groupKey]['qty'] += (float)$item['total_qty'];
-            $groupedSales[$groupKey]['total'] += (float)$item['total_amount'];
+            $groupedSales[$groupKey]["items"][$productName]["total_qty"] +=
+                (float) $item["total_qty"];
+            $groupedSales[$groupKey]["items"][$productName]["total_amount"] +=
+                (float) $item["total_amount"];
+            $groupedSales[$groupKey]["qty"] += (float) $item["total_qty"];
+            $groupedSales[$groupKey]["total"] += (float) $item["total_amount"];
         }
     }
     krsort($groupedSales);
 }
 
 /* Full-period product performance. Order discounts are distributed across
-   products according to each line's share of the order subtotal. */
+ products according to each line's share of the order subtotal. */
 $productSql = "
     SELECT
         p.product_id,
@@ -118,7 +133,7 @@ $productSql = "
     ORDER BY gross_profit DESC, p.product_name ASC
 ";
 $productStmt = $conn->prepare($productSql);
-$productStmt->bind_param('ss', $from_date, $to_date);
+$productStmt->bind_param("ss", $from_date, $to_date);
 $productStmt->execute();
 $productResult = $productStmt->get_result();
 $productRows = [];
@@ -147,20 +162,26 @@ $summarySql = "
       AND oi.product_id IS NOT NULL
 ";
 $summaryStmt = $conn->prepare($summarySql);
-$summaryStmt->bind_param('ss', $from_date, $to_date);
+$summaryStmt->bind_param("ss", $from_date, $to_date);
 $summaryStmt->execute();
 $summary = $summaryStmt->get_result()->fetch_assoc();
-$profitMargin = (float)$summary['net_sales'] > 0
-    ? ((float)$summary['gross_profit'] / (float)$summary['net_sales']) * 100
-    : 0;
+$profitMargin =
+    (float) $summary["net_sales"] > 0
+        ? ((float) $summary["gross_profit"] / (float) $summary["net_sales"]) *
+            100
+        : 0;
 
-$inventorySummary = $conn->query("
+$inventorySummary = $conn
+    ->query(
+        "
     SELECT
         COUNT(CASE WHEN stock_qty > 0 THEN 1 END) AS products_in_stock,
         COALESCE(SUM(stock_qty), 0) AS units_in_stock
     FROM products
     WHERE status = 1
-")->fetch_assoc();
+",
+    )
+    ->fetch_assoc();
 ?>
 
 <!DOCTYPE html>
@@ -172,7 +193,7 @@ $inventorySummary = $conn->query("
     <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        <?php include 'shared_style.php'; ?>
+        <?php include "shared_style.php"; ?>
         body {
             font-family: 'Nunito', sans-serif;
             background: var(--bg);
@@ -303,7 +324,9 @@ $inventorySummary = $conn->query("
 
         @media print {
             @page {
-                size: <?php echo $report_type === 'full' ? 'A4 landscape' : 'A4 portrait'; ?>;
+                size: <?php echo $report_type === "full"
+                    ? "A4 landscape"
+                    : "A4 portrait"; ?>;
                 margin: 12mm 10mm 14mm;
             }
 
@@ -404,15 +427,23 @@ $inventorySummary = $conn->query("
 </head>
 
 <body>
-<?php include 'shared_nav.php'; ?>
+<?php include "shared_nav.php"; ?>
 <div class="main">
-<?php include 'shared_topbar.php'; ?>
+<?php include "shared_topbar.php"; ?>
 <div class="content">
 <div class="container">
 
     <div class="top-bar no-print">
         <a href="sales.php" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Sales</a>
-        <a target="_blank" href="print_report.php?type=sales&amp;scope=<?php echo urlencode($report_type); ?>&amp;from=<?php echo urlencode($from_date); ?>&amp;to=<?php echo urlencode($to_date); ?>" class="print-btn" style="text-decoration:none;"><i class="fa-solid fa-file-pdf"></i> Open Detailed <?php echo htmlspecialchars($reportName); ?></a>
+        <a target="_blank" href="print_report.php?type=sales&amp;scope=<?php echo urlencode(
+            $report_type,
+        ); ?>&amp;from=<?php echo urlencode(
+    $from_date,
+); ?>&amp;to=<?php echo urlencode(
+    $to_date,
+); ?>" class="print-btn" style="text-decoration:none;"><i class="fa-solid fa-file-pdf"></i> Open Detailed <?php echo htmlspecialchars(
+    $reportName,
+); ?></a>
     </div>
 
     <div class="card no-print">
@@ -422,20 +453,33 @@ $inventorySummary = $conn->query("
             <div class="filter-field">
                 <label>Report Type</label>
                 <select name="report_type">
-                    <option value="daily" <?php echo $report_type === 'daily' ? 'selected' : ''; ?>>Daily Report</option>
-                    <option value="weekly" <?php echo $report_type === 'weekly' ? 'selected' : ''; ?>>Weekly Report</option>
-                    <option value="monthly" <?php echo $report_type === 'monthly' ? 'selected' : ''; ?>>Monthly Report</option>
-                    <option value="full" <?php echo $report_type === 'full' ? 'selected' : ''; ?>>Full Sales Report</option>
+                    <option value="daily" <?php echo $report_type === "daily"
+                        ? "selected"
+                        : ""; ?>>Daily Report</option>
+                    <option value="weekly" <?php echo $report_type === "weekly"
+                        ? "selected"
+                        : ""; ?>>Weekly Report</option>
+                    <option value="monthly" <?php echo $report_type ===
+                    "monthly"
+                        ? "selected"
+                        : ""; ?>>Monthly Report</option>
+                    <option value="full" <?php echo $report_type === "full"
+                        ? "selected"
+                        : ""; ?>>Full Sales Report</option>
                 </select>
             </div>
             <div class="filter-field">
                 <label>From Date</label>
-                <input type="date" name="from_date" value="<?php echo htmlspecialchars($from_date); ?>">
+                <input type="date" name="from_date" value="<?php echo htmlspecialchars(
+                    $from_date,
+                ); ?>">
             </div>
 
             <div class="filter-field">
                 <label>To Date</label>
-                <input type="date" name="to_date" value="<?php echo htmlspecialchars($to_date); ?>">
+                <input type="date" name="to_date" value="<?php echo htmlspecialchars(
+                    $to_date,
+                ); ?>">
             </div>
 
             <button type="submit"><i class="fa-solid fa-filter"></i> Generate Report</button>
@@ -446,47 +490,111 @@ $inventorySummary = $conn->query("
         <img src="../supun-logo.png" alt="Supun Group logo">
         <div>
             <h2>SUPUN GROUP OF COMPANIES</h2>
-            <p class="report-name"><?php echo htmlspecialchars($reportName); ?></p>
+            <p class="report-name"><?php echo htmlspecialchars(
+                $reportName,
+            ); ?></p>
         </div>
         <div class="report-meta">
-            <div><strong>Period:</strong> <?php echo date('d M Y', strtotime($from_date)); ?> - <?php echo date('d M Y', strtotime($to_date)); ?></div>
-            <div><strong>Generated:</strong> <?php echo date('d M Y, h:i A'); ?></div>
+            <div><strong>Period:</strong> <?php echo date(
+                "d M Y",
+                strtotime($from_date),
+            ); ?> - <?php echo date("d M Y", strtotime($to_date)); ?></div>
+            <div><strong>Generated:</strong> <?php echo date(
+                "d M Y, h:i A",
+            ); ?></div>
             <div><strong>Status:</strong> Paid sales only</div>
         </div>
     </div>
 
     <table class="print-summary" aria-label="Report summary">
         <tr>
-            <td><span class="ps-label">Paid Orders</span><span class="ps-value"><?php echo (int)$summary['total_orders']; ?></span></td>
-            <td><span class="ps-label">Units Sold</span><span class="ps-value"><?php echo number_format((float)$summary['total_qty'], 0); ?></span></td>
-            <td><span class="ps-label">Gross Sales</span><span class="ps-value">Rs. <?php echo number_format((float)$summary['gross_sales'], 2); ?></span></td>
-            <td><span class="ps-label">Discounts</span><span class="ps-value orange">Rs. <?php echo number_format((float)$summary['allocated_discount'], 2); ?></span></td>
+            <td><span class="ps-label">Paid Orders</span><span class="ps-value"><?php echo (int) $summary[
+                "total_orders"
+            ]; ?></span></td>
+            <td><span class="ps-label">Units Sold</span><span class="ps-value"><?php echo number_format(
+                (float) $summary["total_qty"],
+                0,
+            ); ?></span></td>
+            <td><span class="ps-label">Gross Sales</span><span class="ps-value">Rs. <?php echo number_format(
+                (float) $summary["gross_sales"],
+                2,
+            ); ?></span></td>
+            <td><span class="ps-label">Discounts</span><span class="ps-value orange">Rs. <?php echo number_format(
+                (float) $summary["allocated_discount"],
+                2,
+            ); ?></span></td>
         </tr>
         <tr>
-            <td><span class="ps-label">Net Sales</span><span class="ps-value">Rs. <?php echo number_format((float)$summary['net_sales'], 2); ?></span></td>
-            <td><span class="ps-label">Product Cost</span><span class="ps-value">Rs. <?php echo number_format((float)$summary['total_cost'], 2); ?></span></td>
-            <td><span class="ps-label">Gross Product Profit</span><span class="ps-value green">Rs. <?php echo number_format((float)$summary['gross_profit'], 2); ?></span></td>
-            <td><span class="ps-label">Gross Margin</span><span class="ps-value green"><?php echo number_format($profitMargin, 2); ?>%</span></td>
+            <td><span class="ps-label">Net Sales</span><span class="ps-value">Rs. <?php echo number_format(
+                (float) $summary["net_sales"],
+                2,
+            ); ?></span></td>
+            <td><span class="ps-label">Product Cost</span><span class="ps-value">Rs. <?php echo number_format(
+                (float) $summary["total_cost"],
+                2,
+            ); ?></span></td>
+            <td><span class="ps-label">Gross Product Profit</span><span class="ps-value green">Rs. <?php echo number_format(
+                (float) $summary["gross_profit"],
+                2,
+            ); ?></span></td>
+            <td><span class="ps-label">Gross Margin</span><span class="ps-value green"><?php echo number_format(
+                $profitMargin,
+                2,
+            ); ?>%</span></td>
         </tr>
     </table>
 
     <div class="summary-grid">
-        <div class="summary-card"><div class="label">Paid Orders</div><div class="value"><?php echo (int)$summary['total_orders']; ?></div></div>
-        <div class="summary-card"><div class="label">Units Sold</div><div class="value"><?php echo number_format((float)$summary['total_qty'], 0); ?></div></div>
-        <div class="summary-card"><div class="label">Gross Product Sales</div><div class="value">Rs. <?php echo number_format((float)$summary['gross_sales'], 2); ?></div></div>
-        <div class="summary-card discount"><div class="label">Allocated Discounts</div><div class="value">Rs. <?php echo number_format((float)$summary['allocated_discount'], 2); ?></div></div>
-        <div class="summary-card"><div class="label">Net Product Sales</div><div class="value">Rs. <?php echo number_format((float)$summary['net_sales'], 2); ?></div></div>
-        <div class="summary-card"><div class="label">Product Cost</div><div class="value">Rs. <?php echo number_format((float)$summary['total_cost'], 2); ?></div></div>
-        <div class="summary-card profit"><div class="label">Gross Product Profit</div><div class="value">Rs. <?php echo number_format((float)$summary['gross_profit'], 2); ?></div></div>
-        <div class="summary-card profit"><div class="label">Gross Margin</div><div class="value"><?php echo number_format($profitMargin, 2); ?>%</div></div>
-        <div class="summary-card"><div class="label">Product Types in Stock</div><div class="value"><?php echo number_format((int)$inventorySummary['products_in_stock']); ?></div></div>
-        <div class="summary-card"><div class="label">Total Units in Stock</div><div class="value"><?php echo number_format((float)$inventorySummary['units_in_stock'], 0); ?></div></div>
+        <div class="summary-card"><div class="label">Paid Orders</div><div class="value"><?php echo (int) $summary[
+            "total_orders"
+        ]; ?></div></div>
+        <div class="summary-card"><div class="label">Units Sold</div><div class="value"><?php echo number_format(
+            (float) $summary["total_qty"],
+            0,
+        ); ?></div></div>
+        <div class="summary-card"><div class="label">Gross Product Sales</div><div class="value">Rs. <?php echo number_format(
+            (float) $summary["gross_sales"],
+            2,
+        ); ?></div></div>
+        <div class="summary-card discount"><div class="label">Allocated Discounts</div><div class="value">Rs. <?php echo number_format(
+            (float) $summary["allocated_discount"],
+            2,
+        ); ?></div></div>
+        <div class="summary-card"><div class="label">Net Product Sales</div><div class="value">Rs. <?php echo number_format(
+            (float) $summary["net_sales"],
+            2,
+        ); ?></div></div>
+        <div class="summary-card"><div class="label">Product Cost</div><div class="value">Rs. <?php echo number_format(
+            (float) $summary["total_cost"],
+            2,
+        ); ?></div></div>
+        <div class="summary-card profit"><div class="label">Gross Product Profit</div><div class="value">Rs. <?php echo number_format(
+            (float) $summary["gross_profit"],
+            2,
+        ); ?></div></div>
+        <div class="summary-card profit"><div class="label">Gross Margin</div><div class="value"><?php echo number_format(
+            $profitMargin,
+            2,
+        ); ?>%</div></div>
+        <div class="summary-card"><div class="label">Product Types in Stock</div><div class="value"><?php echo number_format(
+            (int) $inventorySummary["products_in_stock"],
+        ); ?></div></div>
+        <div class="summary-card"><div class="label">Total Units in Stock</div><div class="value"><?php echo number_format(
+            (float) $inventorySummary["units_in_stock"],
+            0,
+        ); ?></div></div>
     </div>
 
-    <?php if ($report_type === 'full') { ?>
+    <?php if ($report_type === "full") { ?>
     <div class="card full-report-card">
         <h2 class="section-title"><i class="fa-solid fa-boxes-stacked"></i> Product Performance — Full Period</h2>
-        <p class="section-subtitle">All paid product sales from <?php echo date('d M Y', strtotime($from_date)); ?> to <?php echo date('d M Y', strtotime($to_date)); ?>. Profit is after sale discounts and product cost, before general business expenses.</p>
+        <p class="section-subtitle">All paid product sales from <?php echo date(
+            "d M Y",
+            strtotime($from_date),
+        ); ?> to <?php echo date(
+     "d M Y",
+     strtotime($to_date),
+ ); ?>. Profit is after sale discounts and product cost, before general business expenses.</p>
         <?php if (empty($productRows)) { ?>
             <p>No paid product sales found for this date range.</p>
         <?php } else { ?>
@@ -495,22 +603,62 @@ $inventorySummary = $conn->query("
                 <thead><tr><th>Product</th><th class="number">In Stock</th><th class="number">Orders</th><th class="number">Qty Sold</th><th class="number">Gross Sales</th><th class="number">Discount</th><th class="number">Net Sales</th><th class="number">Cost</th><th class="number">Gross Profit</th><th class="number">Margin</th></tr></thead>
                 <tbody>
                 <?php foreach ($productRows as $product) {
-                    $margin = (float)$product['net_sales'] > 0 ? ((float)$product['gross_profit'] / (float)$product['net_sales']) * 100 : 0;
-                    $profitClass = (float)$product['gross_profit'] >= 0 ? 'profit-positive' : 'profit-negative';
-                ?>
+
+                    $margin =
+                        (float) $product["net_sales"] > 0
+                            ? ((float) $product["gross_profit"] /
+                                    (float) $product["net_sales"]) *
+                                100
+                            : 0;
+                    $profitClass =
+                        (float) $product["gross_profit"] >= 0
+                            ? "profit-positive"
+                            : "profit-negative";
+                    ?>
                     <tr>
-                        <td><strong><?php echo htmlspecialchars($product['product_name']); ?></strong></td>
-                        <td class="number"><strong><?php echo number_format((float)$product['current_stock'], 0); ?></strong> <?php echo htmlspecialchars($product['unit']); ?></td>
-                        <td class="number"><?php echo (int)$product['order_count']; ?></td>
-                        <td class="number"><?php echo number_format((float)$product['total_qty'], 0); ?></td>
-                        <td class="number">Rs. <?php echo number_format((float)$product['gross_sales'], 2); ?></td>
-                        <td class="number">Rs. <?php echo number_format((float)$product['allocated_discount'], 2); ?></td>
-                        <td class="number">Rs. <?php echo number_format((float)$product['net_sales'], 2); ?></td>
-                        <td class="number">Rs. <?php echo number_format((float)$product['total_cost'], 2); ?></td>
-                        <td class="number <?php echo $profitClass; ?>">Rs. <?php echo number_format((float)$product['gross_profit'], 2); ?></td>
-                        <td class="number <?php echo $profitClass; ?>"><?php echo number_format($margin, 2); ?>%</td>
+                        <td><strong><?php echo htmlspecialchars(
+                            $product["product_name"],
+                        ); ?></strong></td>
+                        <td class="number"><strong><?php echo number_format(
+                            (float) $product["current_stock"],
+                            0,
+                        ); ?></strong> <?php echo htmlspecialchars(
+    $product["unit"],
+); ?></td>
+                        <td class="number"><?php echo (int) $product[
+                            "order_count"
+                        ]; ?></td>
+                        <td class="number"><?php echo number_format(
+                            (float) $product["total_qty"],
+                            0,
+                        ); ?></td>
+                        <td class="number">Rs. <?php echo number_format(
+                            (float) $product["gross_sales"],
+                            2,
+                        ); ?></td>
+                        <td class="number">Rs. <?php echo number_format(
+                            (float) $product["allocated_discount"],
+                            2,
+                        ); ?></td>
+                        <td class="number">Rs. <?php echo number_format(
+                            (float) $product["net_sales"],
+                            2,
+                        ); ?></td>
+                        <td class="number">Rs. <?php echo number_format(
+                            (float) $product["total_cost"],
+                            2,
+                        ); ?></td>
+                        <td class="number <?php echo $profitClass; ?>">Rs. <?php echo number_format(
+    (float) $product["gross_profit"],
+    2,
+); ?></td>
+                        <td class="number <?php echo $profitClass; ?>"><?php echo number_format(
+    $margin,
+    2,
+); ?>%</td>
                     </tr>
-                <?php } ?>
+                <?php
+                } ?>
                 </tbody>
             </table>
         </div>
@@ -518,8 +666,15 @@ $inventorySummary = $conn->query("
     </div>
     <?php } else { ?>
     <div>
-        <h2 class="section-title"><i class="fa-regular fa-calendar-days"></i> <?php echo htmlspecialchars($reportName); ?></h2>
-        <p class="section-subtitle">Paid product sales grouped <?php echo $report_type === 'daily' ? 'by day' : ($report_type === 'weekly' ? 'by week' : 'by month'); ?> for the selected date range.</p>
+        <h2 class="section-title"><i class="fa-regular fa-calendar-days"></i> <?php echo htmlspecialchars(
+            $reportName,
+        ); ?></h2>
+        <p class="section-subtitle">Paid product sales grouped <?php echo $report_type ===
+        "daily"
+            ? "by day"
+            : ($report_type === "weekly"
+                ? "by week"
+                : "by month"); ?> for the selected date range.</p>
     </div>
 
     <?php if (empty($groupedSales)) { ?>
@@ -534,7 +689,9 @@ $inventorySummary = $conn->query("
         <?php foreach ($groupedSales as $period) { ?>
 
             <div class="card">
-                <h2 class="date-card-title"><i class="fa-regular fa-calendar"></i> <?php echo htmlspecialchars($period['label']); ?></h2>
+                <h2 class="date-card-title"><i class="fa-regular fa-calendar"></i> <?php echo htmlspecialchars(
+                    $period["label"],
+                ); ?></h2>
 
                 <table>
                     <tr>
@@ -543,18 +700,29 @@ $inventorySummary = $conn->query("
                         <th>Total</th>
                     </tr>
 
-                    <?php foreach ($period['items'] as $item) { ?>
+                    <?php foreach ($period["items"] as $item) { ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($item['product_name']); ?></td>
-                            <td><?php echo (int)$item['total_qty']; ?></td>
-                            <td>Rs. <?php echo number_format($item['total_amount'], 2); ?></td>
+                            <td><?php echo htmlspecialchars(
+                                $item["product_name"],
+                            ); ?></td>
+                            <td><?php echo (int) $item["total_qty"]; ?></td>
+                            <td>Rs. <?php echo number_format(
+                                $item["total_amount"],
+                                2,
+                            ); ?></td>
                         </tr>
                     <?php } ?>
 
                     <tr class="total-row">
                         <td>Period Total</td>
-                        <td><?php echo number_format((float)$period['qty'], 0); ?></td>
-                        <td>Rs. <?php echo number_format((float)$period['total'], 2); ?></td>
+                        <td><?php echo number_format(
+                            (float) $period["qty"],
+                            0,
+                        ); ?></td>
+                        <td>Rs. <?php echo number_format(
+                            (float) $period["total"],
+                            2,
+                        ); ?></td>
                     </tr>
                 </table>
             </div>

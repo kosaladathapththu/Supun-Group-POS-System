@@ -1,23 +1,38 @@
 <?php
 session_start();
-include '../db.php';
+include "../db.php";
 
-if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) {
-    http_response_code(403); echo "Unauthorized"; exit;
+if (
+    !isset($_SESSION["user_id"]) ||
+    !in_array($_SESSION["role"], ["admin", "accountant"], true)
+) {
+    http_response_code(403);
+    echo "Unauthorized";
+    exit();
 }
 
-$id = (int)($_GET["order_id"] ?? 0);
-if ($id <= 0) { echo '<p style="color:red;padding:16px;">Invalid order ID.</p>'; exit; }
+$id = (int) ($_GET["order_id"] ?? 0);
+if ($id <= 0) {
+    echo '<p style="color:red;padding:16px;">Invalid order ID.</p>';
+    exit();
+}
 
-$o = $conn->query("
+$o = $conn
+    ->query(
+        "
     SELECT o.*, u.full_name AS cashier, t.table_name
     FROM orders o
     LEFT JOIN users u ON o.user_id = u.user_id
     LEFT JOIN restaurant_tables t ON o.table_id = t.table_id
     WHERE o.order_id = $id
-")->fetch_assoc();
+",
+    )
+    ->fetch_assoc();
 
-if (!$o) { echo '<p style="color:red;padding:16px;">Order not found.</p>'; exit; }
+if (!$o) {
+    echo '<p style="color:red;padding:16px;">Order not found.</p>';
+    exit();
+}
 
 $items = $conn->query("
     SELECT oi.*,
@@ -29,23 +44,23 @@ $items = $conn->query("
 ");
 
 $pm_map = [
-    'Cash'          => ['b-green',  'fa-money-bill-wave'],
-    'Card'          => ['b-indigo', 'fa-credit-card'],
-    'QR'            => ['b-amber',  'fa-qrcode'],
-    'Bank Transfer' => ['b-sky',    'fa-building-columns'],
-    'Cheque'        => ['b-amber',  'fa-money-check-dollar'],
+    "Cash" => ["b-green", "fa-money-bill-wave"],
+    "Card" => ["b-indigo", "fa-credit-card"],
+    "QR" => ["b-amber", "fa-qrcode"],
+    "Bank Transfer" => ["b-sky", "fa-building-columns"],
+    "Cheque" => ["b-amber", "fa-money-check-dollar"],
 ];
-$pm_c      = $pm_map[$o['payment_method']] ?? ['b-green', 'fa-money-bill'];
-$bal       = (float)$o['balance'];
-$has_table = !empty($o['table_name']) && $o['table_name'] !== 'N/A';
+$pm_c = $pm_map[$o["payment_method"]] ?? ["b-green", "fa-money-bill"];
+$bal = (float) $o["balance"];
+$has_table = !empty($o["table_name"]) && $o["table_name"] !== "N/A";
 
-$all_items  = [];
+$all_items = [];
 $item_count = 0;
-$qty_total  = 0;
+$qty_total = 0;
 while ($row = $items->fetch_assoc()) {
     $all_items[] = $row;
     $item_count++;
-    $qty_total += (int)$row['quantity'];
+    $qty_total += (int) $row["quantity"];
 }
 ?>
 <style>
@@ -89,13 +104,21 @@ while ($row = $items->fetch_assoc()) {
 
 <!-- Meta -->
 <div class="od-grid">
-  <div class="od-item"><div class="od-lbl">Order ID</div><div class="od-val">#<?php printf('%05d',$o['order_id']); ?></div></div>
-  <div class="od-item"><div class="od-lbl">Date &amp; Time</div><div class="od-val" style="font-size:12px;"><?php echo date('d M Y, h:i A', strtotime($o['created_at'])); ?></div></div>
-  <div class="od-item"><div class="od-lbl">Cashier</div><div class="od-val"><?php echo htmlspecialchars($o['cashier'] ?? 'N/A'); ?></div></div>
+  <div class="od-item"><div class="od-lbl">Order ID</div><div class="od-val">#<?php printf(
+      "%05d",
+      $o["order_id"],
+  ); ?></div></div>
+  <div class="od-item"><div class="od-lbl">Date &amp; Time</div><div class="od-val" style="font-size:12px;"><?php echo date(
+      "d M Y, h:i A",
+      strtotime($o["created_at"]),
+  ); ?></div></div>
+  <div class="od-item"><div class="od-lbl">Cashier</div><div class="od-val"><?php echo htmlspecialchars(
+      $o["cashier"] ?? "N/A",
+  ); ?></div></div>
   <div class="od-item">
     <div class="od-lbl">Order Type</div>
     <div class="od-val">
-      <?php if ($o['order_type']==='retail'): ?>
+      <?php if ($o["order_type"] === "retail"): ?>
         <span class="badge b-orange"><i class="fa-solid fa-basket-shopping"></i> Retail</span>
       <?php else: ?>
         <span class="badge b-amber"><i class="fa-solid fa-boxes-stacked"></i> Wholesale</span>
@@ -103,26 +126,33 @@ while ($row = $items->fetch_assoc()) {
     </div>
   </div>
   <?php if ($has_table): ?>
-  <div class="od-item"><div class="od-lbl">Table</div><div class="od-val"><?php echo htmlspecialchars($o['table_name']); ?></div></div>
+  <div class="od-item"><div class="od-lbl">Table</div><div class="od-val"><?php echo htmlspecialchars(
+      $o["table_name"],
+  ); ?></div></div>
   <?php endif; ?>
   <div class="od-item">
     <div class="od-lbl">Payment</div>
     <div class="od-val">
-      <span class="badge <?php echo $pm_c[0]; ?>"><i class="fa-solid <?php echo $pm_c[1]; ?>"></i> <?php echo htmlspecialchars($o['payment_method']); ?></span>
+      <span class="badge <?php echo $pm_c[0]; ?>"><i class="fa-solid <?php echo $pm_c[1]; ?>"></i> <?php echo htmlspecialchars(
+    $o["payment_method"],
+); ?></span>
     </div>
   </div>
   <div class="od-item">
     <div class="od-lbl">Status</div>
     <div class="od-val">
-      <?php if (strtolower($o['payment_status'] ?? '')==='paid'): ?>
+      <?php if (strtolower($o["payment_status"] ?? "") === "paid"): ?>
         <span class="badge b-green"><i class="fa-solid fa-check"></i> Paid</span>
       <?php else: ?>
         <span class="badge b-amber"><i class="fa-solid fa-clock"></i> Pending</span>
       <?php endif; ?>
     </div>
   </div>
-  <?php if ($o['payment_method']==='Cash'): ?>
-  <div class="od-item"><div class="od-lbl">Cash Given</div><div class="od-val">Rs. <?php echo number_format($o['cash_given'],2); ?></div></div>
+  <?php if ($o["payment_method"] === "Cash"): ?>
+  <div class="od-item"><div class="od-lbl">Cash Given</div><div class="od-val">Rs. <?php echo number_format(
+      $o["cash_given"],
+      2,
+  ); ?></div></div>
   <?php endif; ?>
 </div>
 
@@ -132,57 +162,104 @@ while ($row = $items->fetch_assoc()) {
   <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
   <tbody>
   <?php if (!empty($all_items)):
-    foreach ($all_items as $item): ?>
+      foreach ($all_items as $item): ?>
   <tr>
     <td>
-      <span class="iname"><?php echo htmlspecialchars($item['item_name']); ?></span>
-      <?php if (!$item['product_id']): ?><span class="cust-chip">Custom</span><?php endif; ?>
+      <span class="iname"><?php echo htmlspecialchars(
+          $item["item_name"],
+      ); ?></span>
+      <?php if (
+          !$item["product_id"]
+      ): ?><span class="cust-chip">Custom</span><?php endif; ?>
     </td>
-    <td style="text-align:center;font-weight:800;"><?php echo (int)$item['quantity']; ?></td>
-    <td style="text-align:right;">Rs. <?php echo number_format($item['price'],2); ?></td>
-    <td style="text-align:right;font-weight:800;color:#d95c2b;">Rs. <?php echo number_format($item['line_total'],2); ?></td>
+    <td style="text-align:center;font-weight:800;"><?php echo (int) $item[
+        "quantity"
+    ]; ?></td>
+    <td style="text-align:right;">Rs. <?php echo number_format(
+        $item["price"],
+        2,
+    ); ?></td>
+    <td style="text-align:right;font-weight:800;color:#d95c2b;">Rs. <?php echo number_format(
+        $item["line_total"],
+        2,
+    ); ?></td>
   </tr>
-  <?php endforeach; else: ?>
+  <?php endforeach;
+  else:
+       ?>
   <tr><td colspan="4" style="text-align:center;padding:20px;color:#8e94b0;font-weight:700;">No items found.</td></tr>
-  <?php endif; ?>
+  <?php
+  endif; ?>
   </tbody>
 </table>
 
 <!-- Totals -->
 <div class="tot-block">
   <div class="tot-row t-muted"><span><?php echo $item_count; ?> line(s) &bull; <?php echo $qty_total; ?> pcs total</span></div>
-  <div class="tot-row"><span style="color:#8e94b0;">Subtotal</span><span>Rs. <?php echo number_format($o['subtotal'],2); ?></span></div>
-  <?php if ((float)$o['discount']>0): ?>
-  <div class="tot-row t-disc"><span>Discount</span><span>- Rs. <?php echo number_format($o['discount'],2); ?></span></div>
+  <div class="tot-row"><span style="color:#8e94b0;">Subtotal</span><span>Rs. <?php echo number_format(
+      $o["subtotal"],
+      2,
+  ); ?></span></div>
+  <?php if ((float) $o["discount"] > 0): ?>
+  <div class="tot-row t-disc"><span>Discount</span><span>- Rs. <?php echo number_format(
+      $o["discount"],
+      2,
+  ); ?></span></div>
   <?php endif; ?>
   <?php
-  $packaging_fee = (float)($o['packaging_fee'] ?? 0);
-  $saved_service_charge = (float)($o['service_charge'] ?? 0);
-  $service_charge = $saved_service_charge > 0
-    ? $saved_service_charge
-    : max(0, (float)$o['total_amount'] - (float)$o['subtotal'] + (float)$o['discount'] - $packaging_fee);
+  $packaging_fee = (float) ($o["packaging_fee"] ?? 0);
+  $saved_service_charge = (float) ($o["service_charge"] ?? 0);
+  $service_charge =
+      $saved_service_charge > 0
+          ? $saved_service_charge
+          : max(
+              0,
+              (float) $o["total_amount"] -
+                  (float) $o["subtotal"] +
+                  (float) $o["discount"] -
+                  $packaging_fee,
+          );
   ?>
   <?php if ($service_charge > 0): ?>
-  <div class="tot-row"><span style="color:#8e94b0;">Service Charge 10%</span><span>Rs. <?php echo number_format($service_charge,2); ?></span></div>
+  <div class="tot-row"><span style="color:#8e94b0;">Service Charge 10%</span><span>Rs. <?php echo number_format(
+      $service_charge,
+      2,
+  ); ?></span></div>
   <?php endif; ?>
   <?php if ($packaging_fee > 0): ?>
-  <div class="tot-row"><span style="color:#8e94b0;">Packaging Fee</span><span>Rs. <?php echo number_format($packaging_fee,2); ?></span></div>
+  <div class="tot-row"><span style="color:#8e94b0;">Packaging Fee</span><span>Rs. <?php echo number_format(
+      $packaging_fee,
+      2,
+  ); ?></span></div>
   <?php endif; ?>
-  <div class="tot-row t-grand"><span>Grand Total</span><span>Rs. <?php echo number_format($o['total_amount'],2); ?></span></div>
-  <?php if ($o['payment_method']==='Cash'): ?>
-  <div class="tot-row t-cash"><span>Cash Received</span><span>Rs. <?php echo number_format($o['cash_given'],2); ?></span></div>
+  <div class="tot-row t-grand"><span>Grand Total</span><span>Rs. <?php echo number_format(
+      $o["total_amount"],
+      2,
+  ); ?></span></div>
+  <?php if ($o["payment_method"] === "Cash"): ?>
+  <div class="tot-row t-cash"><span>Cash Received</span><span>Rs. <?php echo number_format(
+      $o["cash_given"],
+      2,
+  ); ?></span></div>
   <div class="tot-row t-change">
-    <span><?php echo $bal>=0?'Change Returned':'Amount Due'; ?></span>
-    <span style="color:<?php echo $bal>=0?'#16a34a':'#dc2626'; ?>;">Rs. <?php echo number_format(abs($bal),2); ?></span>
+    <span><?php echo $bal >= 0 ? "Change Returned" : "Amount Due"; ?></span>
+    <span style="color:<?php echo $bal >= 0
+        ? "#16a34a"
+        : "#dc2626"; ?>;">Rs. <?php echo number_format(abs($bal), 2); ?></span>
   </div>
   <?php else: ?>
-  <div class="tot-row t-cash"><span>Amount Paid</span><span>Rs. <?php echo number_format($o['total_amount'],2); ?></span></div>
+  <div class="tot-row t-cash"><span>Amount Paid</span><span>Rs. <?php echo number_format(
+      $o["total_amount"],
+      2,
+  ); ?></span></div>
   <?php endif; ?>
 </div>
 
 <!-- Actions -->
 <div class="act-row">
-  <a href="../print_bill.php?order_id=<?php echo $o['order_id']; ?>" target="_blank" class="btn-bill">
+  <a href="../print_bill.php?order_id=<?php echo $o[
+      "order_id"
+  ]; ?>" target="_blank" class="btn-bill">
     <i class="fa-solid fa-print"></i> Print Bill
   </a>
   <button type="button" class="btn-cls" onclick="closeModal()">

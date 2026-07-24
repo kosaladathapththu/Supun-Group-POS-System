@@ -1,40 +1,484 @@
 <?php
 session_start();
-include '../db.php';
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','accountant'], true)) { header('Location: ../login.php'); exit; }
-function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
-function money($v){return 'Rs. '.number_format((float)$v,2);}
-function validDate($v,$fallback){$d=DateTime::createFromFormat('Y-m-d',(string)$v);return $d&&$d->format('Y-m-d')===$v?$v:$fallback;}
-$type=$_GET['type']??'sales'; if(!in_array($type,['sales','expenses','inventory'],true))$type='sales';$backUrl=$type==='expenses'?'expenses.php':($type==='inventory'?'products.php':'sales.php');ob_start(function($html)use($backUrl){return str_replace('href="javascript:history.back()"','href="'.h($backUrl).'"',$html);});
-$from=validDate($_GET['from']??date('Y-m-01'),date('Y-m-01'));$to=validDate($_GET['to']??date('Y-m-d'),date('Y-m-d'));if($from>$to){$t=$from;$from=$to;$to=$t;}
-$generatedBy=$_SESSION['full_name']??$_SESSION['username']??'Authorized User';$generatedAt=date('d M Y, h:i A');
-$title='';$subtitle='';$summary=[];$sections=[];
-if($type==='sales'){
- $scope=$_GET['scope']??'full';$scopeNames=['daily'=>'Daily Sales Report','weekly'=>'Weekly Sales Report','monthly'=>'Monthly Sales Report','full'=>'Full Sales Report'];if(!isset($scopeNames[$scope]))$scope='full';
- $pm=trim($_GET['payment_method']??'');$ot=trim($_GET['order_type']??'');$where=["o.payment_status='paid'","DATE(o.created_at) BETWEEN '".$conn->real_escape_string($from)."' AND '".$conn->real_escape_string($to)."'"];if($pm!=='')$where[]="o.payment_method='".$conn->real_escape_string($pm)."'";if($ot!=='')$where[]="o.order_type='".$conn->real_escape_string($ot)."'";$ws=implode(' AND ',$where);
- $k=$conn->query("SELECT COUNT(*) orders,COALESCE(SUM(subtotal),0) gross,COALESCE(SUM(discount),0) discount,COALESCE(SUM(total_amount),0) revenue,COALESCE(AVG(total_amount),0) average FROM orders o WHERE $ws")->fetch_assoc();
- $profit=$conn->query("SELECT COALESCE(SUM(oi.cost_price*oi.quantity),0) cost,COALESCE(SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END-(oi.cost_price*oi.quantity)),0) profit FROM order_items oi JOIN orders o ON o.order_id=oi.order_id WHERE $ws")->fetch_assoc();
- $title=$scopeNames[$scope];$subtitle='Detailed paid sales analysis from '.date('d M Y',strtotime($from)).' to '.date('d M Y',strtotime($to));$summary=[['Orders',$k['orders']],['Gross Sales',money($k['gross'])],['Discounts',money($k['discount'])],['Net Revenue',money($k['revenue'])],['Cost of Goods',money($profit['cost'])],['Gross Profit',money($profit['profit'])],['Average Order',money($k['average'])]];
- $q=$conn->query("SELECT o.order_id,o.created_at,o.order_type,o.payment_method,o.subtotal,o.discount,o.total_amount,u.full_name cashier FROM orders o LEFT JOIN users u ON u.user_id=o.user_id WHERE $ws ORDER BY o.created_at,o.order_id");$rows=[];while($r=$q->fetch_assoc())$rows[]=[date('d M Y H:i',strtotime($r['created_at'])),'ORD-'.str_pad($r['order_id'],5,'0',STR_PAD_LEFT),ucfirst($r['order_type']),$r['payment_method'],$r['cashier']?:'—',money($r['subtotal']),money($r['discount']),money($r['total_amount'])];$sections[]=['Sales Transactions',['Date / Time','Invoice','Type','Payment','Cashier','Subtotal','Discount','Total'],$rows,'8'];
- $q=$conn->query("SELECT COALESCE(p.product_name,oi.custom_item_name,'Custom Item') item,SUM(oi.quantity) qty,SUM(oi.line_total) gross,SUM(oi.cost_price*oi.quantity) cost,SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END-(oi.cost_price*oi.quantity)) profit FROM order_items oi JOIN orders o ON o.order_id=oi.order_id LEFT JOIN products p ON p.product_id=oi.product_id WHERE $ws GROUP BY oi.product_id,oi.custom_item_name,p.product_name ORDER BY gross DESC");$rows=[];while($r=$q->fetch_assoc())$rows[]=[$r['item'],number_format($r['qty'],3),money($r['gross']),money($r['cost']),money($r['profit'])];$sections[]=['Product Profitability',['Product','Qty Sold','Gross Sales','Product Cost','Gross Profit'],$rows,'5'];
-}elseif($type==='expenses'){
- $scope=$_GET['scope']??'full';if(!in_array($scope,['purchases','operating','full'],true))$scope='full';
- $cat=trim($_GET['cat']??'');$pm=trim($_GET['pm']??'');$where=["e.expense_date BETWEEN '".$conn->real_escape_string($from)."' AND '".$conn->real_escape_string($to)."'"];if($cat!=='')$where[]="e.category='".$conn->real_escape_string($cat)."'";if($pm!=='')$where[]="e.payment_method='".$conn->real_escape_string($pm)."'";$ws=implode(' AND ',$where);
- $k=$conn->query("SELECT COUNT(*) entries,COALESCE(SUM(amount),0) total,COALESCE(AVG(amount),0) average,COALESCE(MAX(amount),0) largest FROM expenses e WHERE $ws")->fetch_assoc();$purchaseWs="sa.adjustment_type='stock_in' AND COALESCE(sa.invoice_date,DATE(sa.created_at)) BETWEEN '".$conn->real_escape_string($from)."' AND '".$conn->real_escape_string($to)."'";$pk=$conn->query("SELECT COUNT(*) entries,COALESCE(SUM(total_cost),0) total,COALESCE(MAX(total_cost),0) largest FROM stock_adjustments sa WHERE $purchaseWs")->fetch_assoc();$revenue=$conn->query("SELECT COALESCE(SUM(total_amount),0) v FROM orders WHERE payment_status='paid' AND DATE(created_at) BETWEEN '".$conn->real_escape_string($from)."' AND '".$conn->real_escape_string($to)."'")->fetch_assoc()['v'];$allOutgoing=(float)$k['total']+(float)$pk['total'];
- if($scope==='purchases'){$title='Stock Purchases Report';$subtitle='Detailed inventory purchases from '.date('d M Y',strtotime($from)).' to '.date('d M Y',strtotime($to));$averagePurchase=(int)$pk['entries']>0?(float)$pk['total']/(int)$pk['entries']:0;$summary=[['Purchase Lines',$pk['entries']],['Total Stock Purchases',money($pk['total'])],['Average Purchase Line',money($averagePurchase)],['Largest Purchase Line',money($pk['largest'])]];}
- elseif($scope==='operating'){$title='Operating Expenses Report';$subtitle='Transport and other operating expenses from '.date('d M Y',strtotime($from)).' to '.date('d M Y',strtotime($to));$summary=[['Expense Entries',$k['entries']],['Operating Expenses',money($k['total'])],['Average Expense',money($k['average'])],['Largest Expense',money($k['largest'])]];}
- else{$title='Full Expense & Outgoing Report';$subtitle='Operating expenses and inventory purchases from '.date('d M Y',strtotime($from)).' to '.date('d M Y',strtotime($to));$summary=[['Operating Entries',$k['entries']],['Operating Expenses',money($k['total'])],['Purchase Lines',$pk['entries']],['Stock Purchases',money($pk['total'])],['Total Outgoing',money($allOutgoing)]];}
- if($scope!=='purchases'){$q=$conn->query("SELECT e.*,u.full_name FROM expenses e LEFT JOIN users u ON u.user_id=e.added_by WHERE $ws ORDER BY e.expense_date,e.expense_id");$rows=[];while($r=$q->fetch_assoc())$rows[]=[date('d M Y',strtotime($r['expense_date'])),$r['category'],$r['title'],$r['payment_method'],$r['full_name']?:'—',$r['note']?:'—',money($r['amount'])];$sections[]=['Operating Expense Register',['Date','Category','Description','Payment','Recorded By','Note','Amount'],$rows,'7'];$q=$conn->query("SELECT category,COUNT(*) entries,SUM(amount) total FROM expenses e WHERE $ws GROUP BY category ORDER BY total DESC");$rows=[];while($r=$q->fetch_assoc())$rows[]=[$r['category'],$r['entries'],money($r['total'])];$sections[]=['Operating Expense Category Summary',['Category','Entries','Total'],$rows,'3'];}
- if($scope!=='operating'){$q=$conn->query("SELECT sa.created_at,sa.invoice_date,p.product_name,p.unit,sa.quantity,sa.unit_cost,sa.total_cost,sa.note,u.full_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE $purchaseWs ORDER BY COALESCE(sa.invoice_date,DATE(sa.created_at)),sa.adjustment_id");$rows=[];while($r=$q->fetch_assoc())$rows[]=[date('d M Y',strtotime($r['invoice_date']?:$r['created_at'])),$r['product_name'],number_format($r['quantity'],3).' '.$r['unit'],money($r['unit_cost']),money($r['total_cost']),$r['note']?:'—',$r['full_name']?:'System'];$sections[]=['Inventory Purchase Register',['Invoice Date','Product','Quantity','Unit Cost','Total Cost','Reference','Recorded By'],$rows,'7'];}
- if($scope!=='operating'&&!empty($sections)){$purchaseSection=count($sections)-1;$reordered=[];foreach($sections[$purchaseSection][2] as $purchaseRow){$reordered[]=[$purchaseRow[0],$purchaseRow[1],$purchaseRow[2],$purchaseRow[3],$purchaseRow[5],$purchaseRow[6],$purchaseRow[4]];}$reordered[]=['','','','','','TOTAL STOCK PURCHASES',money($pk['total'])];$sections[$purchaseSection][1]=['Date / Time','Product','Quantity','Unit Cost','Reference','Recorded By','Total Cost'];$sections[$purchaseSection][2]=$reordered;}
- if($scope==='full'){$sections[]=['Full Cost Summary',['Cost Type','Amount'],[['Stock Purchases',money($pk['total'])],['Other / Operating Charges',money($k['total'])],['FULL COST',money($allOutgoing)]],'2'];}
-}else{
- $title='Inventory Valuation & Stock Report';$subtitle='Complete inventory position as at '.date('d M Y');
- $k=$conn->query("SELECT COUNT(*) products,COALESCE(SUM(stock_qty),0) units,COALESCE(SUM(cost_price*stock_qty),0) cost,COALESCE(SUM(price*stock_qty),0) retail,COALESCE(SUM((price-cost_price)*stock_qty),0) profit,SUM(stock_qty<=reorder_level) low FROM products WHERE status=1")->fetch_assoc();$summary=[['Active Products',$k['products']],['Units in Stock',number_format($k['units'],3)],['Inventory Cost',money($k['cost'])],['Retail Value',money($k['retail'])],['Potential Profit',money($k['profit'])],['Low Stock Items',$k['low']]];
- $q=$conn->query("SELECT p.*,c.category_name FROM products p LEFT JOIN categories c ON c.category_id=p.category_id ORDER BY c.category_name,p.product_name");$rows=[];while($r=$q->fetch_assoc()){$state=(float)$r['stock_qty']<=0?'OUT OF STOCK':((float)$r['stock_qty']<=(float)$r['reorder_level']?'REORDER':'OK');$rows[]=[$r['sku']?:'—',$r['product_name'],$r['category_name']?:'—',number_format($r['stock_qty'],3).' '.$r['unit'],money($r['cost_price']),money($r['price']),money($r['cost_price']*$r['stock_qty']),$state];}$sections[]=['Detailed Stock Register',['Item Code','Product','Category','On Hand','Unit Cost','Retail Price','Stock Cost','Status'],$rows,'8'];
- $q=$conn->query("SELECT c.category_name,COUNT(p.product_id) products,COALESCE(SUM(p.stock_qty),0) units,COALESCE(SUM(p.cost_price*p.stock_qty),0) value FROM categories c LEFT JOIN products p ON p.category_id=c.category_id AND p.status=1 GROUP BY c.category_id,c.category_name ORDER BY value DESC");$rows=[];while($r=$q->fetch_assoc())$rows[]=[$r['category_name'],$r['products'],number_format($r['units'],3),money($r['value'])];$sections[]=['Category Valuation',['Category','Products','Units','Cost Value'],$rows,'4'];
+include "../db.php";
+if (
+    !isset($_SESSION["user_id"]) ||
+    !in_array($_SESSION["role"], ["admin", "accountant"], true)
+) {
+    header("Location: ../login.php");
+    exit();
+}
+function h($v)
+{
+    return htmlspecialchars((string) $v, ENT_QUOTES, "UTF-8");
+}
+function money($v)
+{
+    return "Rs. " . number_format((float) $v, 2);
+}
+function validDate($v, $fallback)
+{
+    $d = DateTime::createFromFormat("Y-m-d", (string) $v);
+    return $d && $d->format("Y-m-d") === $v ? $v : $fallback;
+}
+$type = $_GET["type"] ?? "sales";
+if (!in_array($type, ["sales", "expenses", "inventory"], true)) {
+    $type = "sales";
+}
+$backUrl =
+    $type === "expenses"
+        ? "expenses.php"
+        : ($type === "inventory"
+            ? "products.php"
+            : "sales.php");
+ob_start(function ($html) use ($backUrl) {
+    return str_replace(
+        'href="javascript:history.back()"',
+        'href="' . h($backUrl) . '"',
+        $html,
+    );
+});
+$from = validDate($_GET["from"] ?? date("Y-m-01"), date("Y-m-01"));
+$to = validDate($_GET["to"] ?? date("Y-m-d"), date("Y-m-d"));
+if ($from > $to) {
+    $t = $from;
+    $from = $to;
+    $to = $t;
+}
+$generatedBy =
+    $_SESSION["full_name"] ?? ($_SESSION["username"] ?? "Authorized User");
+$generatedAt = date("d M Y, h:i A");
+$title = "";
+$subtitle = "";
+$summary = [];
+$sections = [];
+if ($type === "sales") {
+    $scope = $_GET["scope"] ?? "full";
+    $scopeNames = [
+        "daily" => "Daily Sales Report",
+        "weekly" => "Weekly Sales Report",
+        "monthly" => "Monthly Sales Report",
+        "full" => "Full Sales Report",
+    ];
+    if (!isset($scopeNames[$scope])) {
+        $scope = "full";
+    }
+    $pm = trim($_GET["payment_method"] ?? "");
+    $ot = trim($_GET["order_type"] ?? "");
+    $where = [
+        "o.payment_status='paid'",
+        "DATE(o.created_at) BETWEEN '" .
+        $conn->real_escape_string($from) .
+        "' AND '" .
+        $conn->real_escape_string($to) .
+        "'",
+    ];
+    if ($pm !== "") {
+        $where[] = "o.payment_method='" . $conn->real_escape_string($pm) . "'";
+    }
+    if ($ot !== "") {
+        $where[] = "o.order_type='" . $conn->real_escape_string($ot) . "'";
+    }
+    $ws = implode(" AND ", $where);
+    $k = $conn
+        ->query(
+            "SELECT COUNT(*) orders,COALESCE(SUM(subtotal),0) gross,COALESCE(SUM(discount),0) discount,COALESCE(SUM(total_amount),0) revenue,COALESCE(AVG(total_amount),0) average FROM orders o WHERE $ws",
+        )
+        ->fetch_assoc();
+    $profit = $conn
+        ->query(
+            "SELECT COALESCE(SUM(oi.cost_price*oi.quantity),0) cost,COALESCE(SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END-(oi.cost_price*oi.quantity)),0) profit FROM order_items oi JOIN orders o ON o.order_id=oi.order_id WHERE $ws",
+        )
+        ->fetch_assoc();
+    $title = $scopeNames[$scope];
+    $subtitle =
+        "Detailed paid sales analysis from " .
+        date("d M Y", strtotime($from)) .
+        " to " .
+        date("d M Y", strtotime($to));
+    $summary = [
+        ["Orders", $k["orders"]],
+        ["Gross Sales", money($k["gross"])],
+        ["Discounts", money($k["discount"])],
+        ["Net Revenue", money($k["revenue"])],
+        ["Cost of Goods", money($profit["cost"])],
+        ["Gross Profit", money($profit["profit"])],
+        ["Average Order", money($k["average"])],
+    ];
+    $q = $conn->query(
+        "SELECT o.order_id,o.created_at,o.order_type,o.payment_method,o.subtotal,o.discount,o.total_amount,u.full_name cashier FROM orders o LEFT JOIN users u ON u.user_id=o.user_id WHERE $ws ORDER BY o.created_at,o.order_id",
+    );
+    $rows = [];
+    while ($r = $q->fetch_assoc()) {
+        $rows[] = [
+            date("d M Y H:i", strtotime($r["created_at"])),
+            "ORD-" . str_pad($r["order_id"], 5, "0", STR_PAD_LEFT),
+            ucfirst($r["order_type"]),
+            $r["payment_method"],
+            $r["cashier"] ?: "—",
+            money($r["subtotal"]),
+            money($r["discount"]),
+            money($r["total_amount"]),
+        ];
+    }
+    $sections[] = [
+        "Sales Transactions",
+        [
+            "Date / Time",
+            "Invoice",
+            "Type",
+            "Payment",
+            "Cashier",
+            "Subtotal",
+            "Discount",
+            "Total",
+        ],
+        $rows,
+        "8",
+    ];
+    $q = $conn->query(
+        "SELECT COALESCE(p.product_name,oi.custom_item_name,'Custom Item') item,SUM(oi.quantity) qty,SUM(oi.line_total) gross,SUM(oi.cost_price*oi.quantity) cost,SUM(oi.line_total-CASE WHEN o.subtotal>0 THEN o.discount*(oi.line_total/o.subtotal) ELSE 0 END-(oi.cost_price*oi.quantity)) profit FROM order_items oi JOIN orders o ON o.order_id=oi.order_id LEFT JOIN products p ON p.product_id=oi.product_id WHERE $ws GROUP BY oi.product_id,oi.custom_item_name,p.product_name ORDER BY gross DESC",
+    );
+    $rows = [];
+    while ($r = $q->fetch_assoc()) {
+        $rows[] = [
+            $r["item"],
+            number_format($r["qty"], 3),
+            money($r["gross"]),
+            money($r["cost"]),
+            money($r["profit"]),
+        ];
+    }
+    $sections[] = [
+        "Product Profitability",
+        ["Product", "Qty Sold", "Gross Sales", "Product Cost", "Gross Profit"],
+        $rows,
+        "5",
+    ];
+} elseif ($type === "expenses") {
+    $scope = $_GET["scope"] ?? "full";
+    if (!in_array($scope, ["purchases", "operating", "full"], true)) {
+        $scope = "full";
+    }
+    $cat = trim($_GET["cat"] ?? "");
+    $pm = trim($_GET["pm"] ?? "");
+    $where = [
+        "e.expense_date BETWEEN '" .
+        $conn->real_escape_string($from) .
+        "' AND '" .
+        $conn->real_escape_string($to) .
+        "'",
+    ];
+    if ($cat !== "") {
+        $where[] = "e.category='" . $conn->real_escape_string($cat) . "'";
+    }
+    if ($pm !== "") {
+        $where[] = "e.payment_method='" . $conn->real_escape_string($pm) . "'";
+    }
+    $ws = implode(" AND ", $where);
+    $k = $conn
+        ->query(
+            "SELECT COUNT(*) entries,COALESCE(SUM(amount),0) total,COALESCE(AVG(amount),0) average,COALESCE(MAX(amount),0) largest FROM expenses e WHERE $ws",
+        )
+        ->fetch_assoc();
+    $purchaseWs =
+        "sa.adjustment_type='stock_in' AND COALESCE(sa.invoice_date,DATE(sa.created_at)) BETWEEN '" .
+        $conn->real_escape_string($from) .
+        "' AND '" .
+        $conn->real_escape_string($to) .
+        "'";
+    $pk = $conn
+        ->query(
+            "SELECT COUNT(*) entries,COALESCE(SUM(total_cost),0) total,COALESCE(MAX(total_cost),0) largest FROM stock_adjustments sa WHERE $purchaseWs",
+        )
+        ->fetch_assoc();
+    $revenue = $conn
+        ->query(
+            "SELECT COALESCE(SUM(total_amount),0) v FROM orders WHERE payment_status='paid' AND DATE(created_at) BETWEEN '" .
+                $conn->real_escape_string($from) .
+                "' AND '" .
+                $conn->real_escape_string($to) .
+                "'",
+        )
+        ->fetch_assoc()["v"];
+    $allOutgoing = (float) $k["total"] + (float) $pk["total"];
+    if ($scope === "purchases") {
+        $title = "Stock Purchases Report";
+        $subtitle =
+            "Detailed inventory purchases from " .
+            date("d M Y", strtotime($from)) .
+            " to " .
+            date("d M Y", strtotime($to));
+        $averagePurchase =
+            (int) $pk["entries"] > 0
+                ? (float) $pk["total"] / (int) $pk["entries"]
+                : 0;
+        $summary = [
+            ["Purchase Lines", $pk["entries"]],
+            ["Total Stock Purchases", money($pk["total"])],
+            ["Average Purchase Line", money($averagePurchase)],
+            ["Largest Purchase Line", money($pk["largest"])],
+        ];
+    } elseif ($scope === "operating") {
+        $title = "Operating Expenses Report";
+        $subtitle =
+            "Transport and other operating expenses from " .
+            date("d M Y", strtotime($from)) .
+            " to " .
+            date("d M Y", strtotime($to));
+        $summary = [
+            ["Expense Entries", $k["entries"]],
+            ["Operating Expenses", money($k["total"])],
+            ["Average Expense", money($k["average"])],
+            ["Largest Expense", money($k["largest"])],
+        ];
+    } else {
+        $title = "Full Expense & Outgoing Report";
+        $subtitle =
+            "Operating expenses and inventory purchases from " .
+            date("d M Y", strtotime($from)) .
+            " to " .
+            date("d M Y", strtotime($to));
+        $summary = [
+            ["Operating Entries", $k["entries"]],
+            ["Operating Expenses", money($k["total"])],
+            ["Purchase Lines", $pk["entries"]],
+            ["Stock Purchases", money($pk["total"])],
+            ["Total Outgoing", money($allOutgoing)],
+        ];
+    }
+    if ($scope !== "purchases") {
+        $q = $conn->query(
+            "SELECT e.*,u.full_name FROM expenses e LEFT JOIN users u ON u.user_id=e.added_by WHERE $ws ORDER BY e.expense_date,e.expense_id",
+        );
+        $rows = [];
+        while ($r = $q->fetch_assoc()) {
+            $rows[] = [
+                date("d M Y", strtotime($r["expense_date"])),
+                $r["category"],
+                $r["title"],
+                $r["payment_method"],
+                $r["full_name"] ?: "—",
+                $r["note"] ?: "—",
+                money($r["amount"]),
+            ];
+        }
+        $sections[] = [
+            "Operating Expense Register",
+            [
+                "Date",
+                "Category",
+                "Description",
+                "Payment",
+                "Recorded By",
+                "Note",
+                "Amount",
+            ],
+            $rows,
+            "7",
+        ];
+        $q = $conn->query(
+            "SELECT category,COUNT(*) entries,SUM(amount) total FROM expenses e WHERE $ws GROUP BY category ORDER BY total DESC",
+        );
+        $rows = [];
+        while ($r = $q->fetch_assoc()) {
+            $rows[] = [$r["category"], $r["entries"], money($r["total"])];
+        }
+        $sections[] = [
+            "Operating Expense Category Summary",
+            ["Category", "Entries", "Total"],
+            $rows,
+            "3",
+        ];
+    }
+    if ($scope !== "operating") {
+        $q = $conn->query(
+            "SELECT sa.created_at,sa.invoice_date,p.product_name,p.unit,sa.quantity,sa.unit_cost,sa.total_cost,sa.note,u.full_name FROM stock_adjustments sa JOIN products p ON p.product_id=sa.product_id LEFT JOIN users u ON u.user_id=sa.user_id WHERE $purchaseWs ORDER BY COALESCE(sa.invoice_date,DATE(sa.created_at)),sa.adjustment_id",
+        );
+        $rows = [];
+        while ($r = $q->fetch_assoc()) {
+            $rows[] = [
+                date(
+                    "d M Y",
+                    strtotime($r["invoice_date"] ?: $r["created_at"]),
+                ),
+                $r["product_name"],
+                number_format($r["quantity"], 3) . " " . $r["unit"],
+                money($r["unit_cost"]),
+                money($r["total_cost"]),
+                $r["note"] ?: "—",
+                $r["full_name"] ?: "System",
+            ];
+        }
+        $sections[] = [
+            "Inventory Purchase Register",
+            [
+                "Invoice Date",
+                "Product",
+                "Quantity",
+                "Unit Cost",
+                "Total Cost",
+                "Reference",
+                "Recorded By",
+            ],
+            $rows,
+            "7",
+        ];
+    }
+    if ($scope !== "operating" && !empty($sections)) {
+        $purchaseSection = count($sections) - 1;
+        $reordered = [];
+        foreach ($sections[$purchaseSection][2] as $purchaseRow) {
+            $reordered[] = [
+                $purchaseRow[0],
+                $purchaseRow[1],
+                $purchaseRow[2],
+                $purchaseRow[3],
+                $purchaseRow[5],
+                $purchaseRow[6],
+                $purchaseRow[4],
+            ];
+        }
+        $reordered[] = [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "TOTAL STOCK PURCHASES",
+            money($pk["total"]),
+        ];
+        $sections[$purchaseSection][1] = [
+            "Date / Time",
+            "Product",
+            "Quantity",
+            "Unit Cost",
+            "Reference",
+            "Recorded By",
+            "Total Cost",
+        ];
+        $sections[$purchaseSection][2] = $reordered;
+    }
+    if ($scope === "full") {
+        $sections[] = [
+            "Full Cost Summary",
+            ["Cost Type", "Amount"],
+            [
+                ["Stock Purchases", money($pk["total"])],
+                ["Other / Operating Charges", money($k["total"])],
+                ["FULL COST", money($allOutgoing)],
+            ],
+            "2",
+        ];
+    }
+} else {
+    $title = "Inventory Valuation & Stock Report";
+    $subtitle = "Complete inventory position as at " . date("d M Y");
+    $k = $conn
+        ->query(
+            "SELECT COUNT(*) products,COALESCE(SUM(stock_qty),0) units,COALESCE(SUM(cost_price*stock_qty),0) cost,COALESCE(SUM(price*stock_qty),0) retail,COALESCE(SUM((price-cost_price)*stock_qty),0) profit,SUM(stock_qty<=reorder_level) low FROM products WHERE status=1",
+        )
+        ->fetch_assoc();
+    $summary = [
+        ["Active Products", $k["products"]],
+        ["Units in Stock", number_format($k["units"], 3)],
+        ["Inventory Cost", money($k["cost"])],
+        ["Retail Value", money($k["retail"])],
+        ["Potential Profit", money($k["profit"])],
+        ["Low Stock Items", $k["low"]],
+    ];
+    $q = $conn->query(
+        "SELECT p.*,c.category_name FROM products p LEFT JOIN categories c ON c.category_id=p.category_id ORDER BY c.category_name,p.product_name",
+    );
+    $rows = [];
+    while ($r = $q->fetch_assoc()) {
+        $state =
+            (float) $r["stock_qty"] <= 0
+                ? "OUT OF STOCK"
+                : ((float) $r["stock_qty"] <= (float) $r["reorder_level"]
+                    ? "REORDER"
+                    : "OK");
+        $rows[] = [
+            $r["sku"] ?: "—",
+            $r["product_name"],
+            $r["category_name"] ?: "—",
+            number_format($r["stock_qty"], 3) . " " . $r["unit"],
+            money($r["cost_price"]),
+            money($r["price"]),
+            money($r["cost_price"] * $r["stock_qty"]),
+            $state,
+        ];
+    }
+    $sections[] = [
+        "Detailed Stock Register",
+        [
+            "Item Code",
+            "Product",
+            "Category",
+            "On Hand",
+            "Unit Cost",
+            "Retail Price",
+            "Stock Cost",
+            "Status",
+        ],
+        $rows,
+        "8",
+    ];
+    $q = $conn->query(
+        "SELECT c.category_name,COUNT(p.product_id) products,COALESCE(SUM(p.stock_qty),0) units,COALESCE(SUM(p.cost_price*p.stock_qty),0) value FROM categories c LEFT JOIN products p ON p.category_id=c.category_id AND p.status=1 GROUP BY c.category_id,c.category_name ORDER BY value DESC",
+    );
+    $rows = [];
+    while ($r = $q->fetch_assoc()) {
+        $rows[] = [
+            $r["category_name"],
+            $r["products"],
+            number_format($r["units"], 3),
+            money($r["value"]),
+        ];
+    }
+    $sections[] = [
+        "Category Valuation",
+        ["Category", "Products", "Units", "Cost Value"],
+        $rows,
+        "4",
+    ];
 }
 ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($title)?> — Supun Group</title><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= h(
+    $title,
+) ?> — Supun Group</title><style>
 :root{--ink:#14213d;--teal:#087f75;--line:#cbd5e1;--soft:#f1f5f9}*{box-sizing:border-box}body{margin:0;background:#dfe4ea;color:var(--ink);font-family:Arial,sans-serif;font-size:12px}.toolbar{position:sticky;top:0;z-index:5;background:#14213d;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}.toolbar button,.toolbar a{border:0;border-radius:7px;padding:10px 16px;font-weight:700;text-decoration:none;cursor:pointer}.toolbar a{background:#fff;color:#14213d}.toolbar button{background:#0f9f8f;color:#fff}.sheet{width:210mm;min-height:297mm;margin:20px auto;background:#fff;padding:14mm 15mm;box-shadow:0 6px 25px #0002}.doc-head{display:grid;grid-template-columns:82px 1fr auto;align-items:center;gap:15px;border-bottom:3px solid var(--teal);padding-bottom:12px}.logo{width:72px;height:72px;object-fit:contain}.company h1{margin:0;font-size:22px}.company p,.meta p{margin:3px 0;color:#475569}.meta{text-align:right}.report-title{text-align:center;margin:20px 0 14px}.report-title h2{margin:0 0 5px;font-size:20px;text-transform:uppercase;letter-spacing:.04em}.report-title p{margin:0;color:#64748b}.summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:20px}.summary div{padding:9px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.summary div:nth-child(4n){border-right:0}.summary span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700}.summary strong{display:block;margin-top:4px;font-size:13px}.section{margin-top:18px;break-inside:auto}.section h3{font-size:14px;margin:0 0 7px;padding-left:8px;border-left:4px solid var(--teal)}table{width:100%;border-collapse:collapse;font-size:9px}thead{display:table-header-group}th{background:#e8f4f2;text-transform:uppercase;letter-spacing:.03em;text-align:left}th,td{border:1px solid var(--line);padding:6px 7px;vertical-align:top}td:last-child,th:last-child{text-align:right}tr{break-inside:avoid}.empty{text-align:center!important;padding:20px;color:#64748b}.signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:45px;margin-top:35px;text-align:center;break-inside:avoid}.signatures div{border-top:1px solid #334155;padding-top:6px}.foot{margin-top:28px;border-top:1px solid var(--line);padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:#64748b}@page{size:A4 portrait;margin:10mm}@media print{body{background:#fff}.toolbar{display:none}.sheet{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}.summary{-webkit-print-color-adjust:exact;print-color-adjust:exact}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}.foot{position:relative}}
-</style></head><body><div class="toolbar"><span>Dedicated report preview — not a screen capture</span><div><a href="javascript:history.back()">Back</a> <button onclick="window.print()">Print / Save PDF</button></div></div><article class="sheet"><header class="doc-head"><img class="logo" src="../supun-logo.png" alt="Supun Group"><div class="company"><h1>Supun Group of Companies</h1><p>Retail &amp; Wholesale Electrical Appliances</p><p>Galle Road, Wallawatta, Sri Lanka</p><p>011 234 5678 · www.supungroup.example</p></div><div class="meta"><strong>OFFICIAL REPORT</strong><p>Generated: <?=h($generatedAt)?></p><p>Prepared by: <?=h($generatedBy)?></p></div></header><div class="report-title"><h2><?=h($title)?></h2><p><?=h($subtitle)?></p></div><section class="summary"><?php foreach($summary as $s):?><div><span><?=h($s[0])?></span><strong><?=h($s[1])?></strong></div><?php endforeach;?></section><?php foreach($sections as $section):?><section class="section"><h3><?=h($section[0])?></h3><table><thead><tr><?php foreach($section[1] as $head):?><th><?=h($head)?></th><?php endforeach;?></tr></thead><tbody><?php if(!$section[2]):?><tr><td class="empty" colspan="<?=h($section[3])?>">No records found for this report selection.</td></tr><?php else:foreach($section[2] as $row):?><tr><?php foreach($row as $cell):?><td><?=h($cell)?></td><?php endforeach;?></tr><?php endforeach;endif;?></tbody></table></section><?php endforeach;?><div class="signatures"><div>Prepared By</div><div>Checked By</div><div>Authorized By</div></div><footer class="foot"><span>Supun Group ERP · Confidential business document</span><span><?=h($title)?></span></footer></article><?php if(isset($_GET['auto'])):?><script>addEventListener('load',()=>print())</script><?php endif;?></body></html>
+</style></head><body><div class="toolbar"><span>Dedicated report preview — not a screen capture</span><div><a href="javascript:history.back()">Back</a> <button onclick="window.print()">Print / Save PDF</button></div></div><article class="sheet"><header class="doc-head"><img class="logo" src="../supun-logo.png" alt="Supun Group"><div class="company"><h1>Supun Group of Companies</h1><p>Retail &amp; Wholesale Electrical Appliances</p><p>Galle Road, Wallawatta, Sri Lanka</p><p>011 234 5678 · www.supungroup.example</p></div><div class="meta"><strong>OFFICIAL REPORT</strong><p>Generated: <?= h(
+    $generatedAt,
+) ?></p><p>Prepared by: <?= h(
+    $generatedBy,
+) ?></p></div></header><div class="report-title"><h2><?= h(
+    $title,
+) ?></h2><p><?= h(
+    $subtitle,
+) ?></p></div><section class="summary"><?php foreach (
+    $summary
+    as $s
+): ?><div><span><?= h($s[0]) ?></span><strong><?= h(
+    $s[1],
+) ?></strong></div><?php endforeach; ?></section><?php foreach (
+    $sections
+    as $section
+): ?><section class="section"><h3><?= h(
+    $section[0],
+) ?></h3><table><thead><tr><?php foreach ($section[1] as $head): ?><th><?= h(
+    $head,
+) ?></th><?php endforeach; ?></tr></thead><tbody><?php if (
+    !$section[2]
+): ?><tr><td class="empty" colspan="<?= h(
+    $section[3],
+) ?>">No records found for this report selection.</td></tr><?php else:foreach (
+        $section[2]
+        as $row
+    ): ?><tr><?php foreach ($row as $cell): ?><td><?= h(
+    $cell,
+) ?></td><?php endforeach; ?></tr><?php endforeach;endif; ?></tbody></table></section><?php endforeach; ?><div class="signatures"><div>Prepared By</div><div>Checked By</div><div>Authorized By</div></div><footer class="foot"><span>Supun Group ERP · Confidential business document</span><span><?= h(
+    $title,
+) ?></span></footer></article><?php if (
+    isset($_GET["auto"])
+): ?><script>addEventListener('load',()=>print())</script><?php endif; ?></body></html>

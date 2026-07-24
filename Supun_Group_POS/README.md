@@ -11,15 +11,15 @@ Retail and wholesale point-of-sale system built with PHP, MySQL, HTML, CSS, and 
 
 ## Main modules
 
-| Module | Main files | Purpose |
-|---|---|---|
-| Authentication | `login.php`, `logout.php` | User login and session lifecycle |
-| POS checkout | `pos.php`, `save_order.php` | Orders, cart, pricing, checkout, credit, and installments |
-| Account credit | `advance_payments.php`, `print_advance.php` | Customer money held without an order |
-| Installments | `installment_payments.php`, `advance_payments.php` | Payments tied to a specific order |
-| Billing | `print_bill.php`, `print_account_statement.php` | Final invoices and customer statements |
-| Management | `dashboard.php`, `admin/` | Reports, products, users, expenses, and inventory |
-| Shared payment schema | `includes/advance_accounts.php` | Creates and reconciles credit/installment records |
+| Module                | Main files                                         | Purpose                                                   |
+| --------------------- | -------------------------------------------------- | --------------------------------------------------------- |
+| Authentication        | `login.php`, `logout.php`                          | User login and session lifecycle                          |
+| POS checkout          | `pos.php`, `save_order.php`                        | Orders, cart, pricing, checkout, credit, and installments |
+| Account credit        | `advance_payments.php`, `print_advance.php`        | Customer money held without an order                      |
+| Installments          | `installment_payments.php`, `advance_payments.php` | Payments tied to a specific order                         |
+| Billing               | `print_bill.php`, `print_account_statement.php`    | Final invoices and customer statements                    |
+| Management            | `dashboard.php`, `admin/`                          | Reports, products, users, expenses, and inventory         |
+| Shared payment schema | `includes/advance_accounts.php`                    | Creates and reconciles credit/installment records         |
 
 See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) before modifying payment or billing logic.
 

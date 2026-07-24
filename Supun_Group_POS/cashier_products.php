@@ -1,10 +1,10 @@
 <?php
 session_start();
-include 'db.php';
+include "db.php";
 
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
-    exit;
+    exit();
 }
 
 $user_role = $_SESSION["role"] ?? "";
@@ -15,51 +15,80 @@ if (!in_array($user_role, ["cashier", "accountant", "admin"], true)) {
 /* ADD PRODUCT */
 if (isset($_POST["add_product"])) {
     $name = trim($_POST["product_name"]);
-    $price = (float)$_POST["price"];
-    $wholesale_price = (float)($_POST["wholesale_price"] ?? 0);
-    $wholesale_min_qty = max(1, (int)($_POST["wholesale_min_qty"] ?? 1));
-    $category_id = (int)$_POST["category_id"];
+    $price = (float) $_POST["price"];
+    $wholesale_price = (float) ($_POST["wholesale_price"] ?? 0);
+    $wholesale_min_qty = max(1, (int) ($_POST["wholesale_min_qty"] ?? 1));
+    $category_id = (int) $_POST["category_id"];
 
-    if ($name !== "" && $price > 0 && $wholesale_price > 0 && $category_id > 0) {
+    if (
+        $name !== "" &&
+        $price > 0 &&
+        $wholesale_price > 0 &&
+        $category_id > 0
+    ) {
         $stmt = $conn->prepare("
             INSERT INTO products (product_name, price, wholesale_price, wholesale_min_qty, category_id, status)
             VALUES (?, ?, ?, ?, ?, 1)
         ");
-        $stmt->bind_param("sddii", $name, $price, $wholesale_price, $wholesale_min_qty, $category_id);
+        $stmt->bind_param(
+            "sddii",
+            $name,
+            $price,
+            $wholesale_price,
+            $wholesale_min_qty,
+            $category_id,
+        );
         $stmt->execute();
         $stmt->close();
     }
 
     header("Location: cashier_products.php");
-    exit;
+    exit();
 }
 
 /* UPDATE PRODUCT */
 if (isset($_POST["update_product"])) {
-    $product_id = (int)$_POST["product_id"];
+    $product_id = (int) $_POST["product_id"];
     $name = trim($_POST["product_name"]);
-    $price = (float)$_POST["price"];
-    $wholesale_price = (float)($_POST["wholesale_price"] ?? 0);
-    $wholesale_min_qty = max(1, (int)($_POST["wholesale_min_qty"] ?? 1));
-    $category_id = (int)$_POST["category_id"];
-    $status = (int)$_POST["status"];
+    $price = (float) $_POST["price"];
+    $wholesale_price = (float) ($_POST["wholesale_price"] ?? 0);
+    $wholesale_min_qty = max(1, (int) ($_POST["wholesale_min_qty"] ?? 1));
+    $category_id = (int) $_POST["category_id"];
+    $status = (int) $_POST["status"];
 
-    if ($product_id > 0 && $name !== "" && $price > 0 && $wholesale_price > 0 && $category_id > 0) {
+    if (
+        $product_id > 0 &&
+        $name !== "" &&
+        $price > 0 &&
+        $wholesale_price > 0 &&
+        $category_id > 0
+    ) {
         $stmt = $conn->prepare("
             UPDATE products
             SET product_name = ?, price = ?, wholesale_price = ?, wholesale_min_qty = ?, category_id = ?, status = ?
             WHERE product_id = ?
         ");
-        $stmt->bind_param("sddiiii", $name, $price, $wholesale_price, $wholesale_min_qty, $category_id, $status, $product_id);
+        $stmt->bind_param(
+            "sddiiii",
+            $name,
+            $price,
+            $wholesale_price,
+            $wholesale_min_qty,
+            $category_id,
+            $status,
+            $product_id,
+        );
         $stmt->execute();
         $stmt->close();
     }
 
     header("Location: cashier_products.php");
-    exit;
+    exit();
 }
 
-$categories = $conn->query("SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC");
+$categories = $conn->query(
+    "SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC",
+);
 
 $products = $conn->query("
     SELECT p.*, c.category_name
@@ -173,9 +202,7 @@ $products = $conn->query("
         <p>Use the same complete workbook as the admin import so supplier, purchase, cost, pricing and stock reports remain accurate.</p>
     </div>
     <div class="import-actions">
-        <?php
-        $import_url = 'admin/product_import.php?cashier_mode=1';
-        ?>
+        <?php $import_url = "admin/product_import.php?cashier_mode=1"; ?>
         <a href="<?php echo $import_url; ?>" class="import-btn">Open Excel Import</a>
         <span class="import-note">Standalone import view</span>
     </div>
@@ -197,12 +224,12 @@ $products = $conn->query("
             <option value="">Select category</option>
             <?php
             mysqli_data_seek($categories, 0);
-            while ($cat = $categories->fetch_assoc()):
-            ?>
-                <option value="<?php echo $cat['category_id']; ?>">
-                    <?php echo htmlspecialchars($cat['category_name']); ?>
+            while ($cat = $categories->fetch_assoc()): ?>
+                <option value="<?php echo $cat["category_id"]; ?>">
+                    <?php echo htmlspecialchars($cat["category_name"]); ?>
                 </option>
-            <?php endwhile; ?>
+            <?php endwhile;
+            ?>
         </select>
 
         <button type="submit" name="add_product">Add Product</button>
@@ -228,48 +255,66 @@ $products = $conn->query("
         <tr>
             <form method="POST">
                 <td>
-                    <?php echo $p['product_id']; ?>
-                    <input type="hidden" name="product_id" value="<?php echo $p['product_id']; ?>">
+                    <?php echo $p["product_id"]; ?>
+                    <input type="hidden" name="product_id" value="<?php echo $p[
+                        "product_id"
+                    ]; ?>">
                 </td>
 
                 <td>
                     <input type="text" name="product_name"
-                           value="<?php echo htmlspecialchars($p['product_name']); ?>" required>
+                           value="<?php echo htmlspecialchars(
+                               $p["product_name"],
+                           ); ?>" required>
                 </td>
 
                 <td>
                     <input type="number" name="price" step="0.01" min="0.01"
-                           value="<?php echo $p['price']; ?>" required>
+                           value="<?php echo $p["price"]; ?>" required>
                 </td>
 
                 <td>
                     <input type="number" name="wholesale_price" step="0.01" min="0.01"
-                           value="<?php echo $p['wholesale_price']; ?>" required>
+                           value="<?php echo $p[
+                               "wholesale_price"
+                           ]; ?>" required>
                 </td>
 
                 <td>
                     <input type="number" name="wholesale_min_qty" min="1"
-                           value="<?php echo max(1, (int)$p['wholesale_min_qty']); ?>" required>
+                           value="<?php echo max(
+                               1,
+                               (int) $p["wholesale_min_qty"],
+                           ); ?>" required>
                 </td>
 
                 <td>
                     <select name="category_id" required>
                         <?php
                         mysqli_data_seek($categories, 0);
-                        while ($cat = $categories->fetch_assoc()):
-                        ?>
-                            <option value="<?php echo $cat['category_id']; ?>"
-                                <?php echo ($cat['category_id'] == $p['category_id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($cat['category_name']); ?>
+                        while ($cat = $categories->fetch_assoc()): ?>
+                            <option value="<?php echo $cat["category_id"]; ?>"
+                                <?php echo $cat["category_id"] ==
+                                $p["category_id"]
+                                    ? "selected"
+                                    : ""; ?>>
+                                <?php echo htmlspecialchars(
+                                    $cat["category_name"],
+                                ); ?>
                             </option>
-                        <?php endwhile; ?>
+                        <?php endwhile;
+                        ?>
                     </select>
                 </td>
 
                 <td>
                     <select name="status">
-                        <option value="1" <?php echo $p['status'] == 1 ? 'selected' : ''; ?>>Active</option>
-                        <option value="0" <?php echo $p['status'] == 0 ? 'selected' : ''; ?>>Inactive</option>
+                        <option value="1" <?php echo $p["status"] == 1
+                            ? "selected"
+                            : ""; ?>>Active</option>
+                        <option value="0" <?php echo $p["status"] == 0
+                            ? "selected"
+                            : ""; ?>>Inactive</option>
                     </select>
                 </td>
 

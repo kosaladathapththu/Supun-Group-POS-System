@@ -1,17 +1,23 @@
 <?php
 session_start();
-include 'db.php';
+include "db.php";
 
-if (($_SESSION['role'] ?? '') === 'manager') $_SESSION['role'] = 'accountant';
-if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["admin", "accountant"], true)) {
+if (($_SESSION["role"] ?? "") === "manager") {
+    $_SESSION["role"] = "accountant";
+}
+if (
+    !isset($_SESSION["user_id"]) ||
+    !in_array($_SESSION["role"], ["admin", "accountant"], true)
+) {
     header("Location: login.php");
-    exit;
+    exit();
 }
 
 /* ===============================
    SAFE QUERY FUNCTION
 =============================== */
-function getValue($conn, $query) {
+function getValue($conn, $query)
+{
     $res = $conn->query($query);
     if (!$res) {
         die("Query Error: " . $conn->error);
@@ -22,22 +28,44 @@ function getValue($conn, $query) {
 /* ===============================
    MAIN KPI DATA (ONLY PAID)
 =============================== */
-$total_sales   = getValue($conn, "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid'");
-$total_orders  = getValue($conn, "SELECT COUNT(*) AS v FROM orders WHERE payment_status='paid'");
+$total_sales = getValue(
+    $conn,
+    "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid'",
+);
+$total_orders = getValue(
+    $conn,
+    "SELECT COUNT(*) AS v FROM orders WHERE payment_status='paid'",
+);
 
-$today_sales   = getValue($conn, "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid' AND DATE(created_at)=CURDATE()");
-$today_orders  = getValue($conn, "SELECT COUNT(*) AS v FROM orders WHERE payment_status='paid' AND DATE(created_at)=CURDATE()");
+$today_sales = getValue(
+    $conn,
+    "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid' AND DATE(created_at)=CURDATE()",
+);
+$today_orders = getValue(
+    $conn,
+    "SELECT COUNT(*) AS v FROM orders WHERE payment_status='paid' AND DATE(created_at)=CURDATE()",
+);
 
-$month_sales   = getValue($conn, "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid' AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())");
-$month_orders  = getValue($conn, "SELECT COUNT(*) AS v FROM orders WHERE payment_status='paid' AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())");
+$month_sales = getValue(
+    $conn,
+    "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid' AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())",
+);
+$month_orders = getValue(
+    $conn,
+    "SELECT COUNT(*) AS v FROM orders WHERE payment_status='paid' AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())",
+);
 
 $avg_order_val = $total_orders > 0 ? $total_sales / $total_orders : 0;
 
-$yesterday_sales = getValue($conn, "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid' AND DATE(created_at)=DATE_SUB(CURDATE(),INTERVAL 1 DAY)");
+$yesterday_sales = getValue(
+    $conn,
+    "SELECT COALESCE(SUM(total_amount),0) AS v FROM orders WHERE payment_status='paid' AND DATE(created_at)=DATE_SUB(CURDATE(),INTERVAL 1 DAY)",
+);
 
-$today_vs_yesterday = $yesterday_sales > 0
-    ? (($today_sales - $yesterday_sales) / $yesterday_sales) * 100
-    : 0;
+$today_vs_yesterday =
+    $yesterday_sales > 0
+        ? (($today_sales - $yesterday_sales) / $yesterday_sales) * 100
+        : 0;
 
 /* ===============================
    LAST 7 DAYS
@@ -63,21 +91,21 @@ $daily_counts = [];
 
 $days_map = [];
 for ($i = 6; $i >= 0; $i--) {
-    $d = date('Y-m-d', strtotime("-$i days"));
-    $days_map[$d] = ['total' => 0, 'cnt' => 0];
+    $d = date("Y-m-d", strtotime("-$i days"));
+    $days_map[$d] = ["total" => 0, "cnt" => 0];
 }
 
 while ($row = $daily_q->fetch_assoc()) {
-    $days_map[$row['day']] = [
-        'total' => (float)$row['total'],
-        'cnt'   => (int)$row['cnt']
+    $days_map[$row["day"]] = [
+        "total" => (float) $row["total"],
+        "cnt" => (int) $row["cnt"],
     ];
 }
 
 foreach ($days_map as $d => $v) {
-    $daily_labels[]  = date('D d', strtotime($d));
-    $daily_amounts[] = round($v['total'], 2);
-    $daily_counts[]  = $v['cnt'];
+    $daily_labels[] = date("D d", strtotime($d));
+    $daily_amounts[] = round($v["total"], 2);
+    $daily_counts[] = $v["cnt"];
 }
 
 /* ===============================
@@ -101,8 +129,8 @@ $pm_labels = [];
 $pm_totals = [];
 
 while ($row = $pm_q->fetch_assoc()) {
-    $pm_labels[] = $row['payment_method'] ?: 'Unknown';
-    $pm_totals[] = round((float)$row['total'], 2);
+    $pm_labels[] = $row["payment_method"] ?: "Unknown";
+    $pm_totals[] = round((float) $row["total"], 2);
 }
 
 /* ===============================
@@ -123,7 +151,7 @@ if (!$ot_q) {
 
 $ot_data = [];
 while ($r = $ot_q->fetch_assoc()) {
-    $ot_data[$r['order_type']] = $r;
+    $ot_data[$r["order_type"]] = $r;
 }
 
 /* ===============================
@@ -193,12 +221,12 @@ if (!$hourly_q) {
     die("Hourly query error: " . $conn->error);
 }
 
-$hourly = array_fill(0, 24, ['cnt' => 0, 'total' => 0]);
+$hourly = array_fill(0, 24, ["cnt" => 0, "total" => 0]);
 
 while ($r = $hourly_q->fetch_assoc()) {
-    $hourly[(int)$r['hr']] = [
-        'cnt'   => (int)$r['cnt'],
-        'total' => (float)$r['total']
+    $hourly[(int) $r["hr"]] = [
+        "cnt" => (int) $r["cnt"],
+        "total" => (float) $r["total"],
     ];
 }
 
@@ -224,25 +252,34 @@ $mon_labels = [];
 $mon_totals = [];
 
 while ($r = $monthly_q->fetch_assoc()) {
-    $mon_labels[] = $r['mon'];
-    $mon_totals[] = round((float)$r['total'], 2);
+    $mon_labels[] = $r["mon"];
+    $mon_totals[] = round((float) $r["total"], 2);
 }
 
 /* ===============================
    COUNTS
 =============================== */
-$total_products   = getValue($conn, "SELECT COUNT(*) AS v FROM products WHERE status=1");
-$total_categories = getValue($conn, "SELECT COUNT(*) AS v FROM categories WHERE status=1");
-$total_users      = getValue($conn, "SELECT COUNT(*) AS v FROM users WHERE status=1");
+$total_products = getValue(
+    $conn,
+    "SELECT COUNT(*) AS v FROM products WHERE status=1",
+);
+$total_categories = getValue(
+    $conn,
+    "SELECT COUNT(*) AS v FROM categories WHERE status=1",
+);
+$total_users = getValue(
+    $conn,
+    "SELECT COUNT(*) AS v FROM users WHERE status=1",
+);
 
 /* ===============================
    ORDER TYPE SPLIT
 =============================== */
-$dine_cnt = $ot_data['retail']['cnt'] ?? 0;
-$take_cnt = $ot_data['wholesale']['cnt'] ?? 0;
+$dine_cnt = $ot_data["retail"]["cnt"] ?? 0;
+$take_cnt = $ot_data["wholesale"]["cnt"] ?? 0;
 
-$dine_rev = $ot_data['retail']['total'] ?? 0;
-$take_rev = $ot_data['wholesale']['total'] ?? 0;
+$dine_rev = $ot_data["retail"]["total"] ?? 0;
+$take_rev = $ot_data["wholesale"]["total"] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1038,7 +1075,10 @@ canvas {
 <body>
 
 <!-- SIDEBAR -->
-<?php $shared_nav_from_root=true; include 'admin/shared_nav.php'; ?>
+<?php
+$shared_nav_from_root = true;
+include "admin/shared_nav.php";
+?>
 
 <!-- MAIN -->
 <div class="main">
@@ -1046,7 +1086,10 @@ canvas {
     <div class="topbar">
         <div class="topbar-left">
             <div>
-                <div class="page-title-main"><?php echo $_SESSION['role']==='accountant' ? 'Accountant Dashboard' : 'Owner Dashboard'; ?></div>
+                <div class="page-title-main"><?php echo $_SESSION["role"] ===
+                "accountant"
+                    ? "Accountant Dashboard"
+                    : "Owner Dashboard"; ?></div>
                 <div class="breadcrumb">
                     <i class="fa-solid fa-house"></i>&nbsp;Home
                     <i class="fa-solid fa-chevron-right"></i> Dashboard
@@ -1056,7 +1099,7 @@ canvas {
         <div class="topbar-right">
             <div class="date-badge">
                 <i class="fa-regular fa-calendar"></i>
-                <?php echo date('D, d M Y'); ?>
+                <?php echo date("D, d M Y"); ?>
             </div>
             <a href="pos.php" class="btn-pos">
                 <i class="fa-solid fa-cash-register"></i> Go to POS
@@ -1076,21 +1119,37 @@ canvas {
                 <div class="kpi-card kpi-orange">
                     <div class="kpi-top">
                         <div class="kpi-icon ki-orange"><i class="fa-solid fa-coins"></i></div>
-                        <?php $dir = $today_vs_yesterday >= 0 ? 'up' : 'down'; $icon = $dir === 'up' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'; ?>
+                        <?php
+                        $dir = $today_vs_yesterday >= 0 ? "up" : "down";
+                        $icon =
+                            $dir === "up"
+                                ? "fa-arrow-trend-up"
+                                : "fa-arrow-trend-down";
+                        ?>
                         <span class="kpi-badge badge-<?php echo $dir; ?>">
-                            <i class="fa-solid <?php echo $icon; ?>"></i><?php echo abs(round($today_vs_yesterday, 1)); ?>%
+                            <i class="fa-solid <?php echo $icon; ?>"></i><?php echo abs(
+    round($today_vs_yesterday, 1),
+); ?>%
                         </span>
                     </div>
-                    <div class="kpi-value">Rs. <?php echo number_format($today_sales, 0); ?></div>
+                    <div class="kpi-value">Rs. <?php echo number_format(
+                        $today_sales,
+                        0,
+                    ); ?></div>
                     <div class="kpi-label">Today's Sales • <?php echo $today_orders; ?> orders</div>
                 </div>
 
                 <div class="kpi-card kpi-indigo">
                     <div class="kpi-top">
                         <div class="kpi-icon ki-indigo"><i class="fa-solid fa-calendar-check"></i></div>
-                        <span class="kpi-badge badge-neu"><?php echo date('M'); ?></span>
+                        <span class="kpi-badge badge-neu"><?php echo date(
+                            "M",
+                        ); ?></span>
                     </div>
-                    <div class="kpi-value">Rs. <?php echo number_format($month_sales, 0); ?></div>
+                    <div class="kpi-value">Rs. <?php echo number_format(
+                        $month_sales,
+                        0,
+                    ); ?></div>
                     <div class="kpi-label">This Month • <?php echo $month_orders; ?> orders</div>
                 </div>
 
@@ -1099,8 +1158,13 @@ canvas {
                         <div class="kpi-icon ki-green"><i class="fa-solid fa-sack-dollar"></i></div>
                         <span class="kpi-badge badge-up"><i class="fa-solid fa-check"></i> All time</span>
                     </div>
-                    <div class="kpi-value">Rs. <?php echo number_format($total_sales, 0); ?></div>
-                    <div class="kpi-label">Total Revenue • <?php echo number_format($total_orders); ?> orders</div>
+                    <div class="kpi-value">Rs. <?php echo number_format(
+                        $total_sales,
+                        0,
+                    ); ?></div>
+                    <div class="kpi-label">Total Revenue • <?php echo number_format(
+                        $total_orders,
+                    ); ?> orders</div>
                 </div>
 
                 <div class="kpi-card kpi-amber">
@@ -1108,7 +1172,10 @@ canvas {
                         <div class="kpi-icon ki-amber"><i class="fa-solid fa-chart-simple"></i></div>
                         <span class="kpi-badge badge-neu">avg</span>
                     </div>
-                    <div class="kpi-value">Rs. <?php echo number_format($avg_order_val, 0); ?></div>
+                    <div class="kpi-value">Rs. <?php echo number_format(
+                        $avg_order_val,
+                        0,
+                    ); ?></div>
                     <div class="kpi-label">Avg Order Value</div>
                 </div>
             </div>
@@ -1138,7 +1205,9 @@ canvas {
                     <div style="font-size:11px;color:var(--text-muted);font-weight:700;"><?php echo $total_categories; ?> active</div>
                 </a>
 
-                <?php if ($_SESSION['role']==='admin'): ?><a href="admin/users.php" class="ql-card">
+                <?php if (
+                    $_SESSION["role"] === "admin"
+                ): ?><a href="admin/users.php" class="ql-card">
                     <div class="ql-icon" style="background:var(--green-lt);color:var(--green);"><i class="fa-solid fa-users"></i></div>
                     <div class="ql-label">Staff</div>
                     <div style="font-size:11px;color:var(--text-muted);font-weight:700;"><?php echo $total_users; ?> users</div>
@@ -1147,7 +1216,9 @@ canvas {
                 <a href="admin/orders.php" class="ql-card">
                     <div class="ql-icon" style="background:var(--amber-lt);color:var(--amber);"><i class="fa-solid fa-list-check"></i></div>
                     <div class="ql-label">All Orders</div>
-                    <div style="font-size:11px;color:var(--text-muted);font-weight:700;"><?php echo number_format($total_orders); ?> total</div>
+                    <div style="font-size:11px;color:var(--text-muted);font-weight:700;"><?php echo number_format(
+                        $total_orders,
+                    ); ?> total</div>
                 </a>
 
                 <a href="admin/expenses.php" class="ql-card">
@@ -1206,13 +1277,19 @@ canvas {
                         <div style="background:var(--primary-lt);border-radius:8px;padding:10px 12px;">
                             <div style="font-size:11px;color:var(--primary);font-weight:900;text-transform:uppercase;letter-spacing:.07em;">Retail</div>
                             <div style="font-size:18px;font-weight:900;color:var(--text);"><?php echo $dine_cnt; ?></div>
-                            <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Rs. <?php echo number_format($dine_rev, 0); ?></div>
+                            <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Rs. <?php echo number_format(
+                                $dine_rev,
+                                0,
+                            ); ?></div>
                         </div>
 
                         <div style="background:var(--amber-lt);border-radius:8px;padding:10px 12px;">
                             <div style="font-size:11px;color:var(--amber);font-weight:900;text-transform:uppercase;letter-spacing:.07em;">Wholesale</div>
                             <div style="font-size:18px;font-weight:900;color:var(--text);"><?php echo $take_cnt; ?></div>
-                            <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Rs. <?php echo number_format($take_rev, 0); ?></div>
+                            <div style="font-size:11px;color:var(--text-muted);font-weight:700;">Rs. <?php echo number_format(
+                                $take_rev,
+                                0,
+                            ); ?></div>
                         </div>
                     </div>
                 </div>
@@ -1223,9 +1300,21 @@ canvas {
 
                     <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:var(--text-muted);font-weight:700;">
                         <span>Low</span>
-                        <?php $bg=['#f1f3f8','#fde8dc','#f9c4a6','#f4a07a','#ea7044','#d95c2b']; for($i=0;$i<=5;$i++): ?>
-                            <div style="width:18px;height:18px;border-radius:4px;background:<?php echo $bg[$i]; ?>;"></div>
-                        <?php endfor; ?>
+                        <?php
+                        $bg = [
+                            "#f1f3f8",
+                            "#fde8dc",
+                            "#f9c4a6",
+                            "#f4a07a",
+                            "#ea7044",
+                            "#d95c2b",
+                        ];
+                        for ($i = 0; $i <= 5; $i++): ?>
+                            <div style="width:18px;height:18px;border-radius:4px;background:<?php echo $bg[
+                                $i
+                            ]; ?>;"></div>
+                        <?php endfor;
+                        ?>
                         <span>High</span>
                     </div>
                 </div>
@@ -1244,19 +1333,38 @@ canvas {
                 </div>
 
                 <?php if (!empty($top_products)): ?>
-                    <?php $max_qty = max(array_column($top_products, 'qty_sold')); ?>
+                    <?php $max_qty = max(
+                        array_column($top_products, "qty_sold"),
+                    ); ?>
                     <?php foreach ($top_products as $i => $p): ?>
                         <?php
                         $rank = $i + 1;
-                        $pct = $max_qty > 0 ? round($p['qty_sold'] / $max_qty * 100) : 0;
-                        $rcls = $rank == 1 ? 'rank-1' : ($rank == 2 ? 'rank-2' : ($rank == 3 ? 'rank-3' : 'rank-n'));
+                        $pct =
+                            $max_qty > 0
+                                ? round(($p["qty_sold"] / $max_qty) * 100)
+                                : 0;
+                        $rcls =
+                            $rank == 1
+                                ? "rank-1"
+                                : ($rank == 2
+                                    ? "rank-2"
+                                    : ($rank == 3
+                                        ? "rank-3"
+                                        : "rank-n"));
                         ?>
                         <div class="prod-row">
                             <div class="prod-rank <?php echo $rcls; ?>"><?php echo $rank; ?></div>
-                            <div class="prod-name"><?php echo htmlspecialchars($p['product_name']); ?></div>
+                            <div class="prod-name"><?php echo htmlspecialchars(
+                                $p["product_name"],
+                            ); ?></div>
                             <div class="prod-bar-wrap"><div class="prod-bar" style="width:<?php echo $pct; ?>%"></div></div>
-                            <div class="prod-qty"><?php echo number_format($p['qty_sold']); ?> sold</div>
-                            <div class="prod-rev">Rs. <?php echo number_format($p['revenue'], 0); ?></div>
+                            <div class="prod-qty"><?php echo number_format(
+                                $p["qty_sold"],
+                            ); ?> sold</div>
+                            <div class="prod-rev">Rs. <?php echo number_format(
+                                $p["revenue"],
+                                0,
+                            ); ?></div>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -1287,28 +1395,57 @@ canvas {
                         <?php if (!empty($recent_orders)): ?>
                             <?php foreach ($recent_orders as $o): ?>
                                 <?php
-                                $pm = $o['payment_method'];
-                                $cls_map  = ['Cash'=>'bp-cash','Card'=>'bp-card','QR'=>'bp-qr','Bank Transfer'=>'bp-bank','Cheque'=>'bp-bank'];
-                                $icon_map = ['Cash'=>'fa-money-bill-wave','Card'=>'fa-credit-card','QR'=>'fa-qrcode','Bank Transfer'=>'fa-building-columns','Cheque'=>'fa-money-check-dollar'];
+                                $pm = $o["payment_method"];
+                                $cls_map = [
+                                    "Cash" => "bp-cash",
+                                    "Card" => "bp-card",
+                                    "QR" => "bp-qr",
+                                    "Bank Transfer" => "bp-bank",
+                                    "Cheque" => "bp-bank",
+                                ];
+                                $icon_map = [
+                                    "Cash" => "fa-money-bill-wave",
+                                    "Card" => "fa-credit-card",
+                                    "QR" => "fa-qrcode",
+                                    "Bank Transfer" => "fa-building-columns",
+                                    "Cheque" => "fa-money-check-dollar",
+                                ];
                                 ?>
                                 <tr>
-                                    <td><strong><?php echo htmlspecialchars($o['order_number'] ?: ('#' . $o['order_id'])); ?></strong></td>
-                                    <td><?php echo date('d M, h:i A', strtotime($o['created_at'])); ?></td>
-                                    <td><?php echo htmlspecialchars($o['cashier'] ?? 'N/A'); ?></td>
+                                    <td><strong><?php echo htmlspecialchars(
+                                        $o["order_number"] ?:
+                                        "#" . $o["order_id"],
+                                    ); ?></strong></td>
+                                    <td><?php echo date(
+                                        "d M, h:i A",
+                                        strtotime($o["created_at"]),
+                                    ); ?></td>
+                                    <td><?php echo htmlspecialchars(
+                                        $o["cashier"] ?? "N/A",
+                                    ); ?></td>
                                     <td>
-                                        <?php if ($o['order_type'] == 'retail'): ?>
+                                        <?php if (
+                                            $o["order_type"] == "retail"
+                                        ): ?>
                                             <span class="badge-pill bp-dine"><i class="fa-solid fa-basket-shopping"></i> Retail</span>
                                         <?php else: ?>
                                             <span class="badge-pill bp-take"><i class="fa-solid fa-boxes-stacked"></i> Wholesale</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="badge-pill <?php echo $cls_map[$pm] ?? 'bp-cash'; ?>">
-                                            <i class="fa-solid <?php echo $icon_map[$pm] ?? 'fa-money-bill'; ?>"></i>
+                                        <span class="badge-pill <?php echo $cls_map[
+                                            $pm
+                                        ] ?? "bp-cash"; ?>">
+                                            <i class="fa-solid <?php echo $icon_map[
+                                                $pm
+                                            ] ?? "fa-money-bill"; ?>"></i>
                                             <?php echo htmlspecialchars($pm); ?>
                                         </span>
                                     </td>
-                                    <td><strong style="color:var(--primary);">Rs. <?php echo number_format($o['total_amount'], 2); ?></strong></td>
+                                    <td><strong style="color:var(--primary);">Rs. <?php echo number_format(
+                                        $o["total_amount"],
+                                        2,
+                                    ); ?></strong></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>

@@ -1,11 +1,11 @@
 <?php
 session_start();
-include 'db.php';
-require_once 'includes/advance_accounts.php';
+include "db.php";
+require_once "includes/advance_accounts.php";
 
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
-    exit;
+    exit();
 }
 
 ensureAdvancePaymentSchema($conn);
@@ -14,39 +14,51 @@ $user_id = (int) $_SESSION["user_id"];
 $admin_error = "";
 $pay_error = isset($_GET["pay_error"]) ? 1 : 0;
 $stock_error = isset($_GET["stock_error"]) ? 1 : 0;
-$advance_error = isset($_GET['advance_error']) ? 1 : 0;
-$advance_created = isset($_GET['advance_created']) ? 1 : 0;
+$advance_error = isset($_GET["advance_error"]) ? 1 : 0;
+$advance_created = isset($_GET["advance_created"]) ? 1 : 0;
 
-function esc($conn, $value) {
+function esc($conn, $value)
+{
     return $conn->real_escape_string(trim($value));
 }
 
 /* =========================================================
    ADMIN LOGIN
 ========================================================= */
-if(isset($_POST['accountant_dashboard_submit'])){
-    $password=$_POST['accountant_password']??'';
-    $stmt=$conn->prepare("SELECT password FROM users WHERE user_id=? AND role='accountant' AND status=1 LIMIT 1");
-    $stmt->bind_param('i',$user_id);$stmt->execute();$accountant=$stmt->get_result()->fetch_assoc();$stmt->close();
-    if($accountant&&password_verify($password,$accountant['password'])){$_SESSION['dashboard_verified_at']=time();header('Location: dashboard.php');exit;}
-    $admin_error='Incorrect accountant password.';
+if (isset($_POST["accountant_dashboard_submit"])) {
+    $password = $_POST["accountant_password"] ?? "";
+    $stmt = $conn->prepare(
+        "SELECT password FROM users WHERE user_id=? AND role='accountant' AND status=1 LIMIT 1",
+    );
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $accountant = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($accountant && password_verify($password, $accountant["password"])) {
+        $_SESSION["dashboard_verified_at"] = time();
+        header("Location: dashboard.php");
+        exit();
+    }
+    $admin_error = "Incorrect accountant password.";
 }
 if (isset($_POST["admin_login_submit"])) {
     $au = trim($_POST["admin_username"] ?? "");
     $ap = $_POST["admin_password"] ?? "";
 
     $au_safe = $conn->real_escape_string($au);
-    $ar = $conn->query("SELECT * FROM users WHERE username='$au_safe' AND role='admin' AND status=1 LIMIT 1");
+    $ar = $conn->query(
+        "SELECT * FROM users WHERE username='$au_safe' AND role='admin' AND status=1 LIMIT 1",
+    );
 
     if ($ar && $ar->num_rows > 0) {
         $admin_row = $ar->fetch_assoc();
 
         if (password_verify($ap, $admin_row["password"])) {
-            $_SESSION["user_id"]   = $admin_row["user_id"];
+            $_SESSION["user_id"] = $admin_row["user_id"];
             $_SESSION["full_name"] = $admin_row["full_name"];
-            $_SESSION["role"]      = "admin";
+            $_SESSION["role"] = "admin";
             header("Location: dashboard.php");
-            exit;
+            exit();
         } else {
             $admin_error = "Invalid username or password.";
         }
@@ -72,12 +84,14 @@ if (isset($_POST["quick_order"])) {
             )";
 
     if ($conn->query($sql)) {
-        $new_order_id  = $conn->insert_id;
-        $order_number  = 'ORD-' . str_pad($new_order_id, 5, '0', STR_PAD_LEFT);
-        $on_safe       = esc($conn, $order_number);
-        $conn->query("UPDATE orders SET order_number='$on_safe' WHERE order_id=$new_order_id");
+        $new_order_id = $conn->insert_id;
+        $order_number = "ORD-" . str_pad($new_order_id, 5, "0", STR_PAD_LEFT);
+        $on_safe = esc($conn, $order_number);
+        $conn->query(
+            "UPDATE orders SET order_number='$on_safe' WHERE order_id=$new_order_id",
+        );
         header("Location: pos.php?order_id=" . $new_order_id);
-        exit;
+        exit();
     }
 }
 
@@ -85,43 +99,60 @@ if (isset($_POST["quick_order"])) {
    CREATE NEW ORDER (modal — full options)
 ========================================================= */
 if (isset($_POST["create_order"])) {
-    $order_type    = trim($_POST["new_order_type"] ?? "retail");
+    $order_type = trim($_POST["new_order_type"] ?? "retail");
     $customer_name = trim($_POST["customer_name"] ?? "");
-    $customer_id   = (int)($_POST["customer_id"] ?? 0);
-    $table_id      = isset($_POST["table_id"]) && $_POST["table_id"] !== "" ? (int)$_POST["table_id"] : null;
+    $customer_id = (int) ($_POST["customer_id"] ?? 0);
+    $table_id =
+        isset($_POST["table_id"]) && $_POST["table_id"] !== ""
+            ? (int) $_POST["table_id"]
+            : null;
 
     $allowed_order_types = ["retail", "wholesale"];
-    if (!in_array($order_type, $allowed_order_types)) $order_type = "retail";
+    if (!in_array($order_type, $allowed_order_types)) {
+        $order_type = "retail";
+    }
 
     if ($customer_id > 0) {
-        $customer_q = $conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1");
-        if ($customer_q && $customer_q->num_rows > 0) $customer_name = $customer_q->fetch_assoc()['customer_name'];
-        else $customer_id = 0;
+        $customer_q = $conn->query(
+            "SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 LIMIT 1",
+        );
+        if ($customer_q && $customer_q->num_rows > 0) {
+            $customer_name = $customer_q->fetch_assoc()["customer_name"];
+        } else {
+            $customer_id = 0;
+        }
     }
     $customer_name_safe = esc($conn, $customer_name);
 
-    $sql = "INSERT INTO orders (
+    $sql =
+        "INSERT INTO orders (
                 table_id, user_id, order_type, customer_name, customer_id,
                 subtotal, discount, total_amount,
                 payment_status, sync_status, created_at, paid_at,
                 payment_method, cash_given, balance, order_status
             ) VALUES (
-                " . ($table_id === null ? "NULL" : $table_id) . ",
+                " .
+        ($table_id === null ? "NULL" : $table_id) .
+        ",
                 $user_id,
                 '$order_type',
-                '$customer_name_safe', " . ($customer_id > 0 ? $customer_id : "NULL") . ",
+                '$customer_name_safe', " .
+        ($customer_id > 0 ? $customer_id : "NULL") .
+        ",
                 0.00, 0.00, 0.00,
                 'pending', 0, NOW(), NULL,
                 'Cash', 0.00, 0.00, 'open'
             )";
 
     if ($conn->query($sql)) {
-        $new_order_id  = $conn->insert_id;
-        $order_number  = 'ORD-' . str_pad($new_order_id, 5, '0', STR_PAD_LEFT);
-        $on_safe       = esc($conn, $order_number);
-        $conn->query("UPDATE orders SET order_number='$on_safe' WHERE order_id=$new_order_id");
+        $new_order_id = $conn->insert_id;
+        $order_number = "ORD-" . str_pad($new_order_id, 5, "0", STR_PAD_LEFT);
+        $on_safe = esc($conn, $order_number);
+        $conn->query(
+            "UPDATE orders SET order_number='$on_safe' WHERE order_id=$new_order_id",
+        );
         header("Location: pos.php?order_id=" . $new_order_id);
-        exit;
+        exit();
     } else {
         die("Create order error: " . $conn->error);
     }
@@ -130,14 +161,17 @@ if (isset($_POST["create_order"])) {
 /* =========================================================
    GET CURRENT ORDER ID
 ========================================================= */
-$current_order_id = isset($_GET["order_id"]) ? (int)$_GET["order_id"] : 0;
+$current_order_id = isset($_GET["order_id"]) ? (int) $_GET["order_id"] : 0;
 
 // Advance-held orders stay out of the normal POS workspace and are reopened
 // only through the explicit Complete Payment action.
-if ($current_order_id > 0 && !isset($_GET['settle'])) {
-    $held_q = $conn->query("SELECT 1 FROM advance_payment_transactions WHERE order_id=$current_order_id AND transaction_type='deposit' AND remaining_amount>0 LIMIT 1");
+if ($current_order_id > 0 && !isset($_GET["settle"])) {
+    $held_q = $conn->query(
+        "SELECT 1 FROM advance_payment_transactions WHERE order_id=$current_order_id AND transaction_type='deposit' AND remaining_amount>0 LIMIT 1",
+    );
     if ($held_q && $held_q->num_rows > 0) {
-        header('Location: pos.php'); exit;
+        header("Location: pos.php");
+        exit();
     }
 }
 
@@ -151,13 +185,13 @@ if (isset($_GET["set_order_type"]) && $current_order_id > 0) {
         header("Content-Type: application/json");
         echo json_encode([
             "success" => false,
-            "message" => "Sale type is locked after the order is created."
+            "message" => "Sale type is locked after the order is created.",
         ]);
-        exit;
+        exit();
     }
 
     header("Location: pos.php?order_id=" . $current_order_id);
-    exit;
+    exit();
 }
 
 /* =========================================================
@@ -172,7 +206,7 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
         "message" => "Could not add item.",
         "grand_total" => 0,
         "cart_count" => 0,
-        "item_name" => ""
+        "item_name" => "",
     ];
 
     $order_check = $conn->query("
@@ -193,19 +227,29 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
         if ($q && $q->num_rows > 0) {
             $p = $q->fetch_assoc();
 
-            if ((float)$p['stock_qty'] < 1) {
-                $response['message'] = 'This product is out of stock.';
+            if ((float) $p["stock_qty"] < 1) {
+                $response["message"] = "This product is out of stock.";
                 if ($is_ajax) {
-                    header('Content-Type: application/json');
+                    header("Content-Type: application/json");
                     echo json_encode($response);
-                    exit;
+                    exit();
                 }
-                header('Location: pos.php?order_id=' . $current_order_id . '&stock_error=1');
-                exit;
+                header(
+                    "Location: pos.php?order_id=" .
+                        $current_order_id .
+                        "&stock_error=1",
+                );
+                exit();
             }
 
-            $price = ($current_order_id > 0 && ($order_check->fetch_assoc()['order_type'] ?? 'retail') === 'wholesale' && (float)$p['wholesale_price'] > 0) ? (float)$p['wholesale_price'] : (float)$p["price"];
-            $cost_price = (float)($p['cost_price'] ?? 0);
+            $price =
+                $current_order_id > 0 &&
+                ($order_check->fetch_assoc()["order_type"] ?? "retail") ===
+                    "wholesale" &&
+                (float) $p["wholesale_price"] > 0
+                    ? (float) $p["wholesale_price"]
+                    : (float) $p["price"];
+            $cost_price = (float) ($p["cost_price"] ?? 0);
             $item_name = $p["product_name"];
 
             $item_check = $conn->query("
@@ -218,48 +262,52 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
 
             $item_ok = false;
             try {
-            if ($item_check && $item_check->num_rows > 0) {
-                $item = $item_check->fetch_assoc();
-                $new_qty = (int)$item["quantity"] + 1;
-                $effective_price = (int)($item["price_overridden"] ?? 0) === 1
-                    ? (float)$item["price"]
-                    : $price;
-                $new_lt = $effective_price * $new_qty;
+                if ($item_check && $item_check->num_rows > 0) {
+                    $item = $item_check->fetch_assoc();
+                    $new_qty = (int) $item["quantity"] + 1;
+                    $effective_price =
+                        (int) ($item["price_overridden"] ?? 0) === 1
+                            ? (float) $item["price"]
+                            : $price;
+                    $new_lt = $effective_price * $new_qty;
 
-                $item_ok = $conn->query("
+                    $item_ok = $conn->query(
+                        "
                     UPDATE order_items
                     SET quantity=$new_qty, price=$effective_price,
                         unit_price=$effective_price, line_total=$new_lt
-                    WHERE order_item_id=" . (int)$item["order_item_id"]
-                );
-            } else {
-                $item_ok = $conn->query("
+                    WHERE order_item_id=" . (int) $item["order_item_id"],
+                    );
+                } else {
+                    $item_ok = $conn->query("
                     INSERT INTO order_items
                     (order_id, product_id, custom_item_name, quantity, price, unit_price, cost_price, item_type, line_total)
                     VALUES
                     ($current_order_id, $product_id, NULL, 1, $price, $price, $cost_price, 'product', $price)
                 ");
-            }
+                }
             } catch (Throwable $e) {
                 $item_ok = false;
-                $response['message'] = 'Not enough stock is available.';
+                $response["message"] = "Not enough stock is available.";
             }
 
-            $sum_q = $item_ok ? $conn->query("
+            $sum_q = $item_ok
+                ? $conn->query("
                 SELECT
                     COALESCE(SUM(line_total), 0) AS grand_total,
                     COALESCE(SUM(quantity), 0) AS cart_count
                 FROM order_items
                 WHERE order_id=$current_order_id
-            ") : false;
+            ")
+                : false;
 
             if ($sum_q && $sum_q->num_rows > 0) {
                 $sum = $sum_q->fetch_assoc();
 
                 $response["success"] = true;
                 $response["message"] = "Item added.";
-                $response["grand_total"] = (float)$sum["grand_total"];
-                $response["cart_count"] = (int)$sum["cart_count"];
+                $response["grand_total"] = (float) $sum["grand_total"];
+                $response["cart_count"] = (int) $sum["cart_count"];
                 $response["item_name"] = $item_name;
             }
         }
@@ -268,13 +316,13 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
     if ($is_ajax) {
         header("Content-Type: application/json");
         echo json_encode($response);
-        exit;
+        exit();
     }
 
     $back_url = "pos.php?order_id=" . $current_order_id;
 
-    if (isset($_GET["category"]) && (int)$_GET["category"] > 0) {
-        $back_url .= "&category=" . (int)$_GET["category"];
+    if (isset($_GET["category"]) && (int) $_GET["category"] > 0) {
+        $back_url .= "&category=" . (int) $_GET["category"];
     }
 
     if (isset($_GET["search"]) && trim($_GET["search"]) !== "") {
@@ -282,34 +330,36 @@ if (isset($_GET["add"]) && $current_order_id > 0) {
     }
 
     header("Location: " . $back_url);
-    exit;
+    exit();
 }
 
 /* =========================================================
    ADD MANUAL ITEM
 ========================================================= */
 if (isset($_POST["add_manual_item"])) {
-    $order_id = (int)($_POST["order_id"] ?? 0);
-    $mn       = trim($_POST["manual_item_name"] ?? "");
-    $mp       = (float)($_POST["manual_item_price"] ?? 0);
-    $mq       = (int)($_POST["manual_item_qty"] ?? 1);
+    $order_id = (int) ($_POST["order_id"] ?? 0);
+    $mn = trim($_POST["manual_item_name"] ?? "");
+    $mp = (float) ($_POST["manual_item_price"] ?? 0);
+    $mq = (int) ($_POST["manual_item_qty"] ?? 1);
 
     if ($order_id > 0 && $mn !== "" && $mp > 0 && $mq > 0) {
-        $mn_safe    = esc($conn, $mn);
+        $mn_safe = esc($conn, $mn);
         $line_total = $mp * $mq;
-        $conn->query("INSERT INTO order_items (order_id,product_id,custom_item_name,quantity,price,item_type,line_total) VALUES ($order_id,NULL,'$mn_safe',$mq,$mp,'manual',$line_total)");
+        $conn->query(
+            "INSERT INTO order_items (order_id,product_id,custom_item_name,quantity,price,item_type,line_total) VALUES ($order_id,NULL,'$mn_safe',$mq,$mp,'manual',$line_total)",
+        );
     }
 
     header("Location: pos.php?order_id=" . $order_id);
-    exit;
+    exit();
 }
 
 /* =========================================================
    EDIT / RESTORE ORDER-LINE PRICE
 ========================================================= */
 if (isset($_POST["update_line_price"]) && $current_order_id > 0) {
-    $order_item_id = (int)($_POST["order_item_id"] ?? 0);
-    $new_price = round((float)($_POST["new_unit_price"] ?? 0), 2);
+    $order_item_id = (int) ($_POST["order_item_id"] ?? 0);
+    $new_price = round((float) ($_POST["new_unit_price"] ?? 0), 2);
 
     if ($order_item_id > 0 && $new_price > 0) {
         $stmt = $conn->prepare("
@@ -319,18 +369,24 @@ if (isset($_POST["update_line_price"]) && $current_order_id > 0) {
                 oi.line_total = oi.quantity * ?, oi.price_overridden = 1
             WHERE oi.order_item_id = ? AND oi.order_id = ? AND o.order_status = 'open'
         ");
-        $stmt->bind_param("dddii", $new_price, $new_price, $new_price, $order_item_id, $current_order_id);
+        $stmt->bind_param(
+            "dddii",
+            $new_price,
+            $new_price,
+            $new_price,
+            $order_item_id,
+            $current_order_id,
+        );
         $stmt->execute();
         $stmt->close();
     }
 
     header("Location: pos.php?order_id=" . $current_order_id);
-    exit;
+    exit();
 }
 
-
 if (isset($_GET["restore_price"]) && $current_order_id > 0) {
-    $order_item_id = (int)$_GET["restore_price"];
+    $order_item_id = (int) $_GET["restore_price"];
     $conn->query("
         UPDATE order_items oi
         INNER JOIN orders o ON o.order_id = oi.order_id
@@ -353,119 +409,316 @@ if (isset($_GET["restore_price"]) && $current_order_id > 0) {
           AND o.order_status = 'open'
     ");
     header("Location: pos.php?order_id=" . $current_order_id);
-    exit;
+    exit();
 }
 
 /* =========================================================
    INCREASE / DECREASE / REMOVE / CLEAR
 ========================================================= */
 if (isset($_GET["inc"]) && $current_order_id > 0) {
-    $oid = (int)$_GET["inc"];
-    $r   = $conn->query("SELECT oi.quantity,oi.price,p.stock_qty FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON p.product_id=oi.product_id WHERE oi.order_item_id=$oid AND oi.order_id=$current_order_id AND o.order_status='open' LIMIT 1");
+    $oid = (int) $_GET["inc"];
+    $r = $conn->query(
+        "SELECT oi.quantity,oi.price,p.stock_qty FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON p.product_id=oi.product_id WHERE oi.order_item_id=$oid AND oi.order_id=$current_order_id AND o.order_status='open' LIMIT 1",
+    );
     if ($r && $r->num_rows > 0) {
-        $row   = $r->fetch_assoc();
-        if ($row['stock_qty'] !== null && (float)$row['stock_qty'] < 1) {
-            header("Location: pos.php?order_id=" . $current_order_id . "&stock_error=1"); exit;
+        $row = $r->fetch_assoc();
+        if ($row["stock_qty"] !== null && (float) $row["stock_qty"] < 1) {
+            header(
+                "Location: pos.php?order_id=" .
+                    $current_order_id .
+                    "&stock_error=1",
+            );
+            exit();
         }
-        $nq    = (int)$row["quantity"] + 1;
-        $price = (float)$row["price"];
-        $conn->query("UPDATE order_items SET quantity=$nq, line_total=" . ($price * $nq) . " WHERE order_item_id=$oid");
+        $nq = (int) $row["quantity"] + 1;
+        $price = (float) $row["price"];
+        $conn->query(
+            "UPDATE order_items SET quantity=$nq, line_total=" .
+                $price * $nq .
+                " WHERE order_item_id=$oid",
+        );
     }
-    header("Location: pos.php?order_id=" . $current_order_id); exit;
+    header("Location: pos.php?order_id=" . $current_order_id);
+    exit();
 }
 
 if (isset($_GET["dec"]) && $current_order_id > 0) {
-    $oid = (int)$_GET["dec"];
-    $r   = $conn->query("SELECT oi.quantity,oi.price FROM order_items oi JOIN orders o ON oi.order_id=o.order_id WHERE oi.order_item_id=$oid AND oi.order_id=$current_order_id AND o.order_status='open' LIMIT 1");
+    $oid = (int) $_GET["dec"];
+    $r = $conn->query(
+        "SELECT oi.quantity,oi.price FROM order_items oi JOIN orders o ON oi.order_id=o.order_id WHERE oi.order_item_id=$oid AND oi.order_id=$current_order_id AND o.order_status='open' LIMIT 1",
+    );
     if ($r && $r->num_rows > 0) {
-        $row   = $r->fetch_assoc();
-        $qty   = (int)$row["quantity"];
-        $price = (float)$row["price"];
+        $row = $r->fetch_assoc();
+        $qty = (int) $row["quantity"];
+        $price = (float) $row["price"];
         if ($qty > 1) {
             $nq = $qty - 1;
-            $conn->query("UPDATE order_items SET quantity=$nq, line_total=" . ($price * $nq) . " WHERE order_item_id=$oid");
+            $conn->query(
+                "UPDATE order_items SET quantity=$nq, line_total=" .
+                    $price * $nq .
+                    " WHERE order_item_id=$oid",
+            );
         } else {
             $conn->query("DELETE FROM order_items WHERE order_item_id=$oid");
         }
     }
-    header("Location: pos.php?order_id=" . $current_order_id); exit;
+    header("Location: pos.php?order_id=" . $current_order_id);
+    exit();
 }
 
 if (isset($_GET["remove"]) && $current_order_id > 0) {
-    $conn->query("DELETE FROM order_items WHERE order_item_id=" . (int)$_GET["remove"] . " AND order_id=$current_order_id");
-    header("Location: pos.php?order_id=" . $current_order_id); exit;
+    $conn->query(
+        "DELETE FROM order_items WHERE order_item_id=" .
+            (int) $_GET["remove"] .
+            " AND order_id=$current_order_id",
+    );
+    header("Location: pos.php?order_id=" . $current_order_id);
+    exit();
 }
 
 if (isset($_GET["clear"]) && $current_order_id > 0) {
-    $conn->query("DELETE oi FROM order_items oi JOIN orders o ON oi.order_id=o.order_id WHERE oi.order_id=$current_order_id AND o.order_status='open'");
-    header("Location: pos.php?order_id=" . $current_order_id); exit;
+    $conn->query(
+        "DELETE oi FROM order_items oi JOIN orders o ON oi.order_id=o.order_id WHERE oi.order_id=$current_order_id AND o.order_status='open'",
+    );
+    header("Location: pos.php?order_id=" . $current_order_id);
+    exit();
 }
 
 /* =========================================================
    CREATE CUSTOMER ADVANCE FROM CHECKOUT
 ========================================================= */
-if (isset($_POST['add_checkout_installment'])) {
-    $order_id=(int)($_POST['order_id']??0); $customer_id=(int)($_POST['checkout_customer_id']??0);
-    $amount=round((float)($_POST['installment_amount']??0),2); $method=trim($_POST['installment_method']??'Cash');
-    $use_credit=isset($_POST['use_account_credit_to_close'])&&$_POST['use_account_credit_to_close']==='1';
-    $allowed_advance_methods=['Cash','Card','QR','Bank Transfer','Cheque'];
-    if(!in_array($method,$allowed_advance_methods,true)) $method='Cash';
-    if($order_id<=0||$customer_id<=0||$amount<0||($amount<=0&&!$use_credit)){header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
+if (isset($_POST["add_checkout_installment"])) {
+    $order_id = (int) ($_POST["order_id"] ?? 0);
+    $customer_id = (int) ($_POST["checkout_customer_id"] ?? 0);
+    $amount = round((float) ($_POST["installment_amount"] ?? 0), 2);
+    $method = trim($_POST["installment_method"] ?? "Cash");
+    $use_credit =
+        isset($_POST["use_account_credit_to_close"]) &&
+        $_POST["use_account_credit_to_close"] === "1";
+    $allowed_advance_methods = [
+        "Cash",
+        "Card",
+        "QR",
+        "Bank Transfer",
+        "Cheque",
+    ];
+    if (!in_array($method, $allowed_advance_methods, true)) {
+        $method = "Cash";
+    }
+    if (
+        $order_id <= 0 ||
+        $customer_id <= 0 ||
+        $amount < 0 ||
+        ($amount <= 0 && !$use_credit)
+    ) {
+        header("Location: pos.php?order_id=$order_id&advance_error=1");
+        exit();
+    }
     $conn->begin_transaction();
-    try{
-        $customer_result=$conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE");
-        $customer=$customer_result?$customer_result->fetch_assoc():null;
-        if(!$customer) throw new Exception('Customer account not found.');
-        $order_q=$conn->query("SELECT o.order_status,COALESCE(NULLIF(o.total_amount,0),(SELECT SUM(oi.line_total) FROM order_items oi WHERE oi.order_id=o.order_id),0) bill_total,(SELECT COALESCE(SUM(d.remaining_amount),0) FROM advance_payment_transactions d WHERE d.order_id=o.order_id AND d.customer_id=$customer_id AND d.transaction_type='deposit') installment_paid FROM orders o WHERE o.order_id=$order_id FOR UPDATE");
-        $order=$order_q?$order_q->fetch_assoc():null;if(!$order||$order['order_status']!=='open')throw new Exception('Open order not found.');
-        $bill_total=round((float)$order['bill_total'],2);$installment_paid=round((float)$order['installment_paid'],2);$credit_needed=max(0,round($bill_total-$installment_paid-$amount,2));
-        $available_credit=(float)($conn->query("SELECT COALESCE(SUM(remaining_amount),0) balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0")->fetch_assoc()['balance']??0);
-        if($use_credit&&($credit_needed<=0||$available_credit+0.0001<$credit_needed))throw new Exception('Account credit cannot close this bill.');
-        $uid=(int)$_SESSION['user_id'];$transaction_id=0;
-        if($amount>0){$receipt=nextAdvanceReceipt($conn);$note='Additional installment received at POS';$stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");$stmt->bind_param('siiddssi',$receipt,$customer_id,$order_id,$amount,$amount,$method,$note,$uid);if(!$stmt->execute())throw new Exception($stmt->error);$transaction_id=$conn->insert_id;$stmt->close();}
-        if($use_credit){$left=$credit_needed;$deposits=$conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");while($left>0.0001&&$deposit=$deposits->fetch_assoc()){$take=min($left,(float)$deposit['remaining_amount']);$source=(int)$deposit['transaction_id'];$new_remaining=(float)$deposit['remaining_amount']-$take;$status=$new_remaining>0.0001?'open':'settled';$stmt=$conn->prepare('UPDATE advance_payment_transactions SET remaining_amount=?,settlement_status=? WHERE transaction_id=?');$stmt->bind_param('dsi',$new_remaining,$status,$source);$stmt->execute();$stmt->close();$usage_receipt=nextAdvanceReceipt($conn);$usage_note='Account credit used to complete installment bill';$stmt=$conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)");$stmt->bind_param('siiidsi',$usage_receipt,$customer_id,$order_id,$source,$take,$usage_note,$uid);if(!$stmt->execute())throw new Exception($stmt->error);$stmt->close();$left-=$take;}if($left>0.0001)throw new Exception('Account credit allocation failed.');}
-        $name_safe=esc($conn,$customer['customer_name']);
-        if($use_credit){$stored_method=$amount>0?'Mixed':'Credit';$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe',total_amount=$bill_total,advance_used=$credit_needed,payment_method='$stored_method',cash_given=$amount,balance=0,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=$order_id AND order_status='open'");}else{$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'");}
-        $conn->commit();if($use_credit){reconcileClosedOrderAdvances($conn);header("Location: print_bill.php?order_id=$order_id");}else{header("Location: print_advance.php?transaction_id=$transaction_id&return_order=$order_id");}exit;
-    }catch(Throwable $e){$conn->rollback();header("Location: pos.php?order_id=$order_id&advance_error=1");exit;}
+    try {
+        $customer_result = $conn->query(
+            "SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE",
+        );
+        $customer = $customer_result ? $customer_result->fetch_assoc() : null;
+        if (!$customer) {
+            throw new Exception("Customer account not found.");
+        }
+        $order_q = $conn->query(
+            "SELECT o.order_status,COALESCE(NULLIF(o.total_amount,0),(SELECT SUM(oi.line_total) FROM order_items oi WHERE oi.order_id=o.order_id),0) bill_total,(SELECT COALESCE(SUM(d.remaining_amount),0) FROM advance_payment_transactions d WHERE d.order_id=o.order_id AND d.customer_id=$customer_id AND d.transaction_type='deposit') installment_paid FROM orders o WHERE o.order_id=$order_id FOR UPDATE",
+        );
+        $order = $order_q ? $order_q->fetch_assoc() : null;
+        if (!$order || $order["order_status"] !== "open") {
+            throw new Exception("Open order not found.");
+        }
+        $bill_total = round((float) $order["bill_total"], 2);
+        $installment_paid = round((float) $order["installment_paid"], 2);
+        $credit_needed = max(
+            0,
+            round($bill_total - $installment_paid - $amount, 2),
+        );
+        $available_credit =
+            (float) ($conn
+                ->query(
+                    "SELECT COALESCE(SUM(remaining_amount),0) balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0",
+                )
+                ->fetch_assoc()["balance"] ?? 0);
+        if (
+            $use_credit &&
+            ($credit_needed <= 0 || $available_credit + 0.0001 < $credit_needed)
+        ) {
+            throw new Exception("Account credit cannot close this bill.");
+        }
+        $uid = (int) $_SESSION["user_id"];
+        $transaction_id = 0;
+        if ($amount > 0) {
+            $receipt = nextAdvanceReceipt($conn);
+            $note = "Additional installment received at POS";
+            $stmt = $conn->prepare(
+                "INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)",
+            );
+            $stmt->bind_param(
+                "siiddssi",
+                $receipt,
+                $customer_id,
+                $order_id,
+                $amount,
+                $amount,
+                $method,
+                $note,
+                $uid,
+            );
+            if (!$stmt->execute()) {
+                throw new Exception($stmt->error);
+            }
+            $transaction_id = $conn->insert_id;
+            $stmt->close();
+        }
+        if ($use_credit) {
+            $left = $credit_needed;
+            $deposits = $conn->query(
+                "SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE",
+            );
+            while ($left > 0.0001 && ($deposit = $deposits->fetch_assoc())) {
+                $take = min($left, (float) $deposit["remaining_amount"]);
+                $source = (int) $deposit["transaction_id"];
+                $new_remaining = (float) $deposit["remaining_amount"] - $take;
+                $status = $new_remaining > 0.0001 ? "open" : "settled";
+                $stmt = $conn->prepare(
+                    "UPDATE advance_payment_transactions SET remaining_amount=?,settlement_status=? WHERE transaction_id=?",
+                );
+                $stmt->bind_param("dsi", $new_remaining, $status, $source);
+                $stmt->execute();
+                $stmt->close();
+                $usage_receipt = nextAdvanceReceipt($conn);
+                $usage_note =
+                    "Account credit used to complete installment bill";
+                $stmt = $conn->prepare(
+                    "INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)",
+                );
+                $stmt->bind_param(
+                    "siiidsi",
+                    $usage_receipt,
+                    $customer_id,
+                    $order_id,
+                    $source,
+                    $take,
+                    $usage_note,
+                    $uid,
+                );
+                if (!$stmt->execute()) {
+                    throw new Exception($stmt->error);
+                }
+                $stmt->close();
+                $left -= $take;
+            }
+            if ($left > 0.0001) {
+                throw new Exception("Account credit allocation failed.");
+            }
+        }
+        $name_safe = esc($conn, $customer["customer_name"]);
+        if ($use_credit) {
+            $stored_method = $amount > 0 ? "Mixed" : "Credit";
+            $conn->query(
+                "UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe',total_amount=$bill_total,advance_used=$credit_needed,payment_method='$stored_method',cash_given=$amount,balance=0,order_status='paid',payment_status='paid',paid_at=NOW() WHERE order_id=$order_id AND order_status='open'",
+            );
+        } else {
+            $conn->query(
+                "UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'",
+            );
+        }
+        $conn->commit();
+        if ($use_credit) {
+            reconcileClosedOrderAdvances($conn);
+            header("Location: print_bill.php?order_id=$order_id");
+        } else {
+            header(
+                "Location: print_advance.php?transaction_id=$transaction_id&return_order=$order_id",
+            );
+        }
+        exit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        header("Location: pos.php?order_id=$order_id&advance_error=1");
+        exit();
+    }
 }
 
-if (isset($_POST['create_checkout_advance'])) {
-    $order_id = (int)($_POST['order_id'] ?? 0);
-    $name = trim($_POST['advance_customer_name'] ?? '');
-    $phone = trim($_POST['advance_customer_phone'] ?? '');
-    $amount = round((float)($_POST['new_advance_amount'] ?? 0), 2);
-    $method = trim($_POST['new_advance_method'] ?? 'Cash');
-    $allowed_advance_methods = ['Cash','Card','QR','Bank Transfer','Cheque'];
-    if (!in_array($method, $allowed_advance_methods, true)) $method = 'Cash';
+if (isset($_POST["create_checkout_advance"])) {
+    $order_id = (int) ($_POST["order_id"] ?? 0);
+    $name = trim($_POST["advance_customer_name"] ?? "");
+    $phone = trim($_POST["advance_customer_phone"] ?? "");
+    $amount = round((float) ($_POST["new_advance_amount"] ?? 0), 2);
+    $method = trim($_POST["new_advance_method"] ?? "Cash");
+    $allowed_advance_methods = [
+        "Cash",
+        "Card",
+        "QR",
+        "Bank Transfer",
+        "Cheque",
+    ];
+    if (!in_array($method, $allowed_advance_methods, true)) {
+        $method = "Cash";
+    }
 
-    if ($order_id <= 0 || $name === '' || $amount <= 0) {
-        header("Location: pos.php?order_id=$order_id&advance_error=1"); exit;
+    if ($order_id <= 0 || $name === "" || $amount <= 0) {
+        header("Location: pos.php?order_id=$order_id&advance_error=1");
+        exit();
     }
 
     $conn->begin_transaction();
     try {
         $account = nextAccountNumber($conn);
-        $stmt = $conn->prepare('INSERT INTO customer_accounts (account_number,customer_name,phone,advance_balance) VALUES (?,?,?,0)');
-        $stmt->bind_param('sss', $account, $name, $phone);
-        if (!$stmt->execute()) throw new Exception($stmt->error);
-        $customer_id = $conn->insert_id; $stmt->close();
+        $stmt = $conn->prepare(
+            "INSERT INTO customer_accounts (account_number,customer_name,phone,advance_balance) VALUES (?,?,?,0)",
+        );
+        $stmt->bind_param("sss", $account, $name, $phone);
+        if (!$stmt->execute()) {
+            throw new Exception($stmt->error);
+        }
+        $customer_id = $conn->insert_id;
+        $stmt->close();
 
-        $receipt = nextAdvanceReceipt($conn); $uid = (int)$_SESSION['user_id']; $note = 'Advance received at POS checkout';
-        $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)");
-        $stmt->bind_param('siiddssi', $receipt, $customer_id, $order_id, $amount, $amount, $method, $note, $uid);
-        if (!$stmt->execute()) throw new Exception($stmt->error);
-        $advance_transaction_id = $conn->insert_id; $stmt->close();
+        $receipt = nextAdvanceReceipt($conn);
+        $uid = (int) $_SESSION["user_id"];
+        $note = "Advance received at POS checkout";
+        $stmt = $conn->prepare(
+            "INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,transaction_type,amount,remaining_amount,settlement_status,settlement_due_date,payment_method,reference_note,created_by) VALUES (?,?,?,'deposit',?,?,'open',DATE_ADD(CURDATE(),INTERVAL 1 DAY),?,?,?)",
+        );
+        $stmt->bind_param(
+            "siiddssi",
+            $receipt,
+            $customer_id,
+            $order_id,
+            $amount,
+            $amount,
+            $method,
+            $note,
+            $uid,
+        );
+        if (!$stmt->execute()) {
+            throw new Exception($stmt->error);
+        }
+        $advance_transaction_id = $conn->insert_id;
+        $stmt->close();
 
         $name_safe = esc($conn, $name);
-        if (!$conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'") || $conn->affected_rows !== 1) {
-            throw new Exception('Open order was not found.');
+        if (
+            !$conn->query(
+                "UPDATE orders SET customer_id=$customer_id,customer_name='$name_safe' WHERE order_id=$order_id AND order_status='open'",
+            ) ||
+            $conn->affected_rows !== 1
+        ) {
+            throw new Exception("Open order was not found.");
         }
         $conn->commit();
-        header("Location: print_advance.php?transaction_id=$advance_transaction_id&return_order=$order_id"); exit;
+        header(
+            "Location: print_advance.php?transaction_id=$advance_transaction_id&return_order=$order_id",
+        );
+        exit();
     } catch (Throwable $e) {
         $conn->rollback();
-        header("Location: pos.php?order_id=$order_id&advance_error=1"); exit;
+        header("Location: pos.php?order_id=$order_id&advance_error=1");
+        exit();
     }
 }
 
@@ -473,37 +726,59 @@ if (isset($_POST['create_checkout_advance'])) {
    PAY ORDER
 ========================================================= */
 if (isset($_POST["pay_order"])) {
-    $order_id       = (int)($_POST["order_id"] ?? 0);
-    $order_type     = "retail";
+    $order_id = (int) ($_POST["order_id"] ?? 0);
+    $order_type = "retail";
     $payment_method = trim($_POST["payment_method"] ?? "Cash");
-    $cash_given     = (float)($_POST["cash_given"] ?? 0);
-    $discount_type  = trim($_POST["discount_type"] ?? "fixed");
-    $discount_value = max(0, (float)($_POST["discount_value"] ?? 0));
-    $apply_service_charge = isset($_POST["apply_service_charge"]) && $_POST["apply_service_charge"] === "1";
-    $apply_packaging_fee = isset($_POST["apply_packaging_fee"]) && $_POST["apply_packaging_fee"] === "1";
-    $packaging_fee = $apply_packaging_fee ? max(0, round((float)($_POST["packaging_fee"] ?? 0), 2)) : 0;
-    $apply_advance = isset($_POST['apply_advance']) && $_POST['apply_advance'] === '1';
-    $requested_advance = $apply_advance ? max(0, round((float)($_POST['advance_to_use'] ?? 0), 2)) : 0.0;
-    $selected_customer_id = (int)($_POST['checkout_customer_id'] ?? 0);
+    $cash_given = (float) ($_POST["cash_given"] ?? 0);
+    $discount_type = trim($_POST["discount_type"] ?? "fixed");
+    $discount_value = max(0, (float) ($_POST["discount_value"] ?? 0));
+    $apply_service_charge =
+        isset($_POST["apply_service_charge"]) &&
+        $_POST["apply_service_charge"] === "1";
+    $apply_packaging_fee =
+        isset($_POST["apply_packaging_fee"]) &&
+        $_POST["apply_packaging_fee"] === "1";
+    $packaging_fee = $apply_packaging_fee
+        ? max(0, round((float) ($_POST["packaging_fee"] ?? 0), 2))
+        : 0;
+    $apply_advance =
+        isset($_POST["apply_advance"]) && $_POST["apply_advance"] === "1";
+    $requested_advance = $apply_advance
+        ? max(0, round((float) ($_POST["advance_to_use"] ?? 0), 2))
+        : 0.0;
+    $selected_customer_id = (int) ($_POST["checkout_customer_id"] ?? 0);
 
-    $allowed_payment_methods = ["Cash", "Card", "QR", "Bank Transfer", "Cheque"];
+    $allowed_payment_methods = [
+        "Cash",
+        "Card",
+        "QR",
+        "Bank Transfer",
+        "Cheque",
+    ];
 
-    $type_q = $conn->query("SELECT order_type,customer_id FROM orders WHERE order_id=$order_id AND order_status='open' LIMIT 1");
+    $type_q = $conn->query(
+        "SELECT order_type,customer_id FROM orders WHERE order_id=$order_id AND order_status='open' LIMIT 1",
+    );
     $customer_id = 0;
     if ($type_q && $type_q->num_rows > 0) {
         $order_payment_row = $type_q->fetch_assoc();
         $saved_type = $order_payment_row["order_type"] ?? "retail";
-        $customer_id = (int)($order_payment_row['customer_id'] ?? 0);
+        $customer_id = (int) ($order_payment_row["customer_id"] ?? 0);
         $order_type = $saved_type === "wholesale" ? "wholesale" : "retail";
     }
-    if ($selected_customer_id > 0) $customer_id = $selected_customer_id;
-    if (!in_array($payment_method, $allowed_payment_methods)) $payment_method = "Cash";
+    if ($selected_customer_id > 0) {
+        $customer_id = $selected_customer_id;
+    }
+    if (!in_array($payment_method, $allowed_payment_methods)) {
+        $payment_method = "Cash";
+    }
 
     // Re-apply the authoritative product price before calculating payment.
     // Manual/custom items are intentionally excluded because their price is typed by the cashier.
-    $checkout_price_expression = $order_type === "wholesale"
-        ? "CASE WHEN p.wholesale_price > 0 THEN p.wholesale_price ELSE p.price END"
-        : "p.price";
+    $checkout_price_expression =
+        $order_type === "wholesale"
+            ? "CASE WHEN p.wholesale_price > 0 THEN p.wholesale_price ELSE p.price END"
+            : "p.price";
     $conn->query("
         UPDATE order_items oi
         INNER JOIN products p ON p.product_id = oi.product_id
@@ -515,11 +790,15 @@ if (isset($_POST["pay_order"])) {
           AND oi.price_overridden = 0
     ");
 
-    $sum_q    = $conn->query("SELECT SUM(line_total) AS subtotal FROM order_items WHERE order_id=$order_id");
+    $sum_q = $conn->query(
+        "SELECT SUM(line_total) AS subtotal FROM order_items WHERE order_id=$order_id",
+    );
     $subtotal = 0;
-    if ($sum_q && $sum_q->num_rows > 0) { $subtotal = (float)($sum_q->fetch_assoc()["subtotal"] ?? 0); }
+    if ($sum_q && $sum_q->num_rows > 0) {
+        $subtotal = (float) ($sum_q->fetch_assoc()["subtotal"] ?? 0);
+    }
 
-    $service_charge = $apply_service_charge ? round($subtotal * 0.10, 2) : 0;
+    $service_charge = $apply_service_charge ? round($subtotal * 0.1, 2) : 0;
     if ($discount_type === "percentage") {
         $discount_value = min(100, $discount_value);
         $discount = round($subtotal * ($discount_value / 100), 2);
@@ -528,98 +807,198 @@ if (isset($_POST["pay_order"])) {
         $discount = round($discount_value, 2);
     }
     $discount = min($subtotal + $service_charge + $packaging_fee, $discount);
-    $total_amount = max(0, $subtotal + $service_charge + $packaging_fee - $discount);
+    $total_amount = max(
+        0,
+        $subtotal + $service_charge + $packaging_fee - $discount,
+    );
     $advance_used = 0.0;
     if ($requested_advance > 0 && $customer_id > 0) {
-        $aq = $conn->query("SELECT COALESCE(SUM(remaining_amount),0) advance_balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0");
-        $available_advance = $aq ? (float)$aq->fetch_assoc()['advance_balance'] : 0;
-        $advance_used = min($requested_advance, $available_advance, $total_amount);
+        $aq = $conn->query(
+            "SELECT COALESCE(SUM(remaining_amount),0) advance_balance FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0",
+        );
+        $available_advance = $aq
+            ? (float) $aq->fetch_assoc()["advance_balance"]
+            : 0;
+        $advance_used = min(
+            $requested_advance,
+            $available_advance,
+            $total_amount,
+        );
     }
     $amount_due = max(0, $total_amount - $advance_used);
-    if ($payment_method !== "Cash") $cash_given = $amount_due;
+    if ($payment_method !== "Cash") {
+        $cash_given = $amount_due;
+    }
     $balance = $cash_given - $amount_due;
 
     if ($payment_method === "Cash" && $cash_given < $amount_due) {
-        header("Location: pos.php?order_id=$order_id&pay_error=1"); exit;
+        header("Location: pos.php?order_id=$order_id&pay_error=1");
+        exit();
     }
 
-    $pm_safe = esc($conn, $advance_used >= $total_amount && $total_amount > 0 ? 'Credit' : $payment_method);
+    $pm_safe = esc(
+        $conn,
+        $advance_used >= $total_amount && $total_amount > 0
+            ? "Credit"
+            : $payment_method,
+    );
     $conn->begin_transaction();
     try {
         if ($customer_id > 0) {
-            $customer_result = $conn->query("SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE");
-            $customer_row = $customer_result ? $customer_result->fetch_assoc() : null;
-            if (!$customer_row) throw new Exception('Selected customer advance account was not found.');
-            $customer_name_safe = esc($conn, $customer_row['customer_name']);
-            $conn->query("UPDATE orders SET customer_id=$customer_id,customer_name='$customer_name_safe' WHERE order_id=$order_id AND order_status='open'");
+            $customer_result = $conn->query(
+                "SELECT customer_name FROM customer_accounts WHERE customer_id=$customer_id AND status=1 FOR UPDATE",
+            );
+            $customer_row = $customer_result
+                ? $customer_result->fetch_assoc()
+                : null;
+            if (!$customer_row) {
+                throw new Exception(
+                    "Selected customer advance account was not found.",
+                );
+            }
+            $customer_name_safe = esc($conn, $customer_row["customer_name"]);
+            $conn->query(
+                "UPDATE orders SET customer_id=$customer_id,customer_name='$customer_name_safe' WHERE order_id=$order_id AND order_status='open'",
+            );
         }
         if ($advance_used > 0) {
-            $lock = $conn->query("SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id FOR UPDATE")->fetch_assoc();
-            if ((float)$lock['advance_balance'] < $advance_used) throw new Exception('Customer advance balance changed. Please try again.');
-            $stmt = $conn->prepare('UPDATE customer_accounts SET advance_balance=advance_balance-? WHERE customer_id=?');
-            $stmt->bind_param('di', $advance_used, $customer_id); $stmt->execute(); $stmt->close();
-            $to_allocate = $advance_used; $uid = (int)$_SESSION['user_id']; $note = 'Applied to POS order';
-            $deposits = $conn->query("SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE");
-            while ($to_allocate > 0.0001 && $deposit = $deposits->fetch_assoc()) {
-                $source_id = (int)$deposit['transaction_id'];
-                $applied = min($to_allocate, (float)$deposit['remaining_amount']);
-                $new_remaining = max(0, (float)$deposit['remaining_amount'] - $applied);
-                $new_status = $new_remaining <= 0.0001 ? 'settled' : 'partial';
-                $conn->query("UPDATE advance_payment_transactions SET remaining_amount=$new_remaining,settlement_status='$new_status' WHERE transaction_id=$source_id");
-                $receipt = nextAdvanceReceipt($conn);
-                $stmt = $conn->prepare("INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)");
-                $stmt->bind_param('siiidsi', $receipt, $customer_id, $order_id, $source_id, $applied, $note, $uid);
-                if (!$stmt->execute()) throw new Exception($stmt->error);
-                $stmt->close(); $to_allocate -= $applied;
+            $lock = $conn
+                ->query(
+                    "SELECT advance_balance FROM customer_accounts WHERE customer_id=$customer_id FOR UPDATE",
+                )
+                ->fetch_assoc();
+            if ((float) $lock["advance_balance"] < $advance_used) {
+                throw new Exception(
+                    "Customer advance balance changed. Please try again.",
+                );
             }
-            if ($to_allocate > 0.0001) throw new Exception('Advance deposit allocation could not be completed.');
+            $stmt = $conn->prepare(
+                "UPDATE customer_accounts SET advance_balance=advance_balance-? WHERE customer_id=?",
+            );
+            $stmt->bind_param("di", $advance_used, $customer_id);
+            $stmt->execute();
+            $stmt->close();
+            $to_allocate = $advance_used;
+            $uid = (int) $_SESSION["user_id"];
+            $note = "Applied to POS order";
+            $deposits = $conn->query(
+                "SELECT transaction_id,remaining_amount FROM advance_payment_transactions WHERE customer_id=$customer_id AND transaction_type='deposit' AND order_id IS NULL AND remaining_amount>0 ORDER BY created_at,transaction_id FOR UPDATE",
+            );
+            while (
+                $to_allocate > 0.0001 &&
+                ($deposit = $deposits->fetch_assoc())
+            ) {
+                $source_id = (int) $deposit["transaction_id"];
+                $applied = min(
+                    $to_allocate,
+                    (float) $deposit["remaining_amount"],
+                );
+                $new_remaining = max(
+                    0,
+                    (float) $deposit["remaining_amount"] - $applied,
+                );
+                $new_status = $new_remaining <= 0.0001 ? "settled" : "partial";
+                $conn->query(
+                    "UPDATE advance_payment_transactions SET remaining_amount=$new_remaining,settlement_status='$new_status' WHERE transaction_id=$source_id",
+                );
+                $receipt = nextAdvanceReceipt($conn);
+                $stmt = $conn->prepare(
+                    "INSERT INTO advance_payment_transactions (receipt_number,customer_id,order_id,parent_transaction_id,transaction_type,amount,remaining_amount,settlement_status,payment_method,reference_note,created_by) VALUES (?,?,?,?,'sale_usage',?,0,'settled','Advance Account',?,?)",
+                );
+                $stmt->bind_param(
+                    "siiidsi",
+                    $receipt,
+                    $customer_id,
+                    $order_id,
+                    $source_id,
+                    $applied,
+                    $note,
+                    $uid,
+                );
+                if (!$stmt->execute()) {
+                    throw new Exception($stmt->error);
+                }
+                $stmt->close();
+                $to_allocate -= $applied;
+            }
+            if ($to_allocate > 0.0001) {
+                throw new Exception(
+                    "Advance deposit allocation could not be completed.",
+                );
+            }
         }
-        $updated = $conn->query("UPDATE orders SET order_type='$order_type', subtotal=$subtotal, discount=$discount, service_charge=$service_charge, packaging_fee=$packaging_fee, total_amount=$total_amount, advance_used=$advance_used, payment_method='$pm_safe', cash_given=$cash_given, balance=$balance, order_status='paid', payment_status='paid', paid_at=NOW() WHERE order_id=$order_id AND order_status='open'");
-        if (!$updated || $conn->affected_rows !== 1) throw new Exception('Order could not be completed.');
+        $updated = $conn->query(
+            "UPDATE orders SET order_type='$order_type', subtotal=$subtotal, discount=$discount, service_charge=$service_charge, packaging_fee=$packaging_fee, total_amount=$total_amount, advance_used=$advance_used, payment_method='$pm_safe', cash_given=$cash_given, balance=$balance, order_status='paid', payment_status='paid', paid_at=NOW() WHERE order_id=$order_id AND order_status='open'",
+        );
+        if (!$updated || $conn->affected_rows !== 1) {
+            throw new Exception("Order could not be completed.");
+        }
         $conn->commit();
     } catch (Throwable $e) {
-        $conn->rollback(); die('Payment error: '.htmlspecialchars($e->getMessage()));
+        $conn->rollback();
+        die("Payment error: " . htmlspecialchars($e->getMessage()));
     }
-    header("Location: print_bill.php?order_id=" . $order_id); exit;
+    header("Location: print_bill.php?order_id=" . $order_id);
+    exit();
 }
 
 /* =========================================================
    FILTERS & DATA
 ========================================================= */
-$filter_category = isset($_GET["category"]) ? (int)$_GET["category"] : 0;
-$search          = isset($_GET["search"])   ? trim($_GET["search"])   : "";
+$filter_category = isset($_GET["category"]) ? (int) $_GET["category"] : 0;
+$search = isset($_GET["search"]) ? trim($_GET["search"]) : "";
 
-$categories  = $conn->query("SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC");
-$tables      = false;
+$categories = $conn->query(
+    "SELECT * FROM categories WHERE status=1 ORDER BY category_name ASC",
+);
+$tables = false;
 
 $product_sql = "SELECT * FROM products WHERE status=1";
-if ($filter_category > 0)  $product_sql .= " AND category_id=$filter_category";
-if ($search !== "")        $product_sql .= " AND product_name LIKE '%" . $conn->real_escape_string($search) . "%'";
+if ($filter_category > 0) {
+    $product_sql .= " AND category_id=$filter_category";
+}
+if ($search !== "") {
+    $product_sql .=
+        " AND product_name LIKE '%" . $conn->real_escape_string($search) . "%'";
+}
 $product_sql .= " ORDER BY product_name ASC";
 $products = $conn->query($product_sql);
 
-$open_orders = $conn->query("SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0) ORDER BY o.order_id DESC");
-$advance_customers = $conn->query("SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name");
+$open_orders = $conn->query(
+    "SELECT o.*,t.table_name FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0) ORDER BY o.order_id DESC",
+);
+$advance_customers = $conn->query(
+    "SELECT customer_id,account_number,customer_name,phone,advance_balance FROM customer_accounts WHERE status=1 ORDER BY customer_name",
+);
 $checkout_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,
     (SELECT t.transaction_id FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.transaction_type='deposit' AND t.order_id IS NULL ORDER BY t.transaction_id DESC LIMIT 1) latest_advance_receipt_id
     FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name");
-$modal_customers = $conn->query("SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,(SELECT COALESCE(SUM(t.amount),0) FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.order_id=$current_order_id AND t.transaction_type='deposit') installment_paid FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name");
+$modal_customers = $conn->query(
+    "SELECT c.customer_id,c.account_number,c.customer_name,c.phone,c.advance_balance,(SELECT COALESCE(SUM(t.amount),0) FROM advance_payment_transactions t WHERE t.customer_id=c.customer_id AND t.order_id=$current_order_id AND t.transaction_type='deposit') installment_paid FROM customer_accounts c WHERE c.status=1 ORDER BY c.customer_name",
+);
 
 /* =========================================================
    LOAD CURRENT ORDER
 ========================================================= */
 $current_order = null;
-$order_items   = null;
-$grand_total   = 0;
-$cart_count    = 0;
+$order_items = null;
+$grand_total = 0;
+$cart_count = 0;
 
 if ($current_order_id > 0) {
-    $cq = $conn->query("SELECT o.*,t.table_name,c.account_number,c.advance_balance FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id LEFT JOIN customer_accounts c ON c.customer_id=o.customer_id WHERE o.order_id=$current_order_id LIMIT 1");
+    $cq = $conn->query(
+        "SELECT o.*,t.table_name,c.account_number,c.advance_balance FROM orders o LEFT JOIN restaurant_tables t ON o.table_id=t.table_id LEFT JOIN customer_accounts c ON c.customer_id=o.customer_id WHERE o.order_id=$current_order_id LIMIT 1",
+    );
     if ($cq && $cq->num_rows > 0) {
         $current_order = $cq->fetch_assoc();
-        $order_items   = $conn->query("SELECT oi.*,p.product_name FROM order_items oi LEFT JOIN products p ON oi.product_id=p.product_id WHERE oi.order_id=$current_order_id ORDER BY oi.order_item_id ASC");
+        $order_items = $conn->query(
+            "SELECT oi.*,p.product_name FROM order_items oi LEFT JOIN products p ON oi.product_id=p.product_id WHERE oi.order_id=$current_order_id ORDER BY oi.order_item_id ASC",
+        );
         if ($order_items) {
-            while ($item = $order_items->fetch_assoc()) { $grand_total += (float)$item["line_total"]; $cart_count++; }
+            while ($item = $order_items->fetch_assoc()) {
+                $grand_total += (float) $item["line_total"];
+                $cart_count++;
+            }
             mysqli_data_seek($order_items, 0);
         }
     }
@@ -628,10 +1007,12 @@ if ($current_order_id > 0) {
 $user_role = $_SESSION["role"] ?? "cashier";
 
 // Count open orders for badge
-$open_count_q = $conn->query("SELECT COUNT(*) AS cnt FROM orders o WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0)");
-$open_count   = ($open_count_q) ? (int)$open_count_q->fetch_assoc()["cnt"] : 0;
+$open_count_q = $conn->query(
+    "SELECT COUNT(*) AS cnt FROM orders o WHERE o.order_status='open' AND NOT EXISTS (SELECT 1 FROM advance_payment_transactions apt WHERE apt.order_id=o.order_id AND apt.transaction_type='deposit' AND apt.remaining_amount>0)",
+);
+$open_count = $open_count_q ? (int) $open_count_q->fetch_assoc()["cnt"] : 0;
 
-$display_total = number_format($grand_total, 2, '.', '');
+$display_total = number_format($grand_total, 2, ".", "");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -903,11 +1284,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <i class="fa-solid fa-file-invoice-dollar"></i> Installments
         </a>
 
-        <?php if ($user_role === 'admin'): ?>
+        <?php if ($user_role === "admin"): ?>
         <a class="tb-btn btn-owner" href="dashboard.php">
             <i class="fa-solid fa-gauge-high"></i> Dashboard
         </a>
-        <?php elseif ($user_role === 'accountant'): ?>
+        <?php elseif ($user_role === "accountant"): ?>
         <button class="tb-btn btn-owner" type="button" onclick="openAdminModal()">
             <i class="fa-solid fa-lock"></i> Dashboard
         </button>
@@ -917,13 +1298,19 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         </button>
         <?php endif; ?>
 
-      <a href="<?php echo in_array($user_role,['admin','accountant'],true)?'admin/products.php':'cashier_products.php'; ?>" class="tb-btn btn-owner">
+      <a href="<?php echo in_array($user_role, ["admin", "accountant"], true)
+          ? "admin/products.php"
+          : "cashier_products.php"; ?>" class="tb-btn btn-owner">
     <i class="fa-solid fa-boxes-stacked"></i> Add Stock
 </a>
 
         <div class="cashier-pill">
-            <div class="avatar"><?php echo strtoupper(substr($_SESSION["full_name"] ?? "U", 0, 1)); ?></div>
-            <span class="name"><?php echo htmlspecialchars($_SESSION["full_name"] ?? "Cashier"); ?></span>
+            <div class="avatar"><?php echo strtoupper(
+                substr($_SESSION["full_name"] ?? "U", 0, 1),
+            ); ?></div>
+            <span class="name"><?php echo htmlspecialchars(
+                $_SESSION["full_name"] ?? "Cashier",
+            ); ?></span>
             <span class="role-badge"><?php echo ucfirst($user_role); ?></span>
         </div>
 
@@ -957,16 +1344,36 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <div class="orders-list">
             <?php if ($open_orders && $open_orders->num_rows > 0): ?>
                 <?php while ($oo = $open_orders->fetch_assoc()): ?>
-                    <a href="pos.php?order_id=<?php echo (int)$oo["order_id"]; ?>" class="order-card <?php echo ($current_order_id == $oo["order_id"]) ? 'active' : ''; ?>">
+                    <a href="pos.php?order_id=<?php echo (int) $oo[
+                        "order_id"
+                    ]; ?>" class="order-card <?php echo $current_order_id ==
+$oo["order_id"]
+    ? "active"
+    : ""; ?>">
                         <div class="oc-top">
-                            <div class="oc-no"><?php echo htmlspecialchars($oo["order_number"] ?: ('ORD-' . str_pad($oo["order_id"], 5, '0', STR_PAD_LEFT))); ?></div>
+                            <div class="oc-no"><?php echo htmlspecialchars(
+                                $oo["order_number"] ?:
+                                "ORD-" .
+                                    str_pad(
+                                        $oo["order_id"],
+                                        5,
+                                        "0",
+                                        STR_PAD_LEFT,
+                                    ),
+                            ); ?></div>
                             <div class="oc-status">Open</div>
                         </div>
                         <div class="oc-meta">
-                            <div><i class="fa-solid fa-bag-shopping"></i> <?php echo ucfirst(str_replace('_', ' ', $oo["order_type"])); ?></div>
-                            <div><i class="fa-solid fa-user"></i> <?php echo htmlspecialchars($oo["customer_name"] ?: 'Walk-in'); ?></div>
+                            <div><i class="fa-solid fa-bag-shopping"></i> <?php echo ucfirst(
+                                str_replace("_", " ", $oo["order_type"]),
+                            ); ?></div>
+                            <div><i class="fa-solid fa-user"></i> <?php echo htmlspecialchars(
+                                $oo["customer_name"] ?: "Walk-in",
+                            ); ?></div>
                             <?php if ($oo["table_name"]): ?>
-                            <div><i class="fa-solid fa-table"></i> <?php echo htmlspecialchars($oo["table_name"]); ?></div>
+                            <div><i class="fa-solid fa-table"></i> <?php echo htmlspecialchars(
+                                $oo["table_name"],
+                            ); ?></div>
                             <?php endif; ?>
                         </div>
                     </a>
@@ -988,9 +1395,12 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <h3>Add Custom Item</h3>
             </div>
 
-            <?php if ($current_order && $current_order["order_status"] === "open"): ?>
+            <?php if (
+                $current_order &&
+                $current_order["order_status"] === "open"
+            ): ?>
                 <form method="POST" class="manual-form">
-                    <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+                    <input type="hidden" name="order_id" value="<?php echo (int) $current_order_id; ?>">
                     <input type="text"   name="manual_item_name"  class="inp" placeholder="Item name" required>
                     <input type="number" name="manual_item_price" class="inp" step="0.01" min="0.01" placeholder="Price (Rs.)" required>
                     <input type="number" name="manual_item_qty"   class="inp" min="1" value="1" required>
@@ -1012,15 +1422,17 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
                 <form method="GET" class="filter-row">
                     <?php if ($current_order_id > 0): ?>
-                        <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+                        <input type="hidden" name="order_id" value="<?php echo (int) $current_order_id; ?>">
                     <?php endif; ?>
                     <?php if ($filter_category > 0): ?>
-                        <input type="hidden" name="category" value="<?php echo (int)$filter_category; ?>">
+                        <input type="hidden" name="category" value="<?php echo (int) $filter_category; ?>">
                     <?php endif; ?>
 
                     <div class="sw">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" name="search" class="search-inp" placeholder="Search products or SKU…" value="<?php echo htmlspecialchars($search); ?>">
+                        <input type="text" name="search" class="search-inp" placeholder="Search products or SKU…" value="<?php echo htmlspecialchars(
+                            $search,
+                        ); ?>">
                     </div>
                     <button type="submit" class="btn-search">
                         <i class="fa-solid fa-magnifying-glass"></i> Search
@@ -1028,19 +1440,35 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 </form>
 
                 <div class="cat-pills">
-                    <a href="pos.php<?php echo $current_order_id > 0 ? '?order_id='.$current_order_id : ''; ?>" class="cpill <?php echo ($filter_category == 0 && $search == '') ? 'active' : ''; ?>">
+                    <a href="pos.php<?php echo $current_order_id > 0
+                        ? "?order_id=" . $current_order_id
+                        : ""; ?>" class="cpill <?php echo $filter_category ==
+    0 && $search == ""
+    ? "active"
+    : ""; ?>">
                         <i class="fa-solid fa-border-all"></i> All
                     </a>
-                    <?php
-                    if ($categories && $categories->num_rows > 0) {
+                    <?php if ($categories && $categories->num_rows > 0) {
                         mysqli_data_seek($categories, 0);
                         while ($cat = $categories->fetch_assoc()) {
-                            $cls = ($filter_category == $cat["category_id"]) ? "active" : "";
-                            $url = "pos.php?order_id=".(int)$current_order_id."&category=".(int)$cat["category_id"];
-                            echo '<a href="'.$url.'" class="cpill '.$cls.'"><i class="fa-solid fa-tag"></i> '.htmlspecialchars($cat["category_name"]).'</a>';
+                            $cls =
+                                $filter_category == $cat["category_id"]
+                                    ? "active"
+                                    : "";
+                            $url =
+                                "pos.php?order_id=" .
+                                (int) $current_order_id .
+                                "&category=" .
+                                (int) $cat["category_id"];
+                            echo '<a href="' .
+                                $url .
+                                '" class="cpill ' .
+                                $cls .
+                                '"><i class="fa-solid fa-tag"></i> ' .
+                                htmlspecialchars($cat["category_name"]) .
+                                "</a>";
                         }
-                    }
-                    ?>
+                    } ?>
                 </div>
             </div>
 
@@ -1048,28 +1476,60 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <?php if ($products && $products->num_rows > 0): ?>
                     <?php while ($row = $products->fetch_assoc()): ?>
                         <?php
-                        $is_wholesale_sale = $current_order && $current_order['order_type'] === 'wholesale';
-                        $display_price = $is_wholesale_sale && (float)$row['wholesale_price'] > 0
-                            ? (float)$row['wholesale_price']
-                            : (float)$row['price'];
-                        $price_label = $is_wholesale_sale ? 'Wholesale price' : 'Retail price';
+                        $is_wholesale_sale =
+                            $current_order &&
+                            $current_order["order_type"] === "wholesale";
+                        $display_price =
+                            $is_wholesale_sale &&
+                            (float) $row["wholesale_price"] > 0
+                                ? (float) $row["wholesale_price"]
+                                : (float) $row["price"];
+                        $price_label = $is_wholesale_sale
+                            ? "Wholesale price"
+                            : "Retail price";
                         ?>
-                        <?php if ($current_order && $current_order["order_status"] === "open" && (float)$row['stock_qty'] >= 1): ?>
+                        <?php if (
+                            $current_order &&
+                            $current_order["order_status"] === "open" &&
+                            (float) $row["stock_qty"] >= 1
+                        ): ?>
                             <div class="pcard"
-                                 onclick="addItem(<?php echo (int)$current_order_id; ?>, <?php echo (int)$row['product_id']; ?>, this)"
+                                 onclick="addItem(<?php echo (int) $current_order_id; ?>, <?php echo (int) $row[
+    "product_id"
+]; ?>, this)"
                                  title="Click to add to order">
                                 <div class="pcard-icon"><i class="fa-solid fa-box"></i></div>
-                                <div class="pcard-name"><?php echo htmlspecialchars($row["product_name"]); ?></div>
-                                <div class="pcard-price">Rs. <?php echo number_format($display_price, 2); ?></div>
+                                <div class="pcard-name"><?php echo htmlspecialchars(
+                                    $row["product_name"],
+                                ); ?></div>
+                                <div class="pcard-price">Rs. <?php echo number_format(
+                                    $display_price,
+                                    2,
+                                ); ?></div>
                                 <div class="pcard-sub"><?php echo $price_label; ?> · Tap to add</div>
-                                <div class="pcard-stock <?php echo (float)$row['stock_qty'] <= (float)$row['reorder_level'] ? 'low' : ''; ?>"><?php echo number_format($row['stock_qty'],0); ?> <?php echo htmlspecialchars($row['unit']); ?> available</div>
+                                <div class="pcard-stock <?php echo (float) $row[
+                                    "stock_qty"
+                                ] <= (float) $row["reorder_level"]
+                                    ? "low"
+                                    : ""; ?>"><?php echo number_format(
+    $row["stock_qty"],
+    0,
+); ?> <?php echo htmlspecialchars($row["unit"]); ?> available</div>
                                 <span class="pcard-badge">+ Add</span>
                             </div>
-                        <?php elseif ($current_order && $current_order["order_status"] === "open"): ?>
+                        <?php elseif (
+                            $current_order &&
+                            $current_order["order_status"] === "open"
+                        ): ?>
                             <div class="pcard disabled" title="Out of stock">
                                 <div class="pcard-icon"><i class="fa-solid fa-box-open"></i></div>
-                                <div class="pcard-name"><?php echo htmlspecialchars($row["product_name"]); ?></div>
-                                <div class="pcard-price">Rs. <?php echo number_format($display_price, 2); ?></div>
+                                <div class="pcard-name"><?php echo htmlspecialchars(
+                                    $row["product_name"],
+                                ); ?></div>
+                                <div class="pcard-price">Rs. <?php echo number_format(
+                                    $display_price,
+                                    2,
+                                ); ?></div>
                                 <div class="pcard-stock low">Out of stock</div>
                             </div>
                         <?php else: ?>
@@ -1077,10 +1537,22 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                                  onclick="noOrderAlert()"
                                  title="Create an order first">
                                 <div class="pcard-icon"><i class="fa-solid fa-box"></i></div>
-                                <div class="pcard-name"><?php echo htmlspecialchars($row["product_name"]); ?></div>
-                                <div class="pcard-price">Rs. <?php echo number_format($row["price"], 2); ?></div>
+                                <div class="pcard-name"><?php echo htmlspecialchars(
+                                    $row["product_name"],
+                                ); ?></div>
+                                <div class="pcard-price">Rs. <?php echo number_format(
+                                    $row["price"],
+                                    2,
+                                ); ?></div>
                                 <div class="pcard-sub">Retail price · Select sale first</div>
-                                <div class="pcard-stock <?php echo (float)$row['stock_qty'] <= (float)$row['reorder_level'] ? 'low' : ''; ?>"><?php echo number_format($row['stock_qty'],0); ?> <?php echo htmlspecialchars($row['unit']); ?> available</div>
+                                <div class="pcard-stock <?php echo (float) $row[
+                                    "stock_qty"
+                                ] <= (float) $row["reorder_level"]
+                                    ? "low"
+                                    : ""; ?>"><?php echo number_format(
+    $row["stock_qty"],
+    0,
+); ?> <?php echo htmlspecialchars($row["unit"]); ?> available</div>
                             </div>
                         <?php endif; ?>
                     <?php endwhile; ?>
@@ -1102,13 +1574,30 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
                 <?php if ($current_order): ?>
                     <div class="order-meta-box">
-                        <div><strong>Order:</strong> <?php echo htmlspecialchars($current_order["order_number"] ?: ('ORD-' . str_pad($current_order["order_id"], 5, '0', STR_PAD_LEFT))); ?></div>
-                        <div><strong>Customer:</strong> <?php echo htmlspecialchars($current_order["customer_name"] ?: 'Walk-in Customer'); ?></div>
+                        <div><strong>Order:</strong> <?php echo htmlspecialchars(
+                            $current_order["order_number"] ?:
+                            "ORD-" .
+                                str_pad(
+                                    $current_order["order_id"],
+                                    5,
+                                    "0",
+                                    STR_PAD_LEFT,
+                                ),
+                        ); ?></div>
+                        <div><strong>Customer:</strong> <?php echo htmlspecialchars(
+                            $current_order["customer_name"] ?:
+                            "Walk-in Customer",
+                        ); ?></div>
                         <?php if ($current_order["table_name"]): ?>
-                        <div><strong>Table:</strong> <?php echo htmlspecialchars($current_order["table_name"]); ?></div>
+                        <div><strong>Table:</strong> <?php echo htmlspecialchars(
+                            $current_order["table_name"],
+                        ); ?></div>
                         <?php endif; ?>
                     </div>
-                    <span class="count-badge"><?php echo (int)$cart_count; ?> item<?php echo $cart_count != 1 ? 's' : ''; ?></span>
+                    <span class="count-badge"><?php echo (int) $cart_count; ?> item<?php echo $cart_count !=
+ 1
+     ? "s"
+     : ""; ?></span>
                 <?php else: ?>
                     <div style="margin-top:10px;font-size:12px;color:var(--text-muted);font-weight:700;">No order selected</div>
                 <?php endif; ?>
@@ -1119,12 +1608,20 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <div class="ot-lbl">Sale Type</div>
                 <div class="ot-selected">
                     <span>
-                        <i class="fa-solid <?php echo $current_order["order_type"] === "wholesale" ? 'fa-boxes-stacked' : 'fa-basket-shopping'; ?>"></i>
-                        <?php echo $current_order["order_type"] === "wholesale" ? 'Wholesale Sale' : 'Retail Sale'; ?>
+                        <i class="fa-solid <?php echo $current_order[
+                            "order_type"
+                        ] === "wholesale"
+                            ? "fa-boxes-stacked"
+                            : "fa-basket-shopping"; ?>"></i>
+                        <?php echo $current_order["order_type"] === "wholesale"
+                            ? "Wholesale Sale"
+                            : "Retail Sale"; ?>
                     </span>
                     <small>Selected</small>
                 </div>
-                <input type="hidden" name="order_type" id="ot_val" value="<?php echo htmlspecialchars($current_order["order_type"] ?? 'retail'); ?>">
+                <input type="hidden" name="order_type" id="ot_val" value="<?php echo htmlspecialchars(
+                    $current_order["order_type"] ?? "retail",
+                ); ?>">
             </div>
             <?php endif; ?>
 
@@ -1133,46 +1630,87 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <?php if ($order_items && $order_items->num_rows > 0): ?>
                     <?php while ($item = $order_items->fetch_assoc()): ?>
                         <?php
-                        $lt        = (float)$item["line_total"];
-                        $item_name = $item["item_type"] === "manual" ? $item["custom_item_name"] : $item["product_name"];
+                        $lt = (float) $item["line_total"];
+                        $item_name =
+                            $item["item_type"] === "manual"
+                                ? $item["custom_item_name"]
+                                : $item["product_name"];
                         ?>
                         <div class="ci">
                             <div class="ci-info">
                                 <div class="ci-name">
                                     <?php echo htmlspecialchars($item_name); ?>
-                                    <?php if ($item["item_type"] === "manual"): ?>
+                                    <?php if (
+                                        $item["item_type"] === "manual"
+                                    ): ?>
                                         <span class="mchip">Custom</span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="ci-price-line">
-                                    <div class="ci-price">Rs. <?php echo number_format((float)$item["price"], 2); ?> each · Rs. <?php echo number_format($lt, 2); ?></div>
-                                    <?php if ((int)($item["price_overridden"] ?? 0) === 1): ?>
+                                    <div class="ci-price">Rs. <?php echo number_format(
+                                        (float) $item["price"],
+                                        2,
+                                    ); ?> each · Rs. <?php echo number_format(
+     $lt,
+     2,
+ ); ?></div>
+                                    <?php if (
+                                        (int) ($item["price_overridden"] ??
+                                            0) === 1
+                                    ): ?>
                                         <span class="override-chip">Edited</span>
                                         <?php if ($item["product_id"]): ?>
-                                            <a class="restore-price" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&restore_price=<?php echo (int)$item["order_item_id"]; ?>">Restore</a>
+                                            <a class="restore-price" href="pos.php?order_id=<?php echo (int) $current_order_id; ?>&restore_price=<?php echo (int) $item[
+    "order_item_id"
+]; ?>">Restore</a>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <?php if ($current_order["order_status"] === "open"): ?>
+                            <?php if (
+                                $current_order["order_status"] === "open"
+                            ): ?>
                                 <button type="button" class="price-edit" title="Edit unit price" aria-label="Edit unit price"
                                     data-price-edit="1"
-                                    data-item-id="<?php echo (int)$item['order_item_id']; ?>"
-                                    data-item-name="<?php echo htmlspecialchars($item_name, ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-current-price="<?php echo htmlspecialchars(number_format((float)$item['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                    data-item-id="<?php echo (int) $item[
+                                        "order_item_id"
+                                    ]; ?>"
+                                    data-item-name="<?php echo htmlspecialchars(
+                                        $item_name,
+                                        ENT_QUOTES,
+                                        "UTF-8",
+                                    ); ?>"
+                                    data-current-price="<?php echo htmlspecialchars(
+                                        number_format(
+                                            (float) $item["price"],
+                                            2,
+                                            ".",
+                                            "",
+                                        ),
+                                        ENT_QUOTES,
+                                        "UTF-8",
+                                    ); ?>">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                                 <div class="qc">
-                                    <a class="qcb" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&dec=<?php echo (int)$item["order_item_id"]; ?>">
+                                    <a class="qcb" href="pos.php?order_id=<?php echo (int) $current_order_id; ?>&dec=<?php echo (int) $item[
+    "order_item_id"
+]; ?>">
                                         <i class="fa-solid fa-minus"></i>
                                     </a>
-                                    <span class="qn"><?php echo (int)$item["quantity"]; ?></span>
-                                    <a class="qcb" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&inc=<?php echo (int)$item["order_item_id"]; ?>">
+                                    <span class="qn"><?php echo (int) $item[
+                                        "quantity"
+                                    ]; ?></span>
+                                    <a class="qcb" href="pos.php?order_id=<?php echo (int) $current_order_id; ?>&inc=<?php echo (int) $item[
+    "order_item_id"
+]; ?>">
                                         <i class="fa-solid fa-plus"></i>
                                     </a>
                                 </div>
-                                <a class="rm" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&remove=<?php echo (int)$item["order_item_id"]; ?>" title="Remove">
+                                <a class="rm" href="pos.php?order_id=<?php echo (int) $current_order_id; ?>&remove=<?php echo (int) $item[
+    "order_item_id"
+]; ?>" title="Remove">
                                     <i class="fa-solid fa-xmark"></i>
                                 </a>
                             <?php endif; ?>
@@ -1186,9 +1724,12 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <?php endif; ?>
             </div>
 
-            <?php if ($current_order["order_status"] === "open" && $cart_count > 0): ?>
+            <?php if (
+                $current_order["order_status"] === "open" &&
+                $cart_count > 0
+            ): ?>
                 <div class="clear-bar">
-                    <a class="btn-clear" href="pos.php?order_id=<?php echo (int)$current_order_id; ?>&clear=1" onclick="return confirm('Clear all items from this order?')">
+                    <a class="btn-clear" href="pos.php?order_id=<?php echo (int) $current_order_id; ?>&clear=1" onclick="return confirm('Clear all items from this order?')">
                         <i class="fa-solid fa-trash-can"></i> Clear Order
                     </a>
                 </div>
@@ -1208,10 +1749,15 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <?php endif; ?>
 
             <div class="pay-section">
-                <?php $service_charge_preview = round($grand_total * 0.10, 2); ?>
+                <?php $service_charge_preview = round($grand_total * 0.1, 2); ?>
                 <div class="total-row">
                     <span class="total-lbl">Subtotal</span>
-                    <span class="total-amt">Rs. <span id="subtotalAmt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
+                    <span class="total-amt">Rs. <span id="subtotalAmt"><?php echo number_format(
+                        $grand_total,
+                        2,
+                        ".",
+                        "",
+                    ); ?></span></span>
                 </div>
 
                 <div class="qz-info" id="qzInfo">
@@ -1225,15 +1771,24 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                     <div class="warn-box" style="margin-top:10px;"><i class="fa-solid fa-box-open"></i> Not enough stock is available for that product.</div>
                 <?php endif; ?>
 
-                <?php if ($current_order && $current_order["order_status"] === "open" && $cart_count > 0): ?>
-                    <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+                <?php if (
+                    $current_order &&
+                    $current_order["order_status"] === "open" &&
+                    $cart_count > 0
+                ): ?>
+                    <input type="hidden" name="order_id" value="<?php echo (int) $current_order_id; ?>">
 
                     <div class="service-row">
                         <label class="service-check" for="serviceChargeToggle">
                             <input type="checkbox" name="apply_service_charge" id="serviceChargeToggle" value="1" onchange="updateOrderFees()">
                             <span>Additional Charge (10%)</span>
                         </label>
-                        <span class="service-amt">Rs. <span id="serviceChargeAmt"><?php echo number_format($service_charge_preview, 2, '.', ''); ?></span></span>
+                        <span class="service-amt">Rs. <span id="serviceChargeAmt"><?php echo number_format(
+                            $service_charge_preview,
+                            2,
+                            ".",
+                            "",
+                        ); ?></span></span>
                     </div>
 
                     <div class="service-row discount-row">
@@ -1279,39 +1834,84 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
                     <div class="total-row">
                         <span class="total-lbl">Grand Total</span>
-                        <span class="total-amt">Rs. <span id="gt"><?php echo number_format($grand_total, 2, '.', ''); ?></span></span>
+                        <span class="total-amt">Rs. <span id="gt"><?php echo number_format(
+                            $grand_total,
+                            2,
+                            ".",
+                            "",
+                        ); ?></span></span>
                     </div>
 
                     <button type="button" class="customer-advance-launch" onclick="openCustomerPaymentPopup()"><span><i class="fa-solid fa-wallet"></i> Credit / Installments</span><small id="customerAdvanceLaunchText">Optional</small></button>
                     <div class="customer-payment-backdrop" id="customerPaymentBackdrop" onclick="closeCustomerPaymentPopup()"></div>
                     <div class="advance-box simple-payment-box">
                         <div class="advance-title"><div><i class="fa-solid fa-user-check"></i> Customer Payment Options</div><button type="button" class="customer-payment-close" onclick="closeCustomerPaymentPopup()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
-                        <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
+                        <?php if (
+                            $advance_error
+                        ): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Select a customer and enter a valid payment.</div><?php endif; ?>
                         <label class="advance-label">1. Select customer</label>
                         <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
                             <option value="0" data-balance="0">Walk-in / no customer</option>
-                            <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
-                            <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" data-receipt-id="<?php echo (int)($ac['latest_advance_receipt_id']??0); ?>" data-search="<?php echo htmlspecialchars(strtolower($ac['account_number'].' '.$ac['customer_name'].' '.$ac['phone']),ENT_QUOTES,'UTF-8'); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · '.$ac['phone']); ?></option>
-                            <?php endwhile; endif; ?>
+                            <?php if ($checkout_customers):
+                                while (
+                                    $ac = $checkout_customers->fetch_assoc()
+                                ): ?>
+                            <option value="<?php echo (int) $ac[
+                                "customer_id"
+                            ]; ?>" data-balance="<?php echo number_format(
+    (float) $ac["advance_balance"],
+    2,
+    ".",
+    "",
+); ?>" data-receipt-id="<?php echo (int) ($ac["latest_advance_receipt_id"] ??
+    0); ?>" data-search="<?php echo htmlspecialchars(
+    strtolower(
+        $ac["account_number"] . " " . $ac["customer_name"] . " " . $ac["phone"],
+    ),
+    ENT_QUOTES,
+    "UTF-8",
+); ?>" <?php echo (int) ($current_order["customer_id"] ?? 0) ===
+(int) $ac["customer_id"]
+    ? "selected"
+    : ""; ?>><?php echo htmlspecialchars(
+    $ac["account_number"] . " · " . $ac["customer_name"] . " · " . $ac["phone"],
+); ?></option>
+                            <?php endwhile;
+                            endif; ?>
                         </select>
-                        <div class="advance-balance-row"><span id="advanceAvailable">Available account credit: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance']??0),2); ?></strong></span><span id="customerSearchResult"></span></div>
+                        <div class="advance-balance-row"><span id="advanceAvailable">Available account credit: <strong>Rs. <?php echo number_format(
+                            (float) ($current_order["advance_balance"] ?? 0),
+                            2,
+                        ); ?></strong></span><span id="customerSearchResult"></span></div>
                         <input type="checkbox" name="apply_advance" id="useAdvanceToggle" value="1" style="display:none;">
-                        <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance']??0),2,'.',''); ?>" value="0.00">
+                        <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format(
+                            (float) ($current_order["advance_balance"] ?? 0),
+                            2,
+                            ".",
+                            "",
+                        ); ?>" value="0.00">
                         <label class="advance-label">2. Choose one option</label>
                         <div class="payment-choice-grid">
                             <button type="button" id="useAdvanceChoice" class="payment-choice advance-choice" onclick="chooseAdvancePayment()"><i class="fa-solid fa-wallet"></i><strong>Use Account Credit</strong><small>Deduct available credit from this sale</small></button>
                             <button type="button" class="payment-choice" onclick="openSimpleInstallment()"><i class="fa-solid fa-calendar-check"></i><strong>Pay by Installments</strong><small>Receive part payment and keep bill open</small></button>
                         </div>
                         <div id="advanceDecision" class="hint" style="margin:7px 0;color:#667085;font-weight:800;">Close this window to continue with a normal payment.</div>
-                        <div class="advance-due"><span>Amount to pay now</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                        <div class="advance-due"><span>Amount to pay now</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format(
+                            $grand_total,
+                            2,
+                        ); ?></span></strong></div>
                         <div class="advance-due" id="customerAdvanceAfterRow" style="display:none;background:#fff7ed;color:#9a3412;"><span>Account credit left</span><strong>Rs. <span id="customerAdvanceAfter">0.00</span></strong></div>
                         <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Reprint Latest Part-Payment Receipt</a>
                     </div>
 
                     <div class="advance-box legacy-advance-box" style="display:none;">
                         <div class="advance-title"><div><i class="fa-solid fa-wallet"></i> Customer Part Payments</div><small>Select customer → record payment → complete bill</small></div>
-                        <?php if ($advance_created): ?><div class="advance-message ok"><i class="fa-solid fa-circle-check"></i> New advance account created and selected.</div><?php endif; ?>
-                        <?php if ($advance_error): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Enter customer name and a valid advance amount.</div><?php endif; ?>
+                        <?php if (
+                            $advance_created
+                        ): ?><div class="advance-message ok"><i class="fa-solid fa-circle-check"></i> New advance account created and selected.</div><?php endif; ?>
+                        <?php if (
+                            $advance_error
+                        ): ?><div class="advance-message err"><i class="fa-solid fa-triangle-exclamation"></i> Enter customer name and a valid advance amount.</div><?php endif; ?>
                         <div class="advance-tabs">
                             <button type="button" class="advance-tab active" id="existingAdvanceTab" onclick="showAdvanceMode('existing')"><i class="fa-solid fa-users"></i> Existing Customer</button>
                             <button type="button" class="advance-tab" id="newAdvanceTab" onclick="showAdvanceMode('new')"><i class="fa-solid fa-user-plus"></i> New Customer + 1st Payment</button>
@@ -1320,15 +1920,49 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                             <label class="advance-label">Customer account</label>
                             <select name="checkout_customer_id" id="checkoutCustomerId" class="advance-control" onchange="selectAdvanceCustomer()">
                                 <option value="0" data-balance="0">Select customer</option>
-                                <?php if ($checkout_customers): while($ac=$checkout_customers->fetch_assoc()): ?>
-                                <option value="<?php echo (int)$ac['customer_id']; ?>" data-balance="<?php echo number_format((float)$ac['advance_balance'],2,'.',''); ?>" data-receipt-id="<?php echo (int)($ac['latest_advance_receipt_id']??0); ?>" <?php echo (int)($current_order['customer_id']??0)===(int)$ac['customer_id']?'selected':''; ?>><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
-                                <?php endwhile; endif; ?>
+                                <?php if ($checkout_customers):
+                                    while (
+                                        $ac = $checkout_customers->fetch_assoc()
+                                    ): ?>
+                                <option value="<?php echo (int) $ac[
+                                    "customer_id"
+                                ]; ?>" data-balance="<?php echo number_format(
+    (float) $ac["advance_balance"],
+    2,
+    ".",
+    "",
+); ?>" data-receipt-id="<?php echo (int) ($ac["latest_advance_receipt_id"] ??
+    0); ?>" <?php echo (int) ($current_order["customer_id"] ?? 0) ===
+(int) $ac["customer_id"]
+    ? "selected"
+    : ""; ?>><?php echo htmlspecialchars(
+    $ac["account_number"] .
+        " · " .
+        $ac["customer_name"] .
+        " · Rs. " .
+        number_format($ac["advance_balance"], 2),
+); ?></option>
+                                <?php endwhile;
+                                endif; ?>
                             </select>
-                            <div class="advance-balance-row"><span id="advanceAvailable">Total paid in advance: <strong>Rs. <?php echo number_format((float)($current_order['advance_balance'] ?? 0),2); ?></strong></span><span>Applied automatically</span></div>
+                            <div class="advance-balance-row"><span id="advanceAvailable">Total paid in advance: <strong>Rs. <?php echo number_format(
+                                (float) ($current_order["advance_balance"] ??
+                                    0),
+                                2,
+                            ); ?></strong></span><span>Applied automatically</span></div>
                             <a id="printAdvanceReceipt" class="advance-print-btn" href="#" target="_blank" style="display:none;"><i class="fa-solid fa-print"></i> Print Latest Advance Receipt</a>
 <details class="installment-box"><summary><i class="fa-solid fa-circle-plus"></i> Add Next Payment</summary><p>Use this for the 2nd, 3rd, or any later payment.</p><div class="advance-two"><div><label class="advance-label">Amount received</label><div class="advance-money"><span>Rs.</span><input type="number" name="installment_amount" min="0.01" step="0.01" placeholder="0.00"></div></div><div><label class="advance-label">Received by</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option><option>Cheque</option></select></div></div><button type="submit" name="add_checkout_installment" class="create-advance-btn" formnovalidate><i class="fa-solid fa-floppy-disk"></i> Save Payment &amp; Print Receipt</button></details>
-                            <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format((float)($current_order['advance_balance'] ?? 0),2,'.',''); ?>" value="0.00">
-                            <div class="advance-due"><span>Balance to collect now</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format($grand_total,2); ?></span></strong></div>
+                            <input type="hidden" name="advance_to_use" id="advanceToUse" max="<?php echo number_format(
+                                (float) ($current_order["advance_balance"] ??
+                                    0),
+                                2,
+                                ".",
+                                "",
+                            ); ?>" value="0.00">
+                            <div class="advance-due"><span>Balance to collect now</span><strong>Rs. <span id="remainingAfterAdvance"><?php echo number_format(
+                                $grand_total,
+                                2,
+                            ); ?></span></strong></div>
                             <div class="advance-auto-note"><i class="fa-solid fa-circle-info"></i> Pay &amp; Print Bill will use all available advance and complete the sale.</div>
                         </div>
                         <div id="newAdvancePanel" style="display:none;">
@@ -1376,7 +2010,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <?php else: ?>
                     <button type="button" class="pay-btn" disabled>
                         <i class="fa-solid fa-cart-shopping"></i>
-                        <?php echo $current_order ? 'Add items to pay' : 'No Active Order'; ?>
+                        <?php echo $current_order
+                            ? "Add items to pay"
+                            : "No Active Order"; ?>
                     </button>
                 <?php endif; ?>
             </div>
@@ -1391,9 +2027,30 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <div class="m-head"><div class="m-icon"><i class="fa-solid fa-wallet"></i></div><h2>Order Installment</h2><p id="paymentModalCustomer">Select an existing customer or create a new one</p></div>
         <div class="advance-tabs"><button type="button" class="advance-tab active" id="existingPaymentTab" onclick="setPaymentCustomerMode('existing')">Selected Customer</button><button type="button" class="advance-tab" id="newPaymentTab" onclick="setPaymentCustomerMode('new')">New Customer</button></div>
         <form method="post" id="existingPaymentForm">
-            <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+            <input type="hidden" name="order_id" value="<?php echo (int) $current_order_id; ?>">
             <div class="mf"><label>Search customer</label><input type="search" id="modalCustomerSearch" class="advance-control" placeholder="Name, phone or account number" oninput="filterModalCustomers()"></div>
-            <div class="mf"><label>Select customer *</label><select name="checkout_customer_id" id="modalCustomerId" class="advance-control" required onchange="selectModalCustomer()"><option value="">Choose customer</option><?php if($modal_customers): while($mc=$modal_customers->fetch_assoc()): ?><option value="<?php echo (int)$mc['customer_id']; ?>" data-installments="<?php echo number_format((float)$mc['installment_paid'],2,'.',''); ?>" data-search="<?php echo htmlspecialchars(strtolower($mc['account_number'].' '.$mc['customer_name'].' '.$mc['phone']),ENT_QUOTES,'UTF-8'); ?>"><?php echo htmlspecialchars($mc['account_number'].' · '.$mc['customer_name'].' · '.$mc['phone']); ?></option><?php endwhile; endif; ?></select><small id="modalCustomerMatches" style="display:block;margin-top:4px;color:var(--text-muted);font-size:10px;"></small></div>
+            <div class="mf"><label>Select customer *</label><select name="checkout_customer_id" id="modalCustomerId" class="advance-control" required onchange="selectModalCustomer()"><option value="">Choose customer</option><?php if (
+                $modal_customers
+            ):
+                while (
+                    $mc = $modal_customers->fetch_assoc()
+                ): ?><option value="<?php echo (int) $mc[
+    "customer_id"
+]; ?>" data-installments="<?php echo number_format(
+    (float) $mc["installment_paid"],
+    2,
+    ".",
+    "",
+); ?>" data-search="<?php echo htmlspecialchars(
+    strtolower(
+        $mc["account_number"] . " " . $mc["customer_name"] . " " . $mc["phone"],
+    ),
+    ENT_QUOTES,
+    "UTF-8",
+); ?>"><?php echo htmlspecialchars(
+    $mc["account_number"] . " · " . $mc["customer_name"] . " · " . $mc["phone"],
+); ?></option><?php endwhile;
+            endif; ?></select><small id="modalCustomerMatches" style="display:block;margin-top:4px;color:var(--text-muted);font-size:10px;"></small></div>
             <div class="mf"><label>Amount received today</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalInstallmentAmount" name="installment_amount" min="0" step="0.01" value="0.00" oninput="updatePaymentModalSummary()"></div></div>
             <div class="mf"><label>Payment method</label><select class="advance-control" name="installment_method"><option>Cash</option><option>Card</option><option>QR</option><option>Bank Transfer</option><option>Cheque</option></select></div>
             <label id="installmentCreditOption" style="display:none;align-items:flex-start;gap:9px;padding:10px;border:1px solid #a7f3d0;border-radius:8px;background:#f0fdf4;margin-bottom:10px;cursor:pointer"><input type="checkbox" name="use_account_credit_to_close" id="useInstallmentCredit" value="1" onchange="updatePaymentModalSummary()" style="margin-top:3px"><span><strong style="display:block;color:#047857;font-size:12px">Use account credit to close this bill</strong><small id="installmentCreditHelp" style="color:#667085">Available account credit will be used only if it can complete the bill.</small></span></label>
@@ -1401,7 +2058,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
             <button class="m-sub green" name="add_checkout_installment"><i class="fa-solid fa-floppy-disk"></i> Save Payment &amp; Print Receipt</button>
         </form>
         <form method="post" id="newPaymentForm" style="display:none;">
-            <input type="hidden" name="order_id" value="<?php echo (int)$current_order_id; ?>">
+            <input type="hidden" name="order_id" value="<?php echo (int) $current_order_id; ?>">
             <div class="mf"><label>Customer name *</label><input class="advance-control" name="advance_customer_name" required placeholder="Customer / business name"></div>
             <div class="mf"><label>Phone number</label><input class="advance-control" name="advance_customer_phone" placeholder="Phone number"></div>
             <div class="mf"><label>First payment *</label><div class="advance-money"><span>Rs.</span><input type="number" id="modalNewPaymentAmount" name="new_advance_amount" min="0.01" step="0.01" required placeholder="0.00" oninput="updatePaymentModalSummary()"></div></div>
@@ -1467,9 +2124,19 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                     <i class="fa-solid fa-wallet"></i>
                     <select name="customer_id" class="minp" style="padding-left:34px;" onchange="document.querySelector('[name=customer_name]').disabled=this.value!=='0'">
                         <option value="0">Walk-in / enter customer below</option>
-                        <?php if ($advance_customers): while($ac=$advance_customers->fetch_assoc()): ?>
-                            <option value="<?php echo (int)$ac['customer_id']; ?>"><?php echo htmlspecialchars($ac['account_number'].' · '.$ac['customer_name'].' · Rs. '.number_format($ac['advance_balance'],2)); ?></option>
-                        <?php endwhile; endif; ?>
+                        <?php if ($advance_customers):
+                            while ($ac = $advance_customers->fetch_assoc()): ?>
+                            <option value="<?php echo (int) $ac[
+                                "customer_id"
+                            ]; ?>"><?php echo htmlspecialchars(
+    $ac["account_number"] .
+        " · " .
+        $ac["customer_name"] .
+        " · Rs. " .
+        number_format($ac["advance_balance"], 2),
+); ?></option>
+                        <?php endwhile;
+                        endif; ?>
                     </select>
                 </div>
                 <label style="margin-top:10px;">Customer Name <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span></label>
@@ -1483,14 +2150,16 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
                 <label>Table</label>
                 <select name="table_id" class="mselect">
                     <option value="">— No table —</option>
-                    <?php
-                    if ($tables && $tables->num_rows > 0) {
+                    <?php if ($tables && $tables->num_rows > 0) {
                         mysqli_data_seek($tables, 0);
                         while ($table = $tables->fetch_assoc()) {
-                            echo '<option value="'.(int)$table["table_id"].'">'.htmlspecialchars($table["table_name"]).'</option>';
+                            echo '<option value="' .
+                                (int) $table["table_id"] .
+                                '">' .
+                                htmlspecialchars($table["table_name"]) .
+                                "</option>";
                         }
-                    }
-                    ?>
+                    } ?>
                 </select>
             </div>
 
@@ -1509,15 +2178,21 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
         <div class="m-head">
             <div class="m-icon"><i class="fa-solid fa-shield-halved"></i></div>
-            <h2><?php echo $user_role==='accountant'?'Accountant Verification':'Owner Access'; ?></h2>
-            <p><?php echo $user_role==='accountant'?'Enter your password again to open the dashboard':'Enter credentials to open the dashboard'; ?></p>
+            <h2><?php echo $user_role === "accountant"
+                ? "Accountant Verification"
+                : "Owner Access"; ?></h2>
+            <p><?php echo $user_role === "accountant"
+                ? "Enter your password again to open the dashboard"
+                : "Enter credentials to open the dashboard"; ?></p>
         </div>
 
         <?php if (!empty($admin_error)): ?>
-            <div class="m-err"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo htmlspecialchars($admin_error); ?></div>
+            <div class="m-err"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo htmlspecialchars(
+                $admin_error,
+            ); ?></div>
         <?php endif; ?>
 
-        <?php if($user_role==='accountant'): ?>
+        <?php if ($user_role === "accountant"): ?>
         <form method="POST">
             <div class="mf"><label>Your password</label><div class="miw"><i class="fa-solid fa-lock"></i><input type="password" name="accountant_password" class="minp" placeholder="Accountant password" required autocomplete="current-password"></div></div>
             <button type="submit" name="accountant_dashboard_submit" class="m-sub"><i class="fa-solid fa-shield-halved"></i> Verify &amp; Open Dashboard</button>
@@ -1553,7 +2228,12 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
      WITH THIS CONTENT
      ============================================================ -->
 <script>
-let CART_SUBTOTAL = parseFloat("<?php echo number_format($grand_total, 2, '.', ''); ?>") || 0;
+let CART_SUBTOTAL = parseFloat("<?php echo number_format(
+    $grand_total,
+    2,
+    ".",
+    "",
+); ?>") || 0;
 let GT = CART_SUBTOTAL;
 let AMOUNT_DUE = GT;
 
@@ -1582,7 +2262,7 @@ document.addEventListener('click', function (event) {
         button.dataset.currentPrice || '0.00'
     );
 });
-const CURRENT_ORDER_ID = <?php echo (int)$current_order_id; ?>;
+const CURRENT_ORDER_ID = <?php echo (int) $current_order_id; ?>;
 let displayCashTimer = null;
 
 function setDiscountType(type) {
@@ -1629,7 +2309,7 @@ function selectAdvanceCustomer() {
     if (label) label.innerHTML = 'Available account credit: <strong>Rs. ' + balance.toFixed(2) + '</strong>';
     const receiptId = parseInt(select.options[select.selectedIndex]?.dataset.receiptId || '0', 10);
     if (printLink) {
-        printLink.href = receiptId > 0 ? 'print_advance.php?transaction_id=' + receiptId + '&return_order=<?php echo (int)$current_order_id; ?>' : '#';
+        printLink.href = receiptId > 0 ? 'print_advance.php?transaction_id=' + receiptId + '&return_order=<?php echo (int) $current_order_id; ?>' : '#';
         printLink.style.display = receiptId > 0 ? 'flex' : 'none';
     }
     updateOrderFees();
@@ -2350,7 +3030,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-<?php if (!empty($admin_error) || isset($_GET['admin_login'])): ?>
+<?php if (!empty($admin_error) || isset($_GET["admin_login"])): ?>
 window.addEventListener('load', function() {
     openAdminModal();
 });

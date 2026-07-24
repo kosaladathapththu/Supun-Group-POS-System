@@ -1,12 +1,12 @@
 <?php
-include 'db.php';
-require_once 'includes/advance_accounts.php';
+include "db.php";
+require_once "includes/advance_accounts.php";
 ensureAdvancePaymentSchema($conn);
 
 $order_id = isset($_GET["order_id"]) ? (int) $_GET["order_id"] : 0;
-$from_advance = ($_GET['from'] ?? '') === 'advance';
-$back_url = $from_advance ? 'advance_payments.php' : 'pos.php';
-$back_label = $from_advance ? 'Back to Advance Payments' : 'Back to POS';
+$from_advance = ($_GET["from"] ?? "") === "advance";
+$back_url = $from_advance ? "advance_payments.php" : "pos.php";
+$back_label = $from_advance ? "Back to Advance Payments" : "Back to POS";
 if ($order_id <= 0) {
     die("Invalid order ID.");
 }
@@ -49,23 +49,30 @@ while ($row = $items_result->fetch_assoc()) {
 }
 $item_stmt->close();
 
-$order_number = !empty($order['order_number']) ? $order['order_number'] : ('ORD-' . str_pad($order['order_id'], 5, '0', STR_PAD_LEFT));
-$order_type_label = ucwords(str_replace('_', ' ', $order['order_type'] ?? 'retail'));
-$has_table = !empty($order['table_name']) && $order['table_name'] !== 'N/A';
-$has_customer = !empty($order['customer_name']);
-$cash_given = (float)($order['cash_given'] ?? 0);
-$balance = (float)($order['balance'] ?? 0);
-$discount = (float)($order['discount'] ?? 0);
-$subtotal = (float)($order['subtotal'] ?? 0);
-$total = (float)($order['total_amount'] ?? 0);
-$packaging_fee = (float)($order['packaging_fee'] ?? 0);
-$saved_service_charge = (float)($order['service_charge'] ?? 0);
-$service_charge = $saved_service_charge > 0
-    ? $saved_service_charge
-    : max(0, $total - $subtotal + $discount - $packaging_fee);
-$pm = $order['payment_method'] ?? 'Cash';
-$advance_used = (float)($order['advance_used'] ?? 0);
-$remaining_advance = isset($order['customer_advance_balance']) ? (float)$order['customer_advance_balance'] : null;
+$order_number = !empty($order["order_number"])
+    ? $order["order_number"]
+    : "ORD-" . str_pad($order["order_id"], 5, "0", STR_PAD_LEFT);
+$order_type_label = ucwords(
+    str_replace("_", " ", $order["order_type"] ?? "retail"),
+);
+$has_table = !empty($order["table_name"]) && $order["table_name"] !== "N/A";
+$has_customer = !empty($order["customer_name"]);
+$cash_given = (float) ($order["cash_given"] ?? 0);
+$balance = (float) ($order["balance"] ?? 0);
+$discount = (float) ($order["discount"] ?? 0);
+$subtotal = (float) ($order["subtotal"] ?? 0);
+$total = (float) ($order["total_amount"] ?? 0);
+$packaging_fee = (float) ($order["packaging_fee"] ?? 0);
+$saved_service_charge = (float) ($order["service_charge"] ?? 0);
+$service_charge =
+    $saved_service_charge > 0
+        ? $saved_service_charge
+        : max(0, $total - $subtotal + $discount - $packaging_fee);
+$pm = $order["payment_method"] ?? "Cash";
+$advance_used = (float) ($order["advance_used"] ?? 0);
+$remaining_advance = isset($order["customer_advance_balance"])
+    ? (float) $order["customer_advance_balance"]
+    : null;
 
 $payment_history = [];
 $installment_paid = 0.0;
@@ -73,30 +80,44 @@ $account_credit_used = 0.0;
 $payment_stmt = $conn->prepare("SELECT COALESCE(d.receipt_number,u.receipt_number) receipt_number,u.amount,COALESCE(d.payment_method,u.payment_method) payment_method,COALESCE(d.created_at,u.created_at) created_at,d.order_id source_order_id
     FROM advance_payment_transactions u LEFT JOIN advance_payment_transactions d ON d.transaction_id=u.parent_transaction_id
     WHERE u.order_id=? AND u.transaction_type='sale_usage' ORDER BY COALESCE(d.created_at,u.created_at),u.transaction_id");
-$payment_stmt->bind_param('i',$order_id); $payment_stmt->execute();
-$payment_result=$payment_stmt->get_result();
-while($payment_row=$payment_result->fetch_assoc()) {
-    $payment_history[]=$payment_row;
-    if ($payment_row['source_order_id'] === null) $account_credit_used += (float)$payment_row['amount'];
-    else $installment_paid += (float)$payment_row['amount'];
+$payment_stmt->bind_param("i", $order_id);
+$payment_stmt->execute();
+$payment_result = $payment_stmt->get_result();
+while ($payment_row = $payment_result->fetch_assoc()) {
+    $payment_history[] = $payment_row;
+    if ($payment_row["source_order_id"] === null) {
+        $account_credit_used += (float) $payment_row["amount"];
+    } else {
+        $installment_paid += (float) $payment_row["amount"];
+    }
 }
 $payment_stmt->close();
-if (($order['payment_status'] ?? '') === 'paid') {
-    $final_payment=max(0,$total-$advance_used);
-    if($final_payment>0.0001) $payment_history[]=['receipt_number'=>'FINAL-'.$order_number,'amount'=>$final_payment,'payment_method'=>$pm,'created_at'=>$order['paid_at']?:$order['created_at']];
+if (($order["payment_status"] ?? "") === "paid") {
+    $final_payment = max(0, $total - $advance_used);
+    if ($final_payment > 0.0001) {
+        $payment_history[] = [
+            "receipt_number" => "FINAL-" . $order_number,
+            "amount" => $final_payment,
+            "payment_method" => $pm,
+            "created_at" => $order["paid_at"] ?: $order["created_at"],
+        ];
+    }
 }
 
 $total_qty = 0;
 foreach ($all_items as $it) {
-    $total_qty += (int)$it['quantity'];
+    $total_qty += (int) $it["quantity"];
 }
 
-$is_cash = ($pm === 'Cash');
-$bill_datetime = !empty($order['paid_at']) ? $order['paid_at'] : $order['created_at'];
+$is_cash = $pm === "Cash";
+$bill_datetime = !empty($order["paid_at"])
+    ? $order["paid_at"]
+    : $order["created_at"];
 
-function fmt($v) {
-    $s = number_format((float)$v, 2);
-    return substr($s, -3) === '.00' ? substr($s, 0, -3) : $s;
+function fmt($v)
+{
+    $s = number_format((float) $v, 2);
+    return substr($s, -3) === ".00" ? substr($s, 0, -3) : $s;
 }
 ?>
 <!DOCTYPE html>
@@ -105,7 +126,9 @@ function fmt($v) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Invoice <?php echo htmlspecialchars($order_number); ?> — Supun Group</title>
+<title>Invoice <?php echo htmlspecialchars(
+    $order_number,
+); ?> — Supun Group</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -511,7 +534,7 @@ body {
     background: #15803d;
     color: #fff;
     border-color: #15803d;
-    display: <?php echo $is_cash ? 'inline-flex' : 'none'; ?>;
+    display: <?php echo $is_cash ? "inline-flex" : "none"; ?>;
 }
 
 .a-drawer:hover {
@@ -538,7 +561,7 @@ body {
 }
 
 .print-status {
-    display: <?php echo $is_cash ? 'flex' : 'none'; ?>;
+    display: <?php echo $is_cash ? "flex" : "none"; ?>;
     align-items: center;
     gap: 8px;
     margin-top: 12px;
@@ -905,20 +928,28 @@ body.format-a4 .paid-seal small { font-size:9px; }
         <tr>
             <td class="lbl">Date</td>
             <td class="sep-col">:</td>
-            <td class="val"><?php echo date('d M Y', strtotime($bill_datetime)); ?></td>
+            <td class="val"><?php echo date(
+                "d M Y",
+                strtotime($bill_datetime),
+            ); ?></td>
         </tr>
 
         <tr>
             <td class="lbl">Time</td>
             <td class="sep-col">:</td>
-            <td class="val"><?php echo date('h:i A', strtotime($bill_datetime)); ?></td>
+            <td class="val"><?php echo date(
+                "h:i A",
+                strtotime($bill_datetime),
+            ); ?></td>
         </tr>
 
         <tr>
             <td class="lbl">Sale Type</td>
             <td class="sep-col">:</td>
             <td class="val">
-                <span class="type-tag"><?php echo htmlspecialchars($order_type_label); ?></span>
+                <span class="type-tag"><?php echo htmlspecialchars(
+                    $order_type_label,
+                ); ?></span>
             </td>
         </tr>
 
@@ -926,7 +957,9 @@ body.format-a4 .paid-seal small { font-size:9px; }
         <tr>
             <td class="lbl">Table</td>
             <td class="sep-col">:</td>
-            <td class="val"><?php echo htmlspecialchars($order['table_name']); ?></td>
+            <td class="val"><?php echo htmlspecialchars(
+                $order["table_name"],
+            ); ?></td>
         </tr>
         <?php endif; ?>
 
@@ -934,14 +967,18 @@ body.format-a4 .paid-seal small { font-size:9px; }
         <tr>
             <td class="lbl">Customer</td>
             <td class="sep-col">:</td>
-            <td class="val"><?php echo htmlspecialchars($order['customer_name']); ?></td>
+            <td class="val"><?php echo htmlspecialchars(
+                $order["customer_name"],
+            ); ?></td>
         </tr>
         <?php endif; ?>
 
         <tr>
             <td class="lbl">Cashier</td>
             <td class="sep-col">:</td>
-            <td class="val"><?php echo htmlspecialchars($order['full_name']); ?></td>
+            <td class="val"><?php echo htmlspecialchars(
+                $order["full_name"],
+            ); ?></td>
         </tr>
 
         <tr>
@@ -967,12 +1004,14 @@ body.format-a4 .paid-seal small { font-size:9px; }
             <?php foreach ($all_items as $item): ?>
             <tr>
                 <td class="d1">
-                    <div class="iname"><?php echo htmlspecialchars($item['item_name']); ?></div>
+                    <div class="iname"><?php echo htmlspecialchars(
+                        $item["item_name"],
+                    ); ?></div>
                 </td>
 
-                <td class="d2"><?php echo (int)$item['quantity']; ?></td>
-                <td class="d3"><?php echo fmt($item['price']); ?></td>
-                <td class="d4"><?php echo fmt($item['line_total']); ?></td>
+                <td class="d2"><?php echo (int) $item["quantity"]; ?></td>
+                <td class="d3"><?php echo fmt($item["price"]); ?></td>
+                <td class="d4"><?php echo fmt($item["line_total"]); ?></td>
             </tr>
             <?php endforeach; ?>
         </tbody>
@@ -983,7 +1022,9 @@ body.format-a4 .paid-seal small { font-size:9px; }
     <table class="summ">
         <tr>
             <td class="sl">Items</td>
-            <td class="sr"><?php echo count($all_items); ?> lines / <?php echo $total_qty; ?> pcs</td>
+            <td class="sr"><?php echo count(
+                $all_items,
+            ); ?> lines / <?php echo $total_qty; ?> pcs</td>
         </tr>
 
         <tr>
@@ -1023,10 +1064,18 @@ body.format-a4 .paid-seal small { font-size:9px; }
     <?php if (count($payment_history) > 1): ?>
     <div class="sep-eq">----- PAYMENT HISTORY -----</div>
     <table class="summ" style="font-size:10px;margin-bottom:7px;">
-        <?php foreach($payment_history as $index=>$history): ?>
+        <?php foreach ($payment_history as $index => $history): ?>
         <tr>
-            <td class="sl"><?php echo ($index+1).'. '.date('d M Y',strtotime($history['created_at'])); ?><br><small><?php echo htmlspecialchars($history['receipt_number'].' · '.$history['payment_method']); ?></small></td>
-            <td class="sr">Rs <?php echo fmt($history['amount']); ?></td>
+            <td class="sl"><?php echo $index +
+                1 .
+                ". " .
+                date(
+                    "d M Y",
+                    strtotime($history["created_at"]),
+                ); ?><br><small><?php echo htmlspecialchars(
+    $history["receipt_number"] . " · " . $history["payment_method"],
+); ?></small></td>
+            <td class="sr">Rs <?php echo fmt($history["amount"]); ?></td>
         </tr>
         <?php endforeach; ?>
     </table>
@@ -1034,8 +1083,16 @@ body.format-a4 .paid-seal small { font-size:9px; }
 
     <table class="summ">
         <?php if ($advance_used > 0): ?>
-        <?php if ($installment_paid > 0): ?><tr class="c-row"><td class="sl">Paid by Order Installments</td><td class="sr">Rs <?php echo fmt($installment_paid); ?></td></tr><?php endif; ?>
-        <?php if ($account_credit_used > 0): ?><tr class="c-row"><td class="sl">Paid from Account Credit</td><td class="sr">Rs <?php echo fmt($account_credit_used); ?></td></tr><?php endif; ?>
+        <?php if (
+            $installment_paid > 0
+        ): ?><tr class="c-row"><td class="sl">Paid by Order Installments</td><td class="sr">Rs <?php echo fmt(
+    $installment_paid,
+); ?></td></tr><?php endif; ?>
+        <?php if (
+            $account_credit_used > 0
+        ): ?><tr class="c-row"><td class="sl">Paid from Account Credit</td><td class="sr">Rs <?php echo fmt(
+    $account_credit_used,
+); ?></td></tr><?php endif; ?>
         <?php if ($remaining_advance !== null): ?>
         <tr class="c-row">
             <td class="sl">Remaining Advance Balance</td>
@@ -1050,13 +1107,17 @@ body.format-a4 .paid-seal small { font-size:9px; }
         </tr>
 
         <tr class="b-row">
-            <td><?php echo $balance >= 0 ? 'Change Returned' : 'Balance Due'; ?></td>
+            <td><?php echo $balance >= 0
+                ? "Change Returned"
+                : "Balance Due"; ?></td>
             <td class="sr">Rs <?php echo fmt(abs($balance)); ?></td>
         </tr>
         <?php else: ?>
         <tr class="c-row">
             <td class="sl">Amount Paid</td>
-            <td class="sr">Rs <?php echo fmt(max(0, $total - $advance_used)); ?></td>
+            <td class="sr">Rs <?php echo fmt(
+                max(0, $total - $advance_used),
+            ); ?></td>
         </tr>
         <?php endif; ?>
     </table>
@@ -1065,19 +1126,21 @@ body.format-a4 .paid-seal small { font-size:9px; }
         <tr>
             <td class="sl" style="font-size:10.5px;">Status</td>
             <td class="sr" style="font-size:10.5px;font-weight:900;">
-                *** <?php echo strtoupper($order['payment_status'] ?? 'PAID'); ?> ***
+                *** <?php echo strtoupper(
+                    $order["payment_status"] ?? "PAID",
+                ); ?> ***
             </td>
         </tr>
     </table>
 
-    <?php if (!empty($order['payment_reference'])): ?>
+    <?php if (!empty($order["payment_reference"])): ?>
     <div style="margin-top:8px;padding:7px 8px;border:1px dashed #777;font-size:10.5px;line-height:1.35;overflow-wrap:anywhere;">
         <strong>Payment Reference:</strong><br>
-        <?php echo nl2br(htmlspecialchars($order['payment_reference'])); ?>
+        <?php echo nl2br(htmlspecialchars($order["payment_reference"])); ?>
     </div>
     <?php endif; ?>
 
-    <?php if (strtolower($order['payment_status'] ?? '') === 'paid'): ?>
+    <?php if (strtolower($order["payment_status"] ?? "") === "paid"): ?>
     <div class="paid-seal-wrap" aria-label="Paid">
         <div class="paid-seal">
             <small>Payment</small>
@@ -1100,7 +1163,7 @@ body.format-a4 .paid-seal small { font-size:9px; }
     <div class="ref-line">
         <?php echo htmlspecialchars($order_number); ?>
         &nbsp;&nbsp;
-        <?php echo date('d/m/Y H:i', strtotime($bill_datetime)); ?>
+        <?php echo date("d/m/Y H:i", strtotime($bill_datetime)); ?>
     </div>
 
     <div class="dev-credit">
@@ -1134,12 +1197,14 @@ body.format-a4 .paid-seal small { font-size:9px; }
     </button>
 
     <a class="a-btn a-back" href="<?php echo htmlspecialchars($back_url); ?>">
-        <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($back_label); ?>
+        <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars(
+            $back_label,
+        ); ?>
     </a>
 </div>
 
 <script>
-const IS_CASH = <?php echo $is_cash ? 'true' : 'false'; ?>;
+const IS_CASH = <?php echo $is_cash ? "true" : "false"; ?>;
 const PRINT_SERVICE_URL = "http://localhost:3000/open-drawer";
 
 const statusBox = document.getElementById("printStatus");

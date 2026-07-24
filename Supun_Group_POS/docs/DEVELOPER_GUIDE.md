@@ -35,12 +35,12 @@ Supun_Group_POS/
 
 These meanings must remain separate:
 
-| Term | Database representation | Meaning |
-|---|---|---|
-| Account credit | `deposit` with `order_id IS NULL` | Customer money held for a future purchase |
-| Order installment | `deposit` with `order_id IS NOT NULL` | Part payment tied to one order |
-| Credit/payment usage | `sale_usage` | Money applied to a completed sale |
-| Refund | `refund` | Money returned to the customer |
+| Term                 | Database representation               | Meaning                                   |
+| -------------------- | ------------------------------------- | ----------------------------------------- |
+| Account credit       | `deposit` with `order_id IS NULL`     | Customer money held for a future purchase |
+| Order installment    | `deposit` with `order_id IS NOT NULL` | Part payment tied to one order            |
+| Credit/payment usage | `sale_usage`                          | Money applied to a completed sale         |
+| Refund               | `refund`                              | Money returned to the customer            |
 
 `remaining_amount` is the unused portion of a deposit. Never calculate account-credit liability from historical deposit totals; sum only unused unlinked deposits.
 

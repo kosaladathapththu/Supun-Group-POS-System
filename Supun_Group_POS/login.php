@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'db.php';
+include "db.php";
 
 $error = "";
 $show_choice = false;
@@ -11,12 +11,14 @@ if (isset($_POST["go_to"]) && isset($_SESSION["pending_admin_id"])) {
     $dest = $_POST["go_to"];
 
     /* Load the pending admin into the real session */
-    $uid  = (int) $_SESSION["pending_admin_id"];
-    $row  = $conn->query("SELECT * FROM users WHERE user_id = $uid LIMIT 1")->fetch_assoc();
+    $uid = (int) $_SESSION["pending_admin_id"];
+    $row = $conn
+        ->query("SELECT * FROM users WHERE user_id = $uid LIMIT 1")
+        ->fetch_assoc();
 
-    $_SESSION["user_id"]   = $row["user_id"];
+    $_SESSION["user_id"] = $row["user_id"];
     $_SESSION["full_name"] = $row["full_name"];
-    $_SESSION["role"]      = $row["role"];
+    $_SESSION["role"] = $row["role"];
     unset($_SESSION["pending_admin_id"], $_SESSION["pending_admin_name"]);
 
     if ($dest === "dashboard") {
@@ -24,7 +26,7 @@ if (isset($_POST["go_to"]) && isset($_SESSION["pending_admin_id"])) {
     } else {
         header("Location: pos.php");
     }
-    exit;
+    exit();
 }
 
 /* ── Regular login POST ── */
@@ -33,31 +35,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST["go_to"])) {
     $password = trim($_POST["password"] ?? "");
     $username_safe = $conn->real_escape_string($username);
 
-    $sql    = "SELECT * FROM users WHERE username = '$username_safe' AND status = 1 LIMIT 1";
+    $sql = "SELECT * FROM users WHERE username = '$username_safe' AND status = 1 LIMIT 1";
     $result = $conn->query($sql);
 
     if ($result && $result->num_rows === 1) {
         $user = $result->fetch_assoc();
 
         if (password_verify($password, $user["password"])) {
-
-            if ($user['role'] === 'manager') $user['role'] = 'accountant';
+            if ($user["role"] === "manager") {
+                $user["role"] = "accountant";
+            }
             if (in_array($user["role"], ["admin", "accountant"], true)) {
                 /* Store temporarily — show destination choice */
-                $_SESSION["pending_admin_id"]   = $user["user_id"];
+                $_SESSION["pending_admin_id"] = $user["user_id"];
                 $_SESSION["pending_admin_name"] = $user["full_name"];
                 $show_choice = true;
                 $choice_name = $user["full_name"];
-
             } else {
                 /* Cashier — go straight to POS */
-                $_SESSION["user_id"]   = $user["user_id"];
+                $_SESSION["user_id"] = $user["user_id"];
                 $_SESSION["full_name"] = $user["full_name"];
-                $_SESSION["role"]      = $user["role"];
+                $_SESSION["role"] = $user["role"];
                 header("Location: pos.php");
-                exit;
+                exit();
             }
-
         } else {
             $error = "Incorrect password. Please try again.";
         }
@@ -451,7 +452,9 @@ body::after {
     <div class="card-body">
 
         <!-- ══ LOGIN SCREEN ══ -->
-        <div class="screen <?php echo !$show_choice ? 'active' : ''; ?>" id="loginScreen">
+        <div class="screen <?php echo !$show_choice
+            ? "active"
+            : ""; ?>" id="loginScreen">
 
             <div class="screen-label">
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In to Your Account
@@ -471,7 +474,9 @@ body::after {
                         <i class="fa-solid fa-user"></i>
                         <input type="text" name="username" class="inp"
                                placeholder="Enter your username" required
-                               value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
+                               value="<?php echo htmlspecialchars(
+                                   $_POST["username"] ?? "",
+                               ); ?>"
                                autocomplete="username">
                     </div>
                 </div>
@@ -496,13 +501,24 @@ body::after {
         </div>
 
         <!-- ══ CHOICE SCREEN (admin only) ══ -->
-        <div class="screen <?php echo $show_choice ? 'active' : ''; ?>" id="choiceScreen">
+        <div class="screen <?php echo $show_choice
+            ? "active"
+            : ""; ?>" id="choiceScreen">
 
             <div class="welcome-msg">
                 <div class="avatar">
-                    <?php echo strtoupper(substr($choice_name ?: ($_SESSION["pending_admin_name"] ?? "A"), 0, 1)); ?>
+                    <?php echo strtoupper(
+                        substr(
+                            $choice_name ?:
+                            $_SESSION["pending_admin_name"] ?? "A",
+                            0,
+                            1,
+                        ),
+                    ); ?>
                 </div>
-                <h3>Welcome, <?php echo htmlspecialchars($choice_name ?: ($_SESSION["pending_admin_name"] ?? "")); ?>!</h3>
+                <h3>Welcome, <?php echo htmlspecialchars(
+                    $choice_name ?: $_SESSION["pending_admin_name"] ?? "",
+                ); ?>!</h3>
                 <p>You have management access. Where would you like to go?</p>
             </div>
 
