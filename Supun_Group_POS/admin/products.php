@@ -670,7 +670,7 @@ $supplier_result = $conn->query(
 if ($supplier_result) {
     while ($supplier_row = $supplier_result->fetch_assoc()) {
         $supplier_options[] = $supplier_row;
-    };
+    }
 }
 $stock_products = $conn->query(
     "SELECT product_id,product_name,stock_qty,unit FROM products ORDER BY product_name ASC",

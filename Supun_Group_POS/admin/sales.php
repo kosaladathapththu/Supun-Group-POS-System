@@ -488,7 +488,7 @@ $pm_cls = [
                 if ($top_prods) {
                     while ($r = $top_prods->fetch_assoc()) {
                         $tp_rows[] = $r;
-                    };
+                    }
                 }
                 $max_rev =
                     count($tp_rows) > 0

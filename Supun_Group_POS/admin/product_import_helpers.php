@@ -80,7 +80,7 @@ function outputProductXlsxTemplate(?mysqli $conn = null): void
         if ($categoryResult) {
             while ($categoryRow = $categoryResult->fetch_assoc()) {
                 $categoryNames[] = $categoryRow["category_name"];
-            };
+            }
         }
     }
     if (!$categoryNames) {

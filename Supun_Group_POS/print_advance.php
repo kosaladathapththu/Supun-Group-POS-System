@@ -39,7 +39,7 @@ if (!empty($payment["order_id"])) {
         while ($item = $items->fetch_assoc()) {
             $order_items[] = $item;
             $calculated_total += (float) $item["line_total"];
-        };
+        }
     }
     $history = $conn->query(
         "SELECT transaction_id,receipt_number,amount,payment_method,created_at FROM advance_payment_transactions WHERE order_id=$oid AND transaction_type='deposit' AND transaction_id<=$transaction_id ORDER BY transaction_id",
@@ -48,7 +48,7 @@ if (!empty($payment["order_id"])) {
         while ($row = $history->fetch_assoc()) {
             $payment_history[] = $row;
             $total_paid += (float) $row["amount"];
-        };
+        }
     }
 }
 $bill_total =
