@@ -1,4 +1,4 @@
--- Run once on an existing Supun Group POS database.
+-- Run once on an existing ST Pvt Ltd. POS database.
 ALTER TABLE stock_adjustments
   ADD COLUMN IF NOT EXISTS unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER stock_after,
   ADD COLUMN IF NOT EXISTS total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER unit_cost;

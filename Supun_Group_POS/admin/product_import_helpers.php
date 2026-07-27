@@ -45,7 +45,7 @@ function outputProductXlsxTemplate(?mysqli $conn = null): void
             "Inverter Air Conditioner 12000 BTU",
             "4791000000010",
             "",
-            "Supun",
+            "ST",
             "PCS",
             "Air Conditioners",
             135000,
@@ -63,7 +63,7 @@ function outputProductXlsxTemplate(?mysqli $conn = null): void
             "Double Door Refrigerator 240L",
             "4791000000034",
             "",
-            "Supun",
+            "ST",
             "PCS",
             "Refrigerators",
             142000,
@@ -187,7 +187,7 @@ function outputProductXlsxTemplate(?mysqli $conn = null): void
         "Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     header(
-        'Content-Disposition: attachment; filename="supun_bulk_product_template.xlsx"',
+        'Content-Disposition: attachment; filename="st_bulk_product_template.xlsx"',
     );
     header("Content-Length: " . filesize($tmp));
     readfile($tmp);

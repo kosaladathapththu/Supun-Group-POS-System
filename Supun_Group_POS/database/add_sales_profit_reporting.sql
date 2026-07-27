@@ -1,4 +1,4 @@
--- Run once on an existing Supun Group POS database.
+-- Run once on an existing ST Pvt Ltd. POS database.
 ALTER TABLE order_items
   ADD COLUMN IF NOT EXISTS cost_price DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER unit_price;
 

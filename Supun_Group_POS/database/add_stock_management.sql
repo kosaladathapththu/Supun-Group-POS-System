@@ -1,4 +1,4 @@
--- Run once on an existing Supun Group POS database.
+-- Run once on an existing ST Pvt Ltd. POS database.
 CREATE TABLE IF NOT EXISTS stock_adjustments (
   adjustment_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   product_id INT UNSIGNED NOT NULL,

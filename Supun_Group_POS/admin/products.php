@@ -1172,7 +1172,7 @@ endwhile; ?></div></div><?php endif; ?>
                                 $edit_row["serial_no"] ??
                                     ($_POST["serial_no"] ?? ""),
                             ); ?>"></div>
-                            <div class="field"><label>Brand</label><input class="inp" name="brand" placeholder="e.g. Supun
+                            <div class="field"><label>Brand</label><input class="inp" name="brand" placeholder="e.g. ST
                             " value="<?php echo htmlspecialchars(
                                 $edit_row["brand"] ?? ($_POST["brand"] ?? ""),
                             ); ?>"></div>

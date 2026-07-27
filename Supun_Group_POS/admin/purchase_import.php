@@ -8,7 +8,7 @@ exit();
 if (isset($_GET["template"])) {
     header("Content-Type:text/csv; charset=utf-8");
     header(
-        'Content-Disposition:attachment; filename="supun_existing_product_stock_purchase.csv"',
+        'Content-Disposition:attachment; filename="st_existing_product_stock_purchase.csv"',
     );
     $out = fopen("php://output", "w");
     fputcsv($out, ["SKU", "Quantity", "Unit Cost"]);
