@@ -155,7 +155,7 @@ $stats = $conn
     ->fetch_assoc();
 $showForm = isset($_GET["new"]) || isset($_POST["create_purchase"]);
 ?>
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Purchases - Supun ERP</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><style><?php
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Purchases - ST Pvt Ltd.</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><style><?php
 include "shared_style.php";
 include "erp_style.php";
 ?>.purchase-form{margin-bottom:18px}.purchase-head{padding:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.purchase-table-area{padding:0 18px 5px}.purchase-footer{display:grid;grid-template-columns:1fr 390px;gap:18px;padding:5px 18px 18px}.purchase-footer textarea{min-height:115px}@media(max-width:900px){.purchase-head{grid-template-columns:1fr 1fr}.purchase-footer{grid-template-columns:1fr}}@media(max-width:550px){.purchase-head{grid-template-columns:1fr}}</style></head><body>

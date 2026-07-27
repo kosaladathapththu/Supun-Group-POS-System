@@ -359,7 +359,7 @@ foreach ($preview as $r) {
     }
 }
 ?>
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bulk Product Import - Supun ERP</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><style><?php
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bulk Product Import - ST Pvt Ltd.</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><style><?php
 include "shared_style.php";
 include "erp_style.php";
 ?>.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.step{padding:15px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);display:flex;gap:10px}.step-num{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--primary);color:#fff;font-weight:900;flex:none}.upload-zone{padding:30px;text-align:center;border:2px dashed var(--border-dk);border-radius:10px;background:#fafcfd}.upload-zone i{font-size:34px;color:var(--green);margin-bottom:10px}.import-error{color:var(--red);font-size:10px;font-weight:900}.import-ok{color:var(--green);font-size:11px;font-weight:900}.template-fields{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.template-fields span{padding:4px 8px;border-radius:15px;background:var(--primary-lt);color:var(--primary);font-size:10px;font-weight:900}@media(max-width:750px){.steps{grid-template-columns:1fr}}</style></head><body>
@@ -373,7 +373,7 @@ if (!$cashierMode) {
 }
 if (
     $cashierMode
-): ?><div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:#fff;border-bottom:1px solid #dbe2ea"><strong>Supun Group - Inventory Import</strong><a class="btn-secondary" href="../cashier_products.php"><i class="fa-solid fa-arrow-left"></i> Back to Product Management</a></div><?php endif;
+): ?><div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:#fff;border-bottom:1px solid #dbe2ea"><strong>ST Pvt Ltd. - Inventory Import</strong><a class="btn-secondary" href="../cashier_products.php"><i class="fa-solid fa-arrow-left"></i> Back to Product Management</a></div><?php endif;
 ?><div class="content"<?php echo $cashierMode
     ? ' style="max-width:1500px;margin:auto"'
     : ""; ?>><div class="page-header"><div><h1 class="page-title-h"><i class="fa-solid fa-file-arrow-up"></i> Import Inventory</h1><p class="page-sub">Create suppliers, products, purchases and received stock from one Excel workbook</p></div><div class="quick-links"><a class="btn-secondary" href="<?php echo $cashierMode
