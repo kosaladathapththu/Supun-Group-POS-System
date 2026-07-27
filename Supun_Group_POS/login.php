@@ -188,6 +188,13 @@ body::after {
     position: relative;
 }
 
+.brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
 .card-top h1 {
     font-family: 'Lora', serif;
     font-size: 22px; font-weight: 700;
@@ -443,7 +450,7 @@ body::after {
 
     <!-- Top Strip -->
     <div class="card-top">
-        <div class="brand-logo"><i class="fa-solid fa-store"></i></div>
+        <div class="brand-logo"><img src="st-logo.svg" alt="ST Pvt Ltd. logo"></div>
         <h1>ST Pvt Ltd.</h1>
         <p>Supun Traders Private Limited</p>
         <small>Retail &amp; Wholesale Management</small>
