@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title description">
+  <title id="title">ST Pvt Ltd logo</title>
+  <desc id="description">Interlocking ST monogram for Supun Traders Private Limited</desc>
+  <defs>
+    <linearGradient id="brandGradient" x1="20" y1="20" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#064e3b"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="52" fill="#ffffff"/>
+  <rect x="10" y="10" width="220" height="220" rx="46" fill="url(#brandGradient)"/>
+  <path d="M67 76c0-20 16-34 40-34h58v28h-57c-8 0-13 4-13 10 0 7 5 10 15 13l23 6c28 7 42 23 42 48 0 30-23 50-58 50H68v-29h52c16 0 25-7 25-17 0-9-7-14-21-18l-21-6c-24-7-36-24-36-51z" fill="#ffffff"/>
+  <path d="M126 44h65v29h-18v124h-31V73h-16z" fill="#f59e0b"/>
+  <circle cx="48" cy="48" r="10" fill="#f59e0b"/>
+</svg>

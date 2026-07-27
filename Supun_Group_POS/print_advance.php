@@ -136,7 +136,7 @@ body.format-a4 .seal-wrap{top:52%!important;right:8%!important}body.format-a4 .a
 ); ?></strong><small><?php echo htmlspecialchars(
     $seal_small,
 ); ?></small></div></div>
-<div class="shop"><img class="logo" src="supun-logo.png" alt="Supun Group"><h1>SUPUN GROUP</h1><p>Retail &amp; Wholesale</p></div>
+<div class="shop"><img class="logo" src="st-logo.svg" alt="ST Pvt Ltd."><h1>ST PVT LTD.</h1><p>Supun Traders Private Limited</p><p>Retail &amp; Wholesale</p></div>
 <div class="divider"></div><div class="doc-title"><?php echo htmlspecialchars(
     $title,
 ); ?></div><div class="divider"></div>

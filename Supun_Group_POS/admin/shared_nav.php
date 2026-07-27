@@ -7,10 +7,10 @@ $admin_prefix = $nav_from_root ? "admin/" : "";
 ?>
 <nav class="sidebar">
     <div class="sb-brand">
-        <div class="sb-logo"><img src="<?php echo $root_prefix; ?>supun-logo.png" alt="Supun Group" style="width:100%;height:100%;object-fit:contain;border-radius:8px;background:#fff;padding:2px"></div>
+        <div class="sb-logo"><img src="<?php echo $root_prefix; ?>st-logo.svg" alt="ST Pvt Ltd." style="width:100%;height:100%;object-fit:contain;border-radius:8px;background:#fff;padding:2px"></div>
         <div class="sb-brand-text">
-            <h2>Supun Group</h2>
-            <small>Retail &amp; Wholesale</small>
+            <h2>ST Pvt Ltd.</h2>
+            <small>Supun Traders Private Limited</small>
         </div>
     </div>
     <div class="sb-nav">

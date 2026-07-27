@@ -78,7 +78,7 @@ if (!$show_choice && isset($_SESSION["pending_admin_id"])) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Supun Group — Login</title>
+<title>ST Pvt Ltd. — Login</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
@@ -444,7 +444,8 @@ body::after {
     <!-- Top Strip -->
     <div class="card-top">
         <div class="brand-logo"><i class="fa-solid fa-store"></i></div>
-        <h1>Supun Group</h1>
+        <h1>ST Pvt Ltd.</h1>
+        <p>Supun Traders Private Limited</p>
         <small>Retail &amp; Wholesale Management</small>
     </div>
 
@@ -566,7 +567,7 @@ body::after {
     </div><!-- /card-body -->
 
     <div class="card-footer">
-        <p><i class="fa-solid fa-shield-halved"></i> Secure login — Supun Group POS System</p>
+        <p><i class="fa-solid fa-shield-halved"></i> Secure login — ST Pvt Ltd. POS System</p>
     </div>
 
 </div>

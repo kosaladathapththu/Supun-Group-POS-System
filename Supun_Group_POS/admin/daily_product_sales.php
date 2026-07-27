@@ -487,9 +487,10 @@ $inventorySummary = $conn
     </div>
 
     <div class="receipt-title">
-        <img src="../supun-logo.png" alt="Supun Group logo">
+        <img src="../st-logo.svg" alt="ST Pvt Ltd. logo">
         <div>
-            <h2>SUPUN GROUP OF COMPANIES</h2>
+            <h2>ST PVT LTD.</h2>
+            <p>Supun Traders Private Limited</p>
             <p class="report-name"><?php echo htmlspecialchars(
                 $reportName,
             ); ?></p>
@@ -733,7 +734,7 @@ $inventorySummary = $conn
     <?php } ?>
 
     <div class="report-footer">
-        <span>Supun Group of Companies &bull; Retail &amp; Wholesale POS</span>
+        <span>ST Pvt Ltd. &bull; Supun Traders Private Limited</span>
         <span>Computer-generated report</span>
     </div>
 

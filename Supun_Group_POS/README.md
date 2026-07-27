@@ -1,6 +1,6 @@
-# Supun Group POS
+# ST Pvt Ltd. POS
 
-Retail and wholesale point-of-sale system built with PHP, MySQL, HTML, CSS, and JavaScript. It runs locally through XAMPP.
+Point-of-sale system for Supun Traders Private Limited, trading as ST Pvt Ltd. Built with PHP, MySQL, HTML, CSS, and JavaScript and run locally through XAMPP.
 
 ## Start here
 

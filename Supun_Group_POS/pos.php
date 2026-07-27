@@ -1019,7 +1019,7 @@ $display_total = number_format($grand_total, 2, ".", "");
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Supun Group — Retail &amp; Wholesale POS</title>
+<title>ST Pvt Ltd. — Retail &amp; Wholesale POS</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
@@ -1259,9 +1259,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
 <div class="topbar">
     <div class="brand">
-        <div class="brand-logo"><img src="supun-logo.png" alt="Supun Group logo"></div>
+        <div class="brand-logo"><img src="st-logo.svg" alt="ST Pvt Ltd. logo"></div>
         <div class="brand-text">
-            <h1>Supun Group</h1>
+            <h1>ST Pvt Ltd.</h1>
+            <small>Supun Traders Private Limited</small>
             <small>Point of Sale</small>
         </div>
     </div>

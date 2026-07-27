@@ -128,7 +128,7 @@ function fmt($v)
 
 <title>Invoice <?php echo htmlspecialchars(
     $order_number,
-); ?> — Supun Group</title>
+); ?> — ST Pvt Ltd.</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -907,8 +907,9 @@ body.format-a4 .paid-seal small { font-size:9px; }
 <div class="receipt">
 
     <div class="hdr">
-        <img src="supun-logo.png" class="logo" alt="Supun Group logo">
-        <div class="shop-name">Supun Group of Companies</div>
+        <img src="st-logo.svg" class="logo" alt="ST Pvt Ltd. logo">
+        <div class="shop-name">ST Pvt Ltd.</div>
+        <div class="shop-subname">Supun Traders Private Limited</div>
         <div class="shop-sub">Retail &amp; Wholesale Electrical Appliances</div>
         <div class="shop-addr">
             Galle Road, Wattala, Sri Lanka<br>
@@ -1155,7 +1156,7 @@ body.format-a4 .paid-seal small { font-size:9px; }
     <div class="ftr">
         <div class="ft1">Thank You For Visiting Us!</div>
         <div class="ft2">Come Again</div>
-        <div class="ft3">www.supungroup.example &nbsp;&bull;&nbsp; 011 234 5678</div>
+        <div class="ft3">Supun Traders Private Limited &nbsp;&bull;&nbsp; 011 234 5678</div>
     </div>
 
     <div class="sep-eq">--------------------------------</div>
