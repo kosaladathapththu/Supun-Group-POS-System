@@ -1054,24 +1054,45 @@ $display_total = number_format($grand_total, 2, ".", "");
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:auto;}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
-.topbar{background:var(--white);border-bottom:1.5px solid var(--border);min-height:58px;padding:8px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-sm);gap:12px;flex-wrap:wrap;}
-.brand{display:flex;align-items:center;gap:10px;}
-.brand-logo{width:36px;height:36px;background:var(--primary);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 3px 8px rgba(217,92,43,.35);}
+.topbar{background:var(--white);border-bottom:1.5px solid var(--border);height:62px;padding:7px 14px;display:flex;align-items:center;box-shadow:var(--shadow-sm);gap:12px;flex-wrap:nowrap;overflow:hidden;}
+.brand{display:flex;align-items:center;gap:8px;flex:0 0 auto;min-width:205px;}
+.brand-logo{width:38px;height:38px;background:var(--primary);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 3px 8px rgba(15,118,110,.25);flex:0 0 auto;}
 .brand-logo img{width:100%;height:100%;object-fit:contain;border-radius:8px;background:#fff;padding:2px;}
-.brand-text h1{font-family:'Lora',serif;font-size:17px;line-height:1.1;}
-.brand-text small{display:block;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em;font-weight:700;}
-.topbar-right{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
-.cashier-pill{display:flex;align-items:center;gap:7px;background:var(--bg);border:1.5px solid var(--border);border-radius:40px;padding:4px 12px 4px 4px;}
+.brand-text{min-width:0;}
+.brand-text h1{font-family:'Lora',serif;font-size:16px;line-height:1.05;white-space:nowrap;}
+.brand-text small{display:block;font-size:8px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-weight:800;white-space:nowrap;}
+.topbar-right{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+.topbar-right::-webkit-scrollbar{display:none;}
+.topbar-right form{display:flex!important;flex:0 0 auto;}
+.cashier-pill{display:flex;align-items:center;gap:6px;background:var(--bg);border:1.5px solid var(--border);border-radius:40px;padding:3px 9px 3px 3px;flex:0 0 auto;}
 .avatar{width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;}
-.cashier-pill .name{font-size:13px;font-weight:800;color:var(--text-mid);}
-.role-badge{font-size:10px;background:var(--primary-lt);color:var(--primary);border-radius:40px;padding:2px 7px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;}
-.tb-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:800;border:none;cursor:pointer;text-decoration:none;transition:all .16s;white-space:nowrap;font-family:'Nunito',sans-serif;}
+.cashier-pill .name{font-size:11px;font-weight:800;color:var(--text-mid);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;}
+.role-badge{font-size:9px;background:var(--primary-lt);color:var(--primary);border-radius:40px;padding:2px 6px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}
+.tb-btn{display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:800;border:none;cursor:pointer;text-decoration:none;transition:all .16s;white-space:nowrap;font-family:'Nunito',sans-serif;flex:0 0 auto;}
 .btn-new{background:var(--accent);color:#fff;}
 .btn-new:hover{background:#15694f;}
-.btn-quick{background:var(--primary);color:#fff;font-size:14px;padding:9px 18px;}
+.btn-quick{background:var(--primary);color:#fff;font-size:12px;padding:9px 12px;}
 .btn-quick:hover{background:var(--primary-dk);}
 .btn-owner{background:#1c2038;color:#fff;}
 .btn-logout{background:var(--bg);color:var(--text-mid);border:1.5px solid var(--border);}
+@media(max-width:1500px){
+    .brand{min-width:175px;}
+    .brand-text small{font-size:7px;letter-spacing:.04em;}
+    .cashier-pill .name{display:none;}
+    .tb-btn{padding-inline:8px;font-size:10px;}
+}
+@media(max-width:1180px){
+    .topbar{padding-inline:10px;}
+    .brand{min-width:auto;}
+    .brand-text small{display:none;}
+    .topbar-right{justify-content:flex-start;}
+}
+@media(max-width:760px){
+    .topbar{height:58px;gap:8px;}
+    .brand-text{display:none;}
+    .brand{min-width:38px;}
+    .cashier-pill{display:none;}
+}
 .pos-body{display:grid;grid-template-columns:270px 1fr 380px;gap:0;min-height:calc(100vh - 58px);}
 .orders-panel{background:var(--white);border-right:1.5px solid var(--border);display:flex;flex-direction:column;}
 .op-head{padding:13px 14px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
@@ -1263,7 +1284,6 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
         <div class="brand-text">
             <h1>ST Pvt Ltd.</h1>
             <small>Supun Traders Private Limited</small>
-            <small>Point of Sale</small>
         </div>
     </div>
 
