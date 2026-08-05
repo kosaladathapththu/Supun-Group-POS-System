@@ -20,3 +20,7 @@ html,body{max-width:100%;overflow-x:hidden}.app{width:calc(100% - 246px);min-wid
 }
 @media(max-width:560px){.sales-register-table tbody tr{grid-template-columns:1fr}}
 @media print{.invoice-credit-action,.invoice-tools,.invoice-receipts{display:none!important}}
+.sale-lines .unit-price-cell{color:#174e39;min-width:105px}.sale-lines .unit-price-head{text-align:right;min-width:105px}
+.sale-lines .product-data-select{display:none!important}.selected-product{display:flex;flex-direction:column;gap:3px;min-width:0}.selected-product b{color:#174e39;font-size:12px}.selected-product span{white-space:normal;line-height:1.35}.product-search-help{display:block;margin:-10px 20px 16px;color:#718078;font-size:11px}
+.sale-lines .unit-price-input{width:115px;min-width:0!important;text-align:right;padding:9px 8px;font-weight:800;color:#174e39}.sale-lines .unit-price-input[readonly]{border-color:transparent;background:transparent;color:#174e39;pointer-events:none}
+.customer-view-button{padding:8px 11px!important;font-size:11px;white-space:nowrap}.customer-actions-ready th,.customer-actions-ready td{padding-left:12px;padding-right:12px}
