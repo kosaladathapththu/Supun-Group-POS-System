@@ -9,7 +9,7 @@ if (!can('customers.view')) {
 }
 
 $customerId = (int)($_GET['customer_id'] ?? 0);
-$sales = $db->prepare('SELECT id,sale_no FROM sales WHERE customer_id=? AND payment_type="credit" AND status NOT IN("cancelled","returned") ORDER BY sale_date,id');
+$sales = $db->prepare('SELECT id,sale_no,total,paid_amount,balance,status,due_date FROM sales WHERE customer_id=? AND payment_type="credit" AND status NOT IN("cancelled","returned") ORDER BY sale_date,id');
 $sales->execute([$customerId]);
 $saleRows = $sales->fetchAll();
 $references = [];
@@ -25,4 +25,4 @@ foreach ($receipts as $receipt) {
     if ($saleNumbers) $references[$receipt['receipt_no']] = $saleNumbers[0];
 }
 
-echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
