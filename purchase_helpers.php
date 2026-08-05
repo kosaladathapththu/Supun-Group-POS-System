@@ -23,7 +23,7 @@ function post_purchase(PDO $db,array $header,array $lines): int {
     $purchaseId=(int)$db->lastInsertId();
     $item=$db->prepare('INSERT INTO purchase_items(purchase_id,product_id,quantity,unit_cost,line_total) VALUES(?,?,?,?,?)');
     $update=$db->prepare('UPDATE products SET avg_cost=?,current_stock=?,retail_price=IF(?, ?, retail_price),wholesale_price=IF(?, ?, wholesale_price) WHERE id=?');
-    $move=$db->prepare('INSERT INTO stock_movements(product_id,movement_type,quantity,unit_cost,running_quantity,reference_type,reference_id,created_by) VALUES(?,"purchase",?,?,?,?,"purchase",?,?)');
+    $move=$db->prepare('INSERT INTO stock_movements(product_id,movement_type,quantity,unit_cost,running_quantity,reference_type,reference_id,created_by) VALUES(?,"purchase",?,?,?,"purchase",?,?)');
     foreach($lines as $line){
         $lock=$db->prepare('SELECT * FROM products WHERE id=? FOR UPDATE');$lock->execute([(int)$line['product_id']]);$product=$lock->fetch();if(!$product)throw new RuntimeException('A product could not be found.');
         $qty=(float)$line['quantity'];$cost=(float)$line['unit_cost'];if($qty<=0||$cost<0)throw new RuntimeException('Purchase quantity and cost are invalid.');

@@ -1,0 +1,2 @@
+<?php
+require __DIR__.'/bootstrap.php';require_auth();if(!can('imports.manage')){http_response_code(403);exit('Forbidden');}$file=__DIR__.'/templates/st_bulk_product_template.xlsx';if(!is_file($file)){http_response_code(404);exit('Template is unavailable.');}header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');header('Content-Disposition: attachment; filename="st_bulk_product_template.xlsx"');header('Content-Length: '.filesize($file));header('Cache-Control: private, max-age=0, must-revalidate');readfile($file);exit;
