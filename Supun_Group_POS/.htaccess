@@ -1,6 +1,0 @@
-RewriteEngine On
-
-# Redirect only browser requests that explicitly contain the old nested path.
-# Internally rewritten short URLs do not match THE_REQUEST, preventing loops.
-RewriteCond %{THE_REQUEST} \s/+Supun_Group_POS/Supun-Group-POS-System/Supun_Group_POS/([^?\s]*) [NC]
-RewriteRule ^ /Supun_Group_POS/%1 [R=302,L,NE]
