@@ -1,3 +1,4 @@
 const simpleStyle=document.createElement('link');simpleStyle.rel='stylesheet';simpleStyle.href='assets/simple.css';document.head.appendChild(simpleStyle);
 document.querySelector('[data-menu]')?.addEventListener('click',()=>document.querySelector('.sidebar')?.classList.toggle('open'));
 document.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('click',e=>{if(!confirm(el.dataset.confirm))e.preventDefault()}));
+if(location.pathname.endsWith('/sale.php')){const notes=[...document.querySelectorAll('label')].find(x=>x.textContent.trim().startsWith('Notes'));if(notes){const label=document.createElement('label');label.innerHTML='Invoice warranty<select name="warranty_months"><option value="0">No warranty</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">1 year</option><option value="24">2 years</option><option value="36">3 years</option></select>';notes.before(label);}}
