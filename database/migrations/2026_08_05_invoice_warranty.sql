@@ -1,0 +1,1 @@
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS warranty_months INT NOT NULL DEFAULT 0 AFTER discount;
