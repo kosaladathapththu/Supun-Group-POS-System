@@ -25,4 +25,18 @@ foreach ($receipts as $receipt) {
     if ($saleNumbers) $references[$receipt['receipt_no']] = $saleNumbers[0];
 }
 
-echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$paymentBreakdowns = [];
+$paymentRows = $db->prepare('SELECT s.id sale_id,CONCAT(s.sale_no,"-INITIAL") receipt_no,s.sale_date payment_date,sp.method,sp.amount allocated_amount FROM sale_payments sp JOIN sales s ON s.id=sp.sale_id WHERE s.customer_id=? AND s.payment_type="credit" UNION ALL SELECT cpa.sale_id,cp.receipt_no,cp.payment_date,cp.method,cpa.amount allocated_amount FROM customer_payment_allocations cpa JOIN customer_payments cp ON cp.id=cpa.payment_id JOIN sales s ON s.id=cpa.sale_id WHERE cp.customer_id=? AND s.payment_type="credit" ORDER BY payment_date,receipt_no');
+$paymentRows->execute([$customerId, $customerId]);
+foreach ($paymentRows as $payment) {
+    $saleId = (string)$payment['sale_id'];
+    if (!isset($paymentBreakdowns[$saleId])) $paymentBreakdowns[$saleId] = [];
+    $paymentBreakdowns[$saleId][] = [
+        'receipt_no' => $payment['receipt_no'],
+        'payment_date' => $payment['payment_date'],
+        'method' => $payment['method'],
+        'amount' => (float)$payment['allocated_amount'],
+    ];
+}
+
+echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
