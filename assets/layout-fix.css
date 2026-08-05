@@ -19,3 +19,4 @@ html,body{max-width:100%;overflow-x:hidden}.app{width:calc(100% - 246px);min-wid
   .sales-register-table .row-edit{display:inline-block;margin:0}
 }
 @media(max-width:560px){.sales-register-table tbody tr{grid-template-columns:1fr}}
+@media print{.invoice-credit-action,.invoice-tools,.invoice-receipts{display:none!important}}
