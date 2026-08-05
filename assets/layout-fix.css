@@ -1,1 +1,21 @@
 html,body{max-width:100%;overflow-x:hidden}.app{width:calc(100% - 246px);min-width:0}.content,.sale-layout,.sale-layout>section,.sale-layout>aside,.panel,.table-wrap{min-width:0;max-width:100%}.sale-layout{grid-template-columns:minmax(0,1fr) minmax(300px,340px)}input,select,textarea{max-width:100%}.sale-lines select.product{min-width:0!important;width:100%}.sale-lines table{table-layout:auto;min-width:0}.sale-lines th,.sale-lines td{white-space:normal;padding-left:10px;padding-right:10px}.sale-lines th:first-child,.sale-lines td:first-child{min-width:190px}.sale-lines input{min-width:0!important;width:100%}.wizard-steps{max-width:100%;overflow:visible}.customer-choice,.product-finder,.form-grid{min-width:0}.customer-choice>*,.product-finder>*,.form-grid>*{min-width:0}@media(max-width:1050px){.app{width:100%;margin-left:0}.sale-layout{grid-template-columns:1fr}.sale-summary{position:static}.sale-lines .table-wrap{overflow-x:auto}}@media(max-width:700px){.wizard-steps{display:grid;grid-template-columns:1fr 1fr}.wizard-steps span:not(:last-child)::after{display:none!important}.product-finder{grid-template-columns:1fr}.sale-lines table{min-width:620px}}
+
+/* All Sales register: keep every column visible without horizontal scrolling. */
+.sales-register-table{table-layout:fixed;width:100%;min-width:0;font-size:12px}
+.sales-register-table th,.sales-register-table td{white-space:normal!important;overflow-wrap:anywhere;padding:11px 7px!important;vertical-align:middle}
+.sales-register-table th:nth-child(1){width:12%}.sales-register-table th:nth-child(2){width:17%}.sales-register-table th:nth-child(3){width:7%}.sales-register-table th:nth-child(4){width:7%}.sales-register-table th:nth-child(5){width:11%}.sales-register-table th:nth-child(6){width:11%}.sales-register-table th:nth-child(7){width:9%}.sales-register-table th:nth-child(8){width:11%}.sales-register-table th:nth-child(9){width:9%}.sales-register-table th:nth-child(10){width:6%}
+.sales-register-table .btn{padding:7px 8px;font-size:11px}.sales-register-table .row-edit{display:block;margin-top:6px;font-size:10px}
+.table-wrap:has(.sales-register-table){overflow-x:hidden}
+
+@media(max-width:900px){
+  .sales-register-table,.sales-register-table tbody,.sales-register-table tr,.sales-register-table td{display:block;width:100%}
+  .sales-register-table thead{display:none}
+  .sales-register-table tbody{padding:10px}
+  .sales-register-table tbody tr{display:grid;grid-template-columns:1fr 1fr;border:1px solid #e3e8e2;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
+  .sales-register-table tbody td{display:grid;grid-template-columns:minmax(95px,38%) 1fr;gap:10px;align-items:center;border-top:1px solid #edf0ec!important;text-align:left!important;padding:10px 12px!important}
+  .sales-register-table tbody td::before{content:attr(data-label);color:#758078;text-transform:uppercase;letter-spacing:.06em;font-size:9px;font-weight:800}
+  .sales-register-table tbody td:last-child{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px}
+  .sales-register-table tbody td:last-child::before{content:''}
+  .sales-register-table .row-edit{display:inline-block;margin:0}
+}
+@media(max-width:560px){.sales-register-table tbody tr{grid-template-columns:1fr}}
