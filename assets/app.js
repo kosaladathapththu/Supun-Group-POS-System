@@ -71,6 +71,11 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 document.addEventListener('DOMContentLoaded',()=>{
+ if(location.pathname.endsWith('/customers.php')){const toolbar=document.querySelector('.toolbar');if(toolbar&&!toolbar.querySelector('[href="customer_ledgers.php"]')){const ledgers=document.createElement('a');ledgers.href='customer_ledgers.php';ledgers.className='btn primary';ledgers.textContent='View All Ledgers';toolbar.appendChild(ledgers)}}
+ if(location.pathname.endsWith('/customer_view.php')&&location.hash==='#ledger'){const button=document.querySelector('[data-tab="ledger"]');if(button)button.click()}
+});
+
+document.addEventListener('DOMContentLoaded',()=>{
  const updatePrice=document.querySelector('.confirm-card input[name="update_prices"]');
  if(updatePrice){const label=updatePrice.closest('label'),copy=document.createElement('span');label.classList.add('price-update-choice');copy.className='checkbox-copy';copy.innerHTML='<b>Update selling prices from Excel</b><small>Optional. Stock always increases. Tick only when Excel retail and wholesale prices should replace current selling prices.</small>';label.replaceChildren(updatePrice,copy)}
  document.querySelectorAll('input[type="checkbox"]').forEach(checkbox=>{const label=checkbox.closest('label');if(!label)return;label.classList.add('checkbox-option');const refresh=()=>label.classList.toggle('selected',checkbox.checked);checkbox.addEventListener('change',refresh);refresh()});
