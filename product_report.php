@@ -2,6 +2,7 @@
 require __DIR__.'/bootstrap.php';
 require_auth();
 if (!can('products.view')) { http_response_code(403); exit('Forbidden'); }
+require __DIR__.'/partials.php';
 $id=(int)($_GET['id']??0);
 $stmt=$db->prepare('SELECT p.*,c.name category,b.name brand FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE p.id=?');
 $stmt->execute([$id]);$product=$stmt->fetch();
