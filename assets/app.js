@@ -59,3 +59,13 @@ document.addEventListener('DOMContentLoaded',()=>{
  cancel.addEventListener('click',event=>{if(!confirm(cancel.dataset.confirm))event.preventDefault()});
  changeFile.after(cancel);
 });
+
+document.addEventListener('DOMContentLoaded',()=>{
+ if(location.pathname.endsWith('/bulk_import.php')){
+  const confirmForm=document.querySelector('.confirm-card .confirm-options');
+  if(confirmForm){[...confirmForm.querySelectorAll('label')].forEach(label=>{if(/Amount paid now|Payment method|Due date if unpaid/i.test(label.textContent))label.remove()});const note=document.createElement('div');note.className='import-payment-note';note.innerHTML='<b>Supplier bill will be created as unpaid.</b><span>Record payment later from Stock & Purchases → Supplier Bills & Payments.</span>';confirmForm.querySelector('button')?.before(note)}
+ }
+ if(location.pathname.endsWith('/purchases.php')&&document.querySelector('.sidebar-foot small')?.textContent.trim()==='Main Admin Account'){
+  const actions=document.querySelector('.action-banner .action-buttons');if(actions&&!actions.querySelector('[href="supplier_payments.php"]')){const link=document.createElement('a');link.href='supplier_payments.php';link.className='btn secondary';link.textContent='Supplier Bills & Payments';actions.appendChild(link)}
+ }
+});

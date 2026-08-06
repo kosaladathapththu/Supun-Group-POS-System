@@ -1,6 +1,7 @@
 <?php
 require __DIR__.'/bootstrap.php';require_auth();if(!can('imports.manage')){http_response_code(403);exit('Forbidden');}require __DIR__.'/partials.php';require __DIR__.'/xlsx_reader.php';require __DIR__.'/purchase_helpers.php';
 $required=['Supplier Code','Supplier Name','Product Name','Cost Price','Retail Price','Wholesale Price','Purchase Quantity'];
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['confirm'])){$_POST['paid_amount']=0;$_POST['payment_method']='other';$_POST['due_date']='';}
 function normalise_import_date($value): ?string {
     $value=trim((string)$value);if($value==='')return date('Y-m-d');
     if(is_numeric($value)){ $days=(int)floor((float)$value);if($days>0)return date('Y-m-d',strtotime('1899-12-30 +'.$days.' days')); }
