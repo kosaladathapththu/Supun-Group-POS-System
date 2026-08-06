@@ -51,3 +51,11 @@ document.addEventListener('DOMContentLoaded',()=>{
  form.addEventListener('input',()=>setTimeout(syncCashPayment));form.addEventListener('change',()=>setTimeout(syncCashPayment));updateState();syncCashPayment();
  const save=form.querySelector('button[type="submit"],button:not([type])');if(save){save.textContent='Save Sale';form.addEventListener('submit',()=>{save.disabled=true;save.textContent='Saving invoice…'})}
 });
+
+document.addEventListener('DOMContentLoaded',()=>{
+ const changeFile=document.querySelector('a[href="bulk_import.php?clear=1"]');
+ if(!changeFile||document.querySelector('.cancel-upload-button'))return;
+ const cancel=document.createElement('a');cancel.href='bulk_import.php?clear=1';cancel.className='btn cancel-upload-button';cancel.textContent='Cancel Upload';cancel.dataset.confirm='Cancel this upload preview? No stock has been added yet.';
+ cancel.addEventListener('click',event=>{if(!confirm(cancel.dataset.confirm))event.preventDefault()});
+ changeFile.after(cancel);
+});

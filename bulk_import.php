@@ -1,16 +1,28 @@
 <?php
 require __DIR__.'/bootstrap.php';require_auth();if(!can('imports.manage')){http_response_code(403);exit('Forbidden');}require __DIR__.'/partials.php';require __DIR__.'/xlsx_reader.php';require __DIR__.'/purchase_helpers.php';
-$required=['Supplier Code','Supplier Name','Supplier Invoice','Purchase Date','Item Code','Product Name','Brand','Unit','Category','Cost Price','Retail Price','Wholesale Price','Purchase Quantity'];
+$required=['Supplier Code','Supplier Name','Product Name','Cost Price','Retail Price','Wholesale Price','Purchase Quantity'];
+function normalise_import_date($value): ?string {
+    $value=trim((string)$value);if($value==='')return date('Y-m-d');
+    if(is_numeric($value)){ $days=(int)floor((float)$value);if($days>0)return date('Y-m-d',strtotime('1899-12-30 +'.$days.' days')); }
+    if(preg_match('/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{2}|\d{4})$/',$value,$parts)){$year=(int)$parts[3];if($year<100)$year+=2000;if(checkdate((int)$parts[2],(int)$parts[1],$year))return sprintf('%04d-%02d-%02d',$year,(int)$parts[2],(int)$parts[1]);}
+    foreach(['Y-m-d','d/m/Y','d-m-Y','d.m.Y','m/d/Y','m-d-Y','Y/m/d','d M Y','M d Y'] as $format){$date=DateTime::createFromFormat('!'.$format,$value);if($date&&$date->format($format)===$value)return $date->format('Y-m-d');}
+    $time=strtotime($value);return $time!==false?date('Y-m-d',$time):null;
+}
 function validate_import(PDO $db,array $rows,array $allowedCategories): array {
     global $required;$seenItems=[];$seenBarcodes=[];$seenSerials=[];$result=[];
     foreach($rows as $row){$errors=[];$warnings=[];foreach($required as $field)if(trim((string)($row[$field]??''))==='')$errors[]="Missing $field";
+        $date=normalise_import_date($row['Purchase Date']??'');if($date===null)$errors[]='Purchase Date could not be understood';else{if(trim((string)($row['Purchase Date']??''))!==$date)$warnings[]='Purchase date converted to '.$date;$row['Purchase Date']=$date;}
+        if(trim((string)($row['Item Code']??''))===''){$slug=strtoupper(preg_replace('/[^A-Z0-9]+/','-',strtoupper(trim((string)($row['Product Name']??'')))));$slug=trim($slug,'-')?:'ITEM';$row['Item Code']='AUTO-'.substr($slug,0,55);$warnings[]='Item code generated: '.$row['Item Code'];}
+        if(trim((string)($row['Supplier Invoice']??''))===''){$row['Supplier Invoice']='IMPORT-'.preg_replace('/[^A-Z0-9]+/','-',strtoupper(trim((string)($row['Supplier Code']??'SUP')))).'-'.str_replace('-','',$row['Purchase Date']);$warnings[]='Supplier invoice number generated';}
+        if(trim((string)($row['Category']??''))===''){$row['Category']='Uncategorised';$warnings[]='Category set to Uncategorised';}
+        if(trim((string)($row['Brand']??''))===''){$row['Brand']='Other';$warnings[]='Brand set to Other';}
+        if(trim((string)($row['Unit']??''))===''){$row['Unit']='PCS';$warnings[]='Unit set to PCS';}
         $item=trim((string)($row['Item Code']??''));$barcode=trim((string)($row['Barcode']??''));$serial=trim((string)($row['Serial Number']??''));$qty=(float)($row['Purchase Quantity']??0);$cost=(float)($row['Cost Price']??0);$retail=(float)($row['Retail Price']??0);$wholesale=(float)($row['Wholesale Price']??0);
-        if(isset($seenItems[$item]))$warnings[]='Item code appears more than once in this file';$seenItems[$item]=true;
+        $seenItems[$item]=true;
         if($barcode!==''&&isset($seenBarcodes[$barcode]))$errors[]='Duplicate barcode in file';$seenBarcodes[$barcode]=true;
         if($serial!==''&&isset($seenSerials[$serial]))$errors[]='Duplicate serial number in file';$seenSerials[$serial]=true;
         if($qty<=0)$errors[]='Quantity must be greater than zero';if($cost<0||$retail<0||$wholesale<0)$errors[]='Prices cannot be negative';if($retail<$cost)$warnings[]='Retail price is below buying cost';if($wholesale<$cost)$warnings[]='Wholesale price is below buying cost';
-        if($allowedCategories&&!in_array(strtolower(trim($row['Category']??'')),$allowedCategories,true))$errors[]='Category is not in the Categories sheet';
-        if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',trim($row['Purchase Date']??'')))$errors[]='Purchase Date must be YYYY-MM-DD';
+        if($allowedCategories&&!in_array(strtolower(trim($row['Category']??'')),$allowedCategories,true))$warnings[]='New category will be created: '.$row['Category'];
         $phone=preg_replace('/[\s\-()]/','',trim($row['Supplier Phone']??''));if($phone!==''&&!preg_match('/^\+?\d{9,15}$/',$phone))$warnings[]='Supplier phone may be invalid';
         if($barcode!==''){$s=$db->prepare('SELECT item_code FROM products WHERE barcode=? AND item_code<>?');$s->execute([$barcode,$item]);if($s->fetch())$errors[]='Barcode already belongs to another product';}
         if($serial!==''){$s=$db->prepare('SELECT id FROM product_serials WHERE serial_number=?');$s->execute([$serial]);if($s->fetch())$errors[]='Serial number already exists';}
