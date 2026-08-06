@@ -31,4 +31,8 @@ foreach($sales as $key=>$value)$sales[$key]=(float)$value;
 $sales['realized_margin']=$sales['sold_value']>0?($sales['realized_profit']/$sales['sold_value'])*100:0;
 if((user()['role_code']??'')==='cashier'){foreach(['avg_cost','retail_profit','retail_margin','retail_markup','wholesale_profit','wholesale_margin','wholesale_markup','stock_cost_value'] as $key)unset($p[$key]);foreach(['sold_cost','realized_profit','realized_margin'] as $key)unset($sales[$key]);}
 $p['sales_summary']=$sales;
+$advanceStmt=$db->prepare('SELECT COUNT(*) open_advance_orders,COALESCE(SUM(reserved_quantity),0) requested_quantity,COALESCE(SUM(amount),0) advance_received,COALESCE(SUM(remaining_amount),0) advance_available,COALESCE(SUM(reserved_quantity*expected_unit_price),0) expected_order_value FROM customer_advances WHERE product_id=? AND status IN("open","partially_applied") AND remaining_amount>0');
+$advanceStmt->execute([$id]);$advance=$advanceStmt->fetch()?:[];foreach($advance as $key=>$value)$advance[$key]=(float)$value;
+$advance['current_stock']=(float)$p['current_stock'];$advance['units_waiting']=max(0,$advance['requested_quantity']-$advance['current_stock']);$advance['stock_ready']=$advance['requested_quantity']>0&&$advance['current_stock']>=$advance['requested_quantity'];
+$p['advance_summary']=$advance;
 echo json_encode(['product'=>$p],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
