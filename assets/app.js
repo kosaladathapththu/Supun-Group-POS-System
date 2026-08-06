@@ -31,18 +31,19 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(labels.length){const optional=document.createElement('details');optional.className='cash-customer-optional';const summary=document.createElement('summary');summary.textContent='Optional: Select an existing customer';optional.append(summary,...labels);if(quick)optional.appendChild(quick);firstPanel.querySelector('.form-grid')?.before(optional)}
   const heading=firstPanel.querySelector('.panel-head h3');if(heading)heading.textContent='Cash customer';
  }
- const nativeSelect=document.querySelector('#line-template select.product');
+ search.removeAttribute('list');
+ const nativeSelect=document.querySelector('#line-template')?.content?.querySelector('select.product');
  const choices=[...(nativeSelect?.options||[])].filter(option=>option.value);
  const quick=document.createElement('section');quick.className='easy-product-picker';
  quick.innerHTML='<div class="easy-picker-head"><b>Click a product to add</b><small></small></div><div class="easy-product-grid"></div>';
  const grid=quick.querySelector('.easy-product-grid'),count=quick.querySelector('small');
- choices.forEach(option=>{const button=document.createElement('button');button.type='button';button.className='easy-product-button';button.dataset.search=option.dataset.search||option.textContent.toLowerCase();button.dataset.value=option.textContent.trim();const parts=option.textContent.split(' - ');button.innerHTML='<b>'+parts.slice(1).join(' - ')+'</b><span>'+parts[0]+'</span><small>Stock: '+(option.dataset.stock||'0')+'</small>';button.addEventListener('click',()=>{search.value=button.dataset.value;add.click();search.value='';search.focus()});grid.appendChild(button)});
+ choices.forEach(option=>{const button=document.createElement('button');button.type='button';button.className='easy-product-button';button.dataset.search=option.dataset.search||option.textContent.toLowerCase();button.dataset.value=option.textContent.trim();const parts=option.textContent.split(' - ');button.innerHTML='<span class="easy-product-code">'+parts[0]+'</span><b>'+parts.slice(1).join(' - ')+'</b><small>Available: '+(option.dataset.stock||'0')+'</small><em>Add</em>';button.addEventListener('click',()=>{search.value=button.dataset.value;add.click();search.value='';filter();search.focus()});grid.appendChild(button)});
  const finder=document.querySelector('.product-finder');finder?.after(quick);
  const filter=()=>{const q=search.value.trim().toLowerCase();let visible=0;grid.querySelectorAll('.easy-product-button').forEach(button=>{const show=!q||button.dataset.search.includes(q);button.hidden=!show;if(show)visible++});count.textContent=visible+' product'+(visible===1?'':'s')};
  search.addEventListener('input',filter);filter();
  const empty=document.createElement('div');empty.className='easy-empty-basket';empty.textContent='No products added yet. Click a product above.';lines.closest('.table-wrap')?.before(empty);
  const proceed=document.createElement('button');proceed.type='button';proceed.className='btn primary easy-continue';proceed.textContent='Continue to Payment →';proceed.addEventListener('click',()=>{paymentPanel?.classList.add('ready');paymentPanel?.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>paymentPanel?.classList.remove('ready'),1400)});lines.closest('.table-wrap')?.after(proceed);
- const updateState=()=>{const has=!!lines.querySelector('tr');salePanel?.classList.toggle('has-products',has);empty.hidden=has;proceed.hidden=!has;document.querySelectorAll('.wizard-steps span').forEach((step,index)=>step.classList.toggle('done',has&&index<2))};
+ const updateState=()=>{const has=!!lines.querySelector('tr select.product');salePanel?.classList.toggle('has-products',has);empty.hidden=has;proceed.hidden=!has;document.querySelectorAll('.wizard-steps span').forEach((step,index)=>step.classList.toggle('done',has&&index<2))};
  const syncCashPayment=()=>{if(mode!=='cash')return;const total=Number((document.querySelector('#total')?.textContent||'').replace(/[^0-9.-]/g,''))||0,paid=document.querySelector('#paid');if(paid&&Number(paid.value)!==total){paid.value=String(total);paid.dispatchEvent(new Event('input',{bubbles:true}))}};
  const observer=new MutationObserver(()=>{updateState();setTimeout(syncCashPayment)});observer.observe(lines,{childList:true,subtree:true});
  form.addEventListener('input',()=>setTimeout(syncCashPayment));form.addEventListener('change',()=>setTimeout(syncCashPayment));updateState();syncCashPayment();
