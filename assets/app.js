@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 document.addEventListener('DOMContentLoaded',()=>{
+ if(location.pathname.endsWith('/products.php')){const toolbar=document.querySelector('.toolbar'),addButton=toolbar?.querySelector('button.btn.primary');if(toolbar&&addButton&&!toolbar.querySelector('[href="bulk_import.php"]')){const actions=document.createElement('div');actions.className='product-toolbar-actions';const excel=document.createElement('a');excel.href='bulk_import.php';excel.className='btn secondary excel-stock-button';excel.textContent='Excel Stock Update';addButton.before(actions);actions.append(excel,addButton)}}
  document.querySelectorAll('a[href^="edit_record.php?type=customer_payment&id="]').forEach(edit=>{if(edit.parentElement?.querySelector('.print-customer-receipt'))return;const id=new URL(edit.href).searchParams.get('id'),print=document.createElement('a');print.href='payment_document.php?type=customer&id='+encodeURIComponent(id);print.className='row-edit print-customer-receipt';print.textContent='Print Receipt';edit.after(document.createTextNode(' '),print)});
  const invoiceBrand=document.querySelector('.invoice header>div:first-child');if(invoiceBrand){invoiceBrand.classList.add('invoice-company-brand');invoiceBrand.innerHTML='<img src="assets/supun-traders-logo.png" alt="Supun Traders"><p>114, Second Cross Street, Pettah, Colombo 11</p>'}
 });
