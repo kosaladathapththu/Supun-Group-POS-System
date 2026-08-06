@@ -9,7 +9,7 @@ $sql = 'SELECT c.id,c.customer_code,c.name,c.business_name,c.phone,c.credit_enab
  (SELECT COALESCE(SUM(o.amount),0) FROM customer_opening_balances o WHERE o.customer_id=c.id) opening_balance,
  (SELECT COALESCE(SUM(s.total),0) FROM sales s WHERE s.customer_id=c.id AND s.payment_type="credit" AND s.status NOT IN("cancelled","returned")) credit_sales,
  (SELECT COALESCE(SUM(sp.amount),0) FROM sale_payments sp JOIN sales s ON s.id=sp.sale_id WHERE s.customer_id=c.id AND s.payment_type="credit" AND s.status NOT IN("cancelled","returned")) initial_payments,
- (SELECT COALESCE(SUM(cp.amount),0) FROM customer_payments cp WHERE cp.customer_id=c.id) later_payments,
+ (SELECT COALESCE(SUM(cp.amount),0) FROM customer_payments cp WHERE cp.customer_id=c.id AND cp.status="posted") later_payments,
  (SELECT COUNT(*) FROM sales s WHERE s.customer_id=c.id AND s.payment_type="credit" AND s.balance>0 AND s.status NOT IN("cancelled","returned")) open_bills
  FROM customers c WHERE c.status="active" AND (c.credit_enabled=1 OR c.outstanding<>0';
 $args = [];

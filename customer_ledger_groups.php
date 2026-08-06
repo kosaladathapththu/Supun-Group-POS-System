@@ -18,7 +18,7 @@ foreach ($saleRows as $sale) {
     $references[$sale['sale_no'].'-INITIAL'] = $sale['sale_no'];
 }
 
-$receipts = $db->prepare('SELECT cp.receipt_no,GROUP_CONCAT(DISTINCT s.sale_no ORDER BY s.sale_date,s.id) sale_numbers FROM customer_payments cp JOIN customer_payment_allocations cpa ON cpa.payment_id=cp.id JOIN sales s ON s.id=cpa.sale_id WHERE cp.customer_id=? GROUP BY cp.id,cp.receipt_no');
+$receipts = $db->prepare('SELECT cp.receipt_no,GROUP_CONCAT(DISTINCT s.sale_no ORDER BY s.sale_date,s.id) sale_numbers FROM customer_payments cp JOIN customer_payment_allocations cpa ON cpa.payment_id=cp.id JOIN sales s ON s.id=cpa.sale_id WHERE cp.customer_id=? AND cp.status="posted" GROUP BY cp.id,cp.receipt_no');
 $receipts->execute([$customerId]);
 foreach ($receipts as $receipt) {
     $saleNumbers = array_values(array_filter(explode(',', (string)$receipt['sale_numbers'])));
@@ -26,7 +26,7 @@ foreach ($receipts as $receipt) {
 }
 
 $paymentBreakdowns = [];
-$paymentRows = $db->prepare('SELECT s.id sale_id,CONCAT(s.sale_no,"-INITIAL") receipt_no,s.sale_date payment_date,sp.method,sp.amount allocated_amount FROM sale_payments sp JOIN sales s ON s.id=sp.sale_id WHERE s.customer_id=? AND s.payment_type="credit" UNION ALL SELECT cpa.sale_id,cp.receipt_no,cp.payment_date,cp.method,cpa.amount allocated_amount FROM customer_payment_allocations cpa JOIN customer_payments cp ON cp.id=cpa.payment_id JOIN sales s ON s.id=cpa.sale_id WHERE cp.customer_id=? AND s.payment_type="credit" ORDER BY payment_date,receipt_no');
+$paymentRows = $db->prepare('SELECT s.id sale_id,CONCAT(s.sale_no,"-INITIAL") receipt_no,s.sale_date payment_date,sp.method,sp.amount allocated_amount FROM sale_payments sp JOIN sales s ON s.id=sp.sale_id WHERE s.customer_id=? AND s.payment_type="credit" UNION ALL SELECT cpa.sale_id,cp.receipt_no,cp.payment_date,cp.method,cpa.amount allocated_amount FROM customer_payment_allocations cpa JOIN customer_payments cp ON cp.id=cpa.payment_id JOIN sales s ON s.id=cpa.sale_id WHERE cp.customer_id=? AND s.payment_type="credit" AND cp.status="posted" ORDER BY payment_date,receipt_no');
 $paymentRows->execute([$customerId, $customerId]);
 foreach ($paymentRows as $payment) {
     $saleId = (string)$payment['sale_id'];
@@ -39,4 +39,5 @@ foreach ($paymentRows as $payment) {
     ];
 }
 
-echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$reversed=$db->prepare('SELECT receipt_no FROM customer_payments WHERE customer_id=? AND status="reversed"');$reversed->execute([$customerId]);$reversedReceipts=$reversed->fetchAll(PDO::FETCH_COLUMN);
+echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns, 'reversed_receipts'=>$reversedReceipts], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
