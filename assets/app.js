@@ -23,6 +23,7 @@ document.querySelectorAll('[data-confirm]').forEach(el=>el.addEventListener('cli
 
 // Simple sale assistant: one-click products, optional cash customer, and automatic cash payment.
 document.addEventListener('DOMContentLoaded',()=>{
+ if(location.pathname.endsWith('/customers.php')){const modal=document.querySelector('#customer-form-modal'),open=document.querySelector('#open-customer-form'),close=modal?.querySelector('.customer-form-close');if(modal&&open&&close){const hide=()=>{modal.hidden=true;document.body.classList.remove('modal-open')},show=()=>{modal.hidden=false;document.body.classList.add('modal-open');modal.querySelector('input[name="customer_code"]')?.focus()};open.addEventListener('click',show);close.addEventListener('click',hide);modal.addEventListener('click',event=>{if(event.target===modal)hide()});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!modal.hidden)hide()})}}
  const form=document.querySelector('#sale-form'),lines=document.querySelector('#lines'),search=document.querySelector('#product-search'),add=document.querySelector('#find-product');
  if(!form||!lines||!search||!add)return;
  const mode=document.querySelector('#payment-type')?.value||'cash',salePanel=lines.closest('.sale-lines'),paymentPanel=document.querySelector('.sale-summary');
