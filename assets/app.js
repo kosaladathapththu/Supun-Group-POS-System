@@ -69,3 +69,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   const actions=document.querySelector('.action-banner .action-buttons');if(actions&&!actions.querySelector('[href="supplier_payments.php"]')){const link=document.createElement('a');link.href='supplier_payments.php';link.className='btn secondary';link.textContent='Supplier Bills & Payments';actions.appendChild(link)}
  }
 });
+
+document.addEventListener('DOMContentLoaded',()=>{
+ const updatePrice=document.querySelector('.confirm-card input[name="update_prices"]');
+ if(updatePrice){const label=updatePrice.closest('label'),copy=document.createElement('span');label.classList.add('price-update-choice');copy.className='checkbox-copy';copy.innerHTML='<b>Update selling prices from Excel</b><small>Optional. Stock always increases. Tick only when Excel retail and wholesale prices should replace current selling prices.</small>';label.replaceChildren(updatePrice,copy)}
+ document.querySelectorAll('input[type="checkbox"]').forEach(checkbox=>{const label=checkbox.closest('label');if(!label)return;label.classList.add('checkbox-option');const refresh=()=>label.classList.toggle('selected',checkbox.checked);checkbox.addEventListener('change',refresh);refresh()});
+});
