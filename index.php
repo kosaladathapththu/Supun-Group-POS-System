@@ -5,6 +5,16 @@ $month = $db->query("SELECT COALESCE(SUM(total),0) total FROM sales WHERE YEAR(s
 $receivables = $db->query("SELECT COALESCE(SUM(balance),0) FROM sales WHERE payment_type='credit' AND status IN ('unpaid','partially_paid','overdue')")->fetchColumn();
 $stockValue = $db->query("SELECT COALESCE(SUM(current_stock*avg_cost),0) FROM products WHERE status='active'")->fetchColumn();
 $supplierPayables = $db->query("SELECT COALESCE(SUM(outstanding),0) FROM suppliers WHERE status='active'")->fetchColumn();
+$directSaleMoney = (float)$db->query("SELECT COALESCE(SUM(sp.amount),0) FROM sale_payments sp JOIN sales s ON s.id=sp.sale_id WHERE s.status NOT IN ('cancelled','returned')")->fetchColumn();
+$creditCollectionMoney = (float)$db->query("SELECT COALESCE(SUM(amount),0) FROM customer_payments WHERE status='posted'")->fetchColumn();
+$advanceMoneyHeld = (float)$db->query("SELECT COALESCE(SUM(amount),0) FROM customer_advances WHERE status NOT IN ('refunded','cancelled')")->fetchColumn();
+$supplierMoneyPaid = (float)$db->query("SELECT COALESCE(SUM(paid_amount),0) FROM purchases WHERE status='posted'")->fetchColumn();
+$expenseMoneyPaid = (float)$db->query("SELECT COALESCE(SUM(amount),0) FROM expenses")->fetchColumn();
+$otherMoneyIn = (float)$db->query("SELECT COALESCE(SUM(amount),0) FROM account_transactions WHERE direction='in' AND COALESCE(reference_type,'') IN ('manual','cash_in','other_income')")->fetchColumn();
+$otherMoneyOut = (float)$db->query("SELECT COALESCE(SUM(amount),0) FROM account_transactions WHERE direction='out' AND COALESCE(reference_type,'') IN ('manual','cash_out','other_payment')")->fetchColumn();
+$totalMoneyReceived = $directSaleMoney + $creditCollectionMoney + $advanceMoneyHeld + $otherMoneyIn;
+$totalMoneyPaidOut = $supplierMoneyPaid + $expenseMoneyPaid + $otherMoneyOut;
+$moneyCurrentlyHeld = $totalMoneyReceived - $totalMoneyPaidOut;
 $lowStock = $db->query("SELECT COUNT(*) FROM products WHERE status='active' AND current_stock<=minimum_stock")->fetchColumn();
 $recent = $db->query("SELECT s.sale_no,s.sale_date,COALESCE(c.name,'Walk-in Customer') customer,s.sale_type,s.payment_type,s.total,s.status FROM sales s LEFT JOIN customers c ON c.id=s.customer_id ORDER BY s.id DESC LIMIT 6")->fetchAll();
 $top = $db->query("SELECT p.name,SUM(si.quantity) qty,SUM(si.line_total) revenue FROM sale_items si JOIN products p ON p.id=si.product_id JOIN sales s ON s.id=si.sale_id WHERE s.sale_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) AND s.status NOT IN ('cancelled','returned') GROUP BY p.id ORDER BY revenue DESC LIMIT 5")->fetchAll();
