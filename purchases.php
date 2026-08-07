@@ -10,9 +10,9 @@ page_start('Receive Stock','purchases.php');
 <section class="panel table-panel">
   <div class="panel-head"><div><span class="eyebrow">Purchase history</span><h3>Received supplier invoices</h3></div></div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Our No.</th><th>Supplier Invoice</th><th>Supplier</th><th>Date</th><th>Payment</th><th>Payment Status</th><th class="right">Total</th></tr></thead>
+    <thead><tr><th>Our No.</th><th>Supplier Invoice</th><th>Supplier</th><th>Date</th><th>Payment</th><th>Payment Status</th><th class="right">Total</th><th>Action</th></tr></thead>
     <tbody>
-    <?php if(!$rows):?><tr><td colspan="7"><div class="empty-state compact"><b>No purchases yet</b><span>Choose “Type a Purchase” or “Upload Excel” above.</span></div></td></tr><?php endif;?>
+    <?php if(!$rows):?><tr><td colspan="8"><div class="empty-state compact"><b>No purchases yet</b><span>Choose “Type a Purchase” or “Upload Excel” above.</span></div></td></tr><?php endif;?>
     <?php foreach($rows as $r):
       $paid=(float)$r['paid_amount'];
       $balance=(float)$r['balance'];
@@ -24,6 +24,7 @@ page_start('Receive Stock','purchases.php');
         <td><span class="tag"><?=e($r['payment_type'])?></span><div class="purchase-payment-values"><small>Paid <?=money($paid)?></small><?php if($balance>0):?><small>Due <?=money($balance)?></small><?php endif;?></div></td>
         <td><span class="status purchase-payment-status <?=$paymentStatus?>"><?=e(ucwords(str_replace('_',' ',$paymentStatus)))?></span></td>
         <td class="right"><b><?=money($r['total'])?></b></td>
+        <td class="purchase-pay-action"><?php if($balance>0):?><a class="btn primary" href="supplier_payments.php?purchase_id=<?=$r['id']?>#pay-supplier">Pay</a><?php else:?><span class="purchase-paid-label">✓ Paid</span><?php endif;?></td>
       </tr>
     <?php endforeach;?>
     </tbody>
