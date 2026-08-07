@@ -1,7 +1,26 @@
 <?php
 require __DIR__.'/bootstrap.php';require_auth();if(!can('imports.manage')){http_response_code(403);exit('Forbidden');}require __DIR__.'/partials.php';require __DIR__.'/xlsx_reader.php';require __DIR__.'/purchase_helpers.php';
 $required=['Supplier Code','Supplier Name','Product Name','Cost Price','Retail Price','Wholesale Price','Purchase Quantity'];
-if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['confirm'])){$_POST['paid_amount']=0;$_POST['payment_method']='other';$_POST['due_date']='';}
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['confirm'])){
+    $_POST['paid_amount']=0;$_POST['payment_method']='other';$_POST['due_date']='';
+    $priceStrategy=in_array($_POST['price_strategy']??'merge_keep',['merge_keep','merge_update','separate_batch'],true)?$_POST['price_strategy']:'merge_keep';
+    if($priceStrategy==='merge_update')$_POST['update_prices']='1';else unset($_POST['update_prices']);
+    if($priceStrategy==='separate_batch'&&!empty($_SESSION['bulk_import']['rows'])){
+        foreach($_SESSION['bulk_import']['rows'] as &$incoming){
+            $lookup=$db->prepare('SELECT id FROM products WHERE item_code=?');$lookup->execute([$incoming['Item Code']]);
+            if(!$lookup->fetchColumn())continue;
+            $dateDigits=preg_replace('/\D/','',(string)$incoming['Purchase Date']);
+            $base=preg_replace('/[^A-Za-z0-9_-]/','-',(string)$incoming['Item Code']);
+            $candidate=substr($base,0,42).'-B'.substr($dateDigits,-8).'-'.$incoming['_row'];$attempt=1;
+            while(true){$exists=$db->prepare('SELECT id FROM products WHERE item_code=?');$exists->execute([$candidate]);if(!$exists->fetchColumn())break;$candidate=substr($base,0,38).'-B'.substr($dateDigits,-8).'-'.$incoming['_row'].'-'.$attempt++;}
+            $incoming['Item Code']=$candidate;
+            $incoming['Product Name'].=' - New price batch '.$incoming['Purchase Date'];
+            $incoming['Barcode']='';
+            $incoming['_warnings'][]='Created as a separate new-price batch; the old stock stays available until sold out';
+            if($incoming['_status']==='valid')$incoming['_status']='warning';
+        }unset($incoming);
+    }
+}
 function normalise_import_date($value): ?string {
     $value=trim((string)$value);if($value==='')return date('Y-m-d');
     if(is_numeric($value)){ $days=(int)floor((float)$value);if($days>0)return date('Y-m-d',strtotime('1899-12-30 +'.$days.' days')); }
