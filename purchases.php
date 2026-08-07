@@ -6,7 +6,7 @@ require __DIR__.'/partials.php';
 $rows=$db->query('SELECT p.*,s.name supplier FROM purchases p JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.id DESC LIMIT 50')->fetchAll();
 page_start('Receive Stock','purchases.php');
 ?>
-<section class="action-banner"><div><span class="step-number">1</span><div><b>How do you want to add stock?</b><p>Use manual entry for one invoice, or Excel when the supplier sends many products.</p></div></div><div class="action-buttons"><a class="btn primary" href="purchase_new.php">Type a Purchase</a><?php if(can('imports.manage')):?><a class="btn excel-upload-button" href="bulk_import.php"><span aria-hidden="true">▦</span> Upload Excel</a><?php endif;?></div></section>
+<section class="action-banner"><div><span class="step-number">1</span><div><b>How do you want to add stock?</b><p>Use manual entry for one invoice, or Excel when the supplier sends many products.</p></div></div><div class="action-buttons"><a class="btn primary" href="purchase_new.php">Type a Purchase</a><?php if(can('imports.manage')):?><a class="btn excel-upload-button" href="bulk_import.php"><span aria-hidden="true">▦</span> Upload Bulk Stock</a><?php endif;?></div></section>
 <section class="panel table-panel">
   <div class="panel-head"><div><span class="eyebrow">Purchase history</span><h3>Received supplier invoices</h3></div></div>
   <div class="table-wrap"><table>
