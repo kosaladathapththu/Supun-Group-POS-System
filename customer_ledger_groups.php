@@ -40,4 +40,8 @@ foreach ($paymentRows as $payment) {
 }
 
 $reversed=$db->prepare('SELECT receipt_no FROM customer_payments WHERE customer_id=? AND status="reversed"');$reversed->execute([$customerId]);$reversedReceipts=$reversed->fetchAll(PDO::FETCH_COLUMN);
-echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns, 'reversed_receipts'=>$reversedReceipts], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$reversedSalesStmt=$db->prepare('SELECT DISTINCT s.id sale_id,s.sale_no,cp.receipt_no,cp.reversal_type,cp.reversal_reason,cp.reversed_at,cpa.amount FROM customer_payments cp JOIN customer_payment_allocations cpa ON cpa.payment_id=cp.id JOIN sales s ON s.id=cpa.sale_id WHERE cp.customer_id=? AND cp.status="reversed" ORDER BY cp.reversed_at DESC,cp.id DESC');
+$reversedSalesStmt->execute([$customerId]);
+$reversedSales=[];
+foreach($reversedSalesStmt as $row){$saleNo=$row['sale_no'];if(!isset($reversedSales[$saleNo]))$reversedSales[$saleNo]=[];$reversedSales[$saleNo][]=[$row['receipt_no'],$row['reversal_type'],$row['reversal_reason'],$row['reversed_at'],(float)$row['amount']];}
+echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns, 'reversed_receipts'=>$reversedReceipts,'reversed_sales'=>$reversedSales], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
