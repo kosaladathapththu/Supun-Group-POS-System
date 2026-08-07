@@ -2,6 +2,7 @@
 require __DIR__.'/bootstrap.php';require_auth();if(!can('imports.manage')){http_response_code(403);exit('Forbidden');}require __DIR__.'/partials.php';require __DIR__.'/xlsx_reader.php';require __DIR__.'/purchase_helpers.php';
 $required=['Supplier Code','Supplier Name','Product Name','Cost Price','Retail Price','Wholesale Price','Purchase Quantity'];
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['confirm'])){
+    verify_csrf();
     $_POST['paid_amount']=0;$_POST['payment_method']='other';$_POST['due_date']='';
     $priceStrategy=in_array($_POST['price_strategy']??'merge_keep',['merge_keep','merge_update','separate_batch'],true)?$_POST['price_strategy']:'merge_keep';
     if($priceStrategy==='merge_update')$_POST['update_prices']='1';else unset($_POST['update_prices']);
