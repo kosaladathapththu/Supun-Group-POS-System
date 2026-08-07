@@ -33,7 +33,7 @@ page_start('Customers','customers.php');
     <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Contact</th><th>Type</th><th>Credit</th><th class="right">Outstanding</th></tr></thead><tbody>
     <?php foreach($rows as $r):?><tr>
         <td><a href="customer_view.php?id=<?=$r['id']?>"><b><?=e($r['name'])?></b></a><?php if(can('customers.manage')):?> <a class="row-edit" href="edit_record.php?type=customer&id=<?=$r['id']?>">Edit</a><?php endif;?><br><span class="muted"><?=e($r['customer_code'])?><?=!empty($r['business_name'])?' · '.e($r['business_name']):''?></span></td>
-        <td><?=e($r['phone']?:'—')?></td><td><span class="tag"><?=e($r['customer_type'])?></span></td><td><?=!empty($r['credit_enabled'])?'<span class="status active">Enabled</span>':'Disabled'?></td><td class="right"><b><?=money($r['outstanding'])?></b></td>
+        <td><?=e($r['phone']?:'—')?></td><td><span class="tag"><?=e($r['customer_type'])?></span></td><td><?=!empty($r['credit_enabled'])?'<span class="status active">Enabled</span>':'Disabled'?></td><td class="right customer-credit-due <?=$r['outstanding']>0?'has-credit-due':'no-credit-due'?>"><b><?=money($r['outstanding'])?></b><?php if($r['outstanding']>0):?><small>Credit Due</small><?php endif;?></td>
     </tr><?php endforeach;?>
     </tbody></table></div>
 </section>
