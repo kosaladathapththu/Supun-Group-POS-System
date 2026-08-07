@@ -44,4 +44,7 @@ $reversedSalesStmt=$db->prepare('SELECT DISTINCT s.id sale_id,s.sale_no,cp.recei
 $reversedSalesStmt->execute([$customerId]);
 $reversedSales=[];
 foreach($reversedSalesStmt as $row){$saleNo=$row['sale_no'];if(!isset($reversedSales[$saleNo]))$reversedSales[$saleNo]=[];$reversedSales[$saleNo][]=[$row['receipt_no'],$row['reversal_type'],$row['reversal_reason'],$row['reversed_at'],(float)$row['amount']];}
-echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns, 'reversed_receipts'=>$reversedReceipts,'reversed_sales'=>$reversedSales], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$allPaymentsStmt=$db->prepare('SELECT id,receipt_no,status,reversal_type,reversal_reason,reversed_at FROM customer_payments WHERE customer_id=? ORDER BY payment_date DESC,id DESC');
+$allPaymentsStmt->execute([$customerId]);
+$allPayments=$allPaymentsStmt->fetchAll();
+echo json_encode(['sales' => array_column($saleRows, 'sale_no'), 'references' => $references, 'invoice_summaries' => $saleRows, 'payment_breakdowns' => $paymentBreakdowns, 'reversed_receipts'=>$reversedReceipts,'reversed_sales'=>$reversedSales,'all_payments'=>$allPayments], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
